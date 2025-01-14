@@ -1,0 +1,8 @@
+npx create-expo-app --template
+npm install @react-nativigation/native
+npx expo install react-native-screens react-native-safe-area-context
+npm install @react-navigation/stack
+npm install react-native-gesture-handler
+npm install @react-native-masked-view/masked-view
+npm install --save @react-native-firebase/app
+npm i @react-native-firebase/auth
