@@ -1,106 +1,244 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Image } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context"; // For safe area handling
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { createStackNavigator } from "@react-navigation/stack";
+import { LinearGradient } from "expo-linear-gradient";
 
-export default function KudumbashreeDetailsScreen() {
+// Importing screens
+import SavingsScreen from "./SavingsScreen";
+import LoanScreen from "./LoanScreen";
+import BalanceScreen from "./BalanceScreen";
+import PendingScreen from "./PendingScreen";
+import LinkageLoanScreen from "./LinkageLoanScreen";
+import ApplyLoanScreen from "./ApplyLoanScreen";
+import PayPendingLoanScreen from "./PayPendingLoanScreen";
+import PayWeeklyDueScreen from "./PayWeeklyDueScreen";
+
+const Stack = createStackNavigator();
+
+// Main Screen Component
+function MainDetailsScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
-      {/* Page Heading */}
-      <Text style={styles.pageHeading}>Kudumbashree Details</Text>
+      {/* Heading */}
+      <Text style={styles.pageHeading}>UNIT NAME</Text>
 
-      {/* ScrollView to enable vertical scrolling */}
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {/* Mission */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeader}>Mission</Text>
-          <Text style={styles.sectionText}>
-            The mission of Kudumbashree is to eradicate absolute poverty in
-            Kerala by empowering women through community-based organizations.
-            It aims to uplift marginalized women and promote gender equality.
-          </Text>
+      {/* Grid Section above View */}
+      <View style={styles.topGridContainer}>
+        <View style={styles.gridRow}>
+          <View style={styles.topGridItem}>
+            <Text style={styles.gridText}>President</Text>
+          </View>
+          <View style={styles.topGridItem}>
+            <Text style={styles.gridText}>Secretary</Text>
+          </View>
         </View>
+        <View style={styles.gridRow}>
+          <View style={styles.topGridItem}>
+            <Text style={styles.gridText}>Samatheeka</Text>
+          </View>
+          <View style={styles.topGridItem}>
+            <Text style={styles.gridText}>Adisthana</Text>
+          </View>
+        </View>
+        <View style={styles.gridRow}>
+          <View style={styles.topGridItem}>
+            <Text style={styles.gridText}>Vidyabhyasa</Text>
+          </View>
+          <View style={styles.topGridItem}>
+            <Text style={styles.gridText}>Upjeevana</Text>
+          </View>
+        </View>
+      </View>
 
-        {/* Objectives */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeader}>Objectives</Text>
-          <Text style={styles.sectionText}>
-            1. Empower women through leadership, skill-building, and community
-            development.
-            {"\n"}2. Promote sustainable livelihoods and economic independence.
-            {"\n"}3. Improve access to education, health, and welfare services for
-            women and children.
-          </Text>
-        </View>
+      {/* View Section */}
+      <Text style={styles.subHeading}>View</Text>
 
-        {/* Key Features */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeader}>Key Features</Text>
-          <Text style={styles.sectionText}>
-            Kudumbashree is based on a three-tier structure:
-            {"\n"}- **Neighbourhood Groups (NHGs)**: Grassroots level groups of
-            women engaged in various activities.
-            {"\n"}- **Area Development Societies (ADS)**: Facilitates the
-            convergence of various programs.
-            {"\n"}- **Community Development Societies (CDS)**: Responsible for
-            the overall management and coordination of activities.
+      {/* Gradient Button Container */}
+      <LinearGradient
+        colors={["rgba(129, 69, 155, 0.7)", "rgba(166, 223, 184, 0.7)"]}
+        start={[0.1, 0.1]}
+        end={[1, 1]}
+        style={styles.buttonContainer}
+      >
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate("Savings")}
+        >
+          <Text style={styles.buttonText}>
+            Savings {"\u2197"} {/* Top-right arrow */}
           </Text>
-        </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate("Loan")}
+        >
+          <Text style={styles.buttonText}>
+            Loan {"\u2197"}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate("Balance")}
+        >
+          <Text style={styles.buttonText}>
+            Balance {"\u2197"}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate("Pending")}
+        >
+          <Text style={styles.buttonText}>
+            Pending {"\u2197"}
+          </Text>
+        </TouchableOpacity>
+      </LinearGradient>
 
-        {/* Images Section (optional) */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeader}>Gallery</Text>
-          <Image
-            source={{ uri: "https://placeimg.com/400/200/any" }} // Replace with your image URL
-            style={styles.image}
-          />
-          <Text style={styles.sectionText}>
-            Image caption or description of the activities being conducted by
-            Kudumbashree.
-          </Text>
+      {/* Linkage Loan Section */}
+      <TouchableOpacity onPress={() => navigation.navigate("LinkageLoan")}>
+        <Text style={[styles.subHeading, styles.clickableSubHeading]}>
+          Linkage Loan {"\u2197"}
+        </Text>
+      </TouchableOpacity>
+      <View style={styles.bottomGridContainer}>
+        <View style={styles.gridRow}>
+          <TouchableOpacity
+            style={styles.bottomGridItem}
+            onPress={() => navigation.navigate("ApplyLoan")}
+          >
+            <Text style={styles.gridText}>
+              Apply for New Loan {"\u2197"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.bottomGridItem}
+            onPress={() => navigation.navigate("PayPendingLoan")}
+          >
+            <Text style={styles.gridText}>
+              Pay Pending Loans {"\u2197"}
+            </Text>
+          </TouchableOpacity>
         </View>
-      </ScrollView>
+        <View style={styles.gridRow}>
+          <TouchableOpacity
+            style={styles.bottomGridItem}
+            onPress={() => navigation.navigate("PayWeeklyDue")}
+          >
+            <Text style={styles.gridText}>
+              Pay Weekly Due {"\u2197"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </SafeAreaView>
+  );
+}
+
+// Main Navigator for all screens
+export default function KudumbashreeDetailsScreen() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="MainDetails"
+        component={MainDetailsScreen}
+        options={{ headerShown: false }} // Hide header for main details screen
+      />
+      <Stack.Screen name="Savings" component={SavingsScreen} />
+      <Stack.Screen name="Loan" component={LoanScreen} />
+      <Stack.Screen name="Balance" component={BalanceScreen} />
+      <Stack.Screen name="Pending" component={PendingScreen} />
+      <Stack.Screen name="LinkageLoan" component={LinkageLoanScreen} />
+      <Stack.Screen name="ApplyLoan" component={ApplyLoanScreen} />
+      <Stack.Screen name="PayPendingLoan" component={PayPendingLoanScreen} />
+      <Stack.Screen name="PayWeeklyDue" component={PayWeeklyDueScreen} />
+    </Stack.Navigator>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5", // Light background for the screen
+    backgroundColor: "#f5f5f5",
     paddingHorizontal: 10,
+    paddingBottom:40,
   },
   pageHeading: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "bold",
-    color: "#81459b", // Purple color for heading
+    color: "#000",
     textAlign: "center",
-    marginVertical: 15,
+    marginVertical: 20,
   },
-  scrollContainer: {
-    paddingBottom: 20, // Padding to avoid content being cut off
+  // Styles for the top grid (above View heading)
+  topGridContainer: {
+    marginBottom: 20,
+    borderWidth: 1,
+    marginRight: 15,
+    marginLeft: 15,
   },
-  sectionContainer: {
-    backgroundColor: "#ffffff", // White background for each section
-    borderRadius: 10,
-    marginBottom: 15,
-    padding: 15,
-    elevation: 5, // Shadow effect for card-like design
+  gridRow: {
+    flexDirection: "row",
   },
-  sectionHeader: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#81459b", // Purple header color
-    marginBottom: 10,
+  topGridItem: {
+    flex: 1,
+    backgroundColor: "#fff",
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#000", // Light border color to make items distinct
   },
-  sectionText: {
+
+  // Styles for the bottom grid (below Linkage Loan heading)
+  bottomGridContainer: {
+    marginBottom: 20,
+  },
+  bottomGridItem: {
+    flex: 1,
+    backgroundColor: "#fff", // Different background color for bottom grid
+    padding: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    margin: 4,
+    borderWidth:1,
+  },
+
+  // Common styles for grid items and text
+  gridText: {
     fontSize: 16,
-    color: "#333333", // Dark color for text
-    lineHeight: 24,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
   },
-  image: {
-    width: "100%",
-    height: 200,
-    borderRadius: 8,
+
+  // Styles for headings and buttons
+  subHeading: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#000",
     marginVertical: 10,
+    textAlign: "center",
+    textDecorationLine: "underline",
+  },
+  clickableSubHeading: {
+    textDecorationLine: "underline",
+  },
+  buttonContainer: {
+    marginBottom: 20,
+    padding:8,
+    borderWidth:1,
+    paddingTop:16,
+    marginRight: 10,
+    marginLeft: 10,
+  },
+  button: {
+    backgroundColor: "#fff",
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+  },
+  buttonText: {
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });

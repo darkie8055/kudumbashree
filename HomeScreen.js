@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import { LinearGradient } from "expo-linear-gradient";
 
 // Importing screens as components
 import ActivitiesScreen from "./ActivitiesScreen";
@@ -22,7 +29,7 @@ const sampleNews = [
 export default function HomeScreen() {
   const [notices, setNotices] = useState(sampleNotices);
   const [news, setNews] = useState(sampleNews);
-  const [activeScreen, setActiveScreen] = useState("Home"); // Tracks the current screen
+  const [activeScreen, setActiveScreen] = useState("Home");
 
   const fetchNotices = async () => {
     setNotices(sampleNotices);
@@ -37,15 +44,18 @@ export default function HomeScreen() {
     fetchNews();
   }, []);
 
-  // Navigation logic
   const navigateTo = (screen) => {
     setActiveScreen(screen);
   };
 
-  if (activeScreen === "Activities") return <ActivitiesScreen goBack={() => setActiveScreen("Home")} />;
-  if (activeScreen === "LawsAndRegulations") return <LawsAndRegulationsScreen goBack={() => setActiveScreen("Home")} />;
-  if (activeScreen === "Upcoming") return <UpcomingScreen goBack={() => setActiveScreen("Home")} />;
-  if (activeScreen === "TodaysStory") return <TodaysStoryScreen goBack={() => setActiveScreen("Home")} />;
+  if (activeScreen === "Activities")
+    return <ActivitiesScreen goBack={() => setActiveScreen("Home")} />;
+  if (activeScreen === "LawsAndRegulations")
+    return <LawsAndRegulationsScreen goBack={() => setActiveScreen("Home")} />;
+  if (activeScreen === "Upcoming")
+    return <UpcomingScreen goBack={() => setActiveScreen("Home")} />;
+  if (activeScreen === "TodaysStory")
+    return <TodaysStoryScreen goBack={() => setActiveScreen("Home")} />;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -59,28 +69,28 @@ export default function HomeScreen() {
               style={styles.tableItem}
               onPress={() => navigateTo("Activities")}
             >
-              <Icon name="account-group" size={30} color="#ffffff" />
+              <Icon name="account-group" size={30} color="#000" style={styles.icon} />
               <Text style={styles.gridText}>Activities</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.tableItem}
               onPress={() => navigateTo("LawsAndRegulations")}
             >
-              <Icon name="gavel" size={30} color="#ffffff" />
+              <Icon name="gavel" size={30} color="#000" style={styles.icon} />
               <Text style={styles.gridText}>Laws & Regl</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.tableItem}
               onPress={() => navigateTo("Upcoming")}
             >
-              <Icon name="calendar" size={30} color="#ffffff" />
+              <Icon name="calendar" size={30} color="#000" style={styles.icon} />
               <Text style={styles.gridText}>Upcoming</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.tableItem}
               onPress={() => navigateTo("TodaysStory")}
             >
-              <Icon name="book-open-page-variant" size={30} color="#ffffff" />
+              <Icon name="book-open-page-variant" size={30} color="#000" style={styles.icon} />
               <Text style={styles.gridText}>Today’s Story</Text>
             </TouchableOpacity>
           </View>
@@ -90,7 +100,12 @@ export default function HomeScreen() {
       {/* Notice Board Section */}
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionHeader}>Notice Board</Text>
-        <View style={styles.boardContainer}>
+        <LinearGradient
+          colors={["rgba(129, 69, 155, 0.7)", "rgba(166, 223, 184, 0.7)"]}
+          start={[0.1, 0.1]}
+          end={[1, 1]}
+          style={styles.boardContainer}
+        >
           <FlatList
             data={notices}
             keyExtractor={(item) => item.id}
@@ -100,13 +115,18 @@ export default function HomeScreen() {
               </View>
             )}
           />
-        </View>
+        </LinearGradient>
       </View>
 
       {/* News Board Section */}
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionHeader}>News Board</Text>
-        <View style={styles.boardContainer}>
+        <LinearGradient
+          colors={["rgba(129, 69, 155, 0.7)", "rgba(166, 223, 184, 0.7)"]}
+          start={[0.1, 0.1]}
+          end={[1, 1]}
+          style={styles.boardContainer}
+        >
           <FlatList
             data={news}
             keyExtractor={(item) => item.id}
@@ -116,7 +136,7 @@ export default function HomeScreen() {
               </View>
             )}
           />
-        </View>
+        </LinearGradient>
       </View>
     </SafeAreaView>
   );
@@ -124,16 +144,17 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    paddingTop:20,
     flex: 1,
-    backgroundColor: "#fff",
     paddingHorizontal: 10,
+    backgroundColor: "#fff", // White background for the main screen
   },
   pageHeading: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#81459b",
+    color: "#000", // Black color for the heading
     textAlign: "center",
-    marginBottom:15,
+    marginBottom: 25,
   },
   sectionContainer: {
     marginBottom: 10,
@@ -142,16 +163,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginVertical: 10,
-    color: "#81459b",
+    color: "#000", // Black for section headings
     textAlign: "center",
+    marginTop:30,
   },
   tableOuterBorder: {
-    borderWidth: 2.5,
-    borderColor: "#a6dfb8",
-    borderRadius: 4,
+    borderWidth: 0.6,
+    borderColor: "#000",
     overflow: "hidden",
-    width:"90%",
-    marginLeft:15,
+    width: "90%",
+    marginLeft: "auto",
+    marginRight: "auto",
   },
   table: {
     flexDirection: "row",
@@ -160,42 +182,39 @@ const styles = StyleSheet.create({
   },
   tableItem: {
     width: "50%",
-    height: 70,
-    backgroundColor: "#81459b",
+    height: 55,
+    backgroundColor: "#fff",
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    borderColor: "#a6dfb8",
-    borderWidth: 1,
+    borderColor: "#000",
+    borderWidth: 0.6,
+  },
+  icon: {
+    marginRight: 10,
   },
   gridText: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#ffffff",
-    marginTop: 5,
+    color: "#000", // Black text for the grid items
     textAlign: "center",
   },
   boardContainer: {
-    backgroundColor: "#a6dfb8",
-    borderRadius: 8,
     padding: 10,
     borderWidth: 1,
-    borderColor: "#81459b",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 2,
-    elevation: 5,
+    borderColor: "#000",
+    marginRight: 10,
+    marginLeft: 10,
   },
   boardItem: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "#fff",
     padding: 10,
     marginBottom: 10,
-    borderRadius: 5,
     borderWidth: 1,
-    borderColor: "#81459b",
+    borderColor: "#000",
   },
   boardText: {
-    color: "#81459b",
+    color: "#000", // Black text for the board items
     textAlign: "center",
   },
 });

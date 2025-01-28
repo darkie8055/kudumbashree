@@ -1,14 +1,15 @@
 import React from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context"; // For safe area handling
-import Icon from "react-native-vector-icons/MaterialCommunityIcons"; // Icon library
-
-const upcomingEvents = [
-  { id: "1", title: "Annual Meet – Jan 30th, 2025", date: "Jan 30th, 2025" },
-  { id: "2", title: "Workshop on Sustainable Living – Feb 5th, 2025", date: "Feb 5th, 2025" },
-];
+import { View, Text, StyleSheet, TouchableOpacity, Linking } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
 export default function UpcomingScreen({ goBack }) {
+  // Function to open the Kudumbashree events page
+  const openEventsPage = () => {
+    const url = "https://kudumbashree.org/events";
+    Linking.openURL(url).catch((err) => console.error("Failed to open URL:", err));
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Back Button */}
@@ -20,17 +21,10 @@ export default function UpcomingScreen({ goBack }) {
       {/* Heading */}
       <Text style={styles.heading}>Upcoming Events</Text>
 
-      {/* List of Events */}
-      <FlatList
-        data={upcomingEvents}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.eventCard}>
-            <Text style={styles.eventTitle}>{item.title}</Text>
-            <Text style={styles.eventDate}>{item.date}</Text>
-          </View>
-        )}
-      />
+      {/* Button to Open Events Page */}
+      <TouchableOpacity style={styles.linkButton} onPress={openEventsPage}>
+        <Text style={styles.linkButtonText}>Visit Kudumbashree Events Page</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -59,23 +53,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginVertical: 20,
   },
-  eventCard: {
-    backgroundColor: "#ffffff",
+  linkButton: {
+    backgroundColor: "#81459b",
     padding: 15,
-    marginVertical: 10,
     borderRadius: 8,
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    alignItems: "center",
   },
-  eventTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  eventDate: {
+  linkButtonText: {
     fontSize: 16,
-    color: "#81459b",
+    fontWeight: "bold",
+    color: "#ffffff",
   },
 });

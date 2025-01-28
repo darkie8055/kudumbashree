@@ -10,21 +10,47 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context"; // For safe area handling
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
-const images = [
-  { id: "1", uri: "https://placeimg.com/200/200/any" },
-  { id: "2", uri: "https://placeimg.com/200/200/any" },
-  { id: "3", uri: "https://placeimg.com/200/200/any" },
-  { id: "4", uri: "https://placeimg.com/200/200/any" },
-  { id: "5", uri: "https://placeimg.com/200/200/any" },
-  { id: "6", uri: "https://placeimg.com/200/200/any" },
+const activities = [
+  {
+    id: "1",
+    uri: "https://placeimg.com/400/200/any", // Landscape image
+    date: "Jan 20, 2025",
+    info: "Community Clean-Up Drive",
+  },
+  {
+    id: "2",
+    uri: "https://placeimg.com/200/200/any", // Square image
+    date: "Jan 15, 2025",
+    info: "Handicraft Workshop",
+  },
+  {
+    id: "3",
+    uri: "https://placeimg.com/400/200/any", // Landscape image
+    date: "Jan 10, 2025",
+    info: "Agriculture Training Program",
+  },
+  {
+    id: "4",
+    uri: "https://placeimg.com/200/200/any", // Square image
+    date: "Jan 5, 2025",
+    info: "Food Distribution Drive",
+  },
 ];
 
 export default function ActivitiesScreen({ goBack }) {
-  // Render each item in the gallery
-  const renderImageItem = ({ item }) => (
-    <TouchableOpacity style={styles.imageContainer}>
-      <Image source={{ uri: item.uri }} style={styles.image} />
-    </TouchableOpacity>
+  // Render each activity item
+  const renderActivityItem = ({ item }) => (
+    <View style={styles.activityContainer}>
+      <Image
+        source={{ uri: item.uri }}
+        style={[
+          styles.image,
+          item.uri.includes("400/200") ? styles.landscapeImage : styles.squareImage,
+        ]}
+      />
+      <Text style={styles.activityText}>{item.date}</Text>
+      <Text style={styles.activityInfo}>{item.info}</Text>
+    </View>
   );
 
   return (
@@ -36,15 +62,14 @@ export default function ActivitiesScreen({ goBack }) {
       </TouchableOpacity>
 
       {/* Page Heading */}
-      <Text style={styles.pageHeading}>Activities Photo Gallery</Text>
+      <Text style={styles.pageHeading}>Kudumbashree Activities</Text>
 
-      {/* Grid of Images */}
+      {/* Activity List */}
       <FlatList
-        data={images}
+        data={activities}
         keyExtractor={(item) => item.id}
-        renderItem={renderImageItem}
-        numColumns={2} // 2 items per row for the grid
-        columnWrapperStyle={styles.row}
+        renderItem={renderActivityItem}
+        contentContainerStyle={styles.listContainer}
       />
     </SafeAreaView>
   );
@@ -75,18 +100,35 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginVertical: 15,
   },
-  row: {
-    justifyContent: "space-between", // Space out images horizontally
+  listContainer: {
+    paddingBottom: 20, // Space at the bottom of the list
   },
-  imageContainer: {
-    marginBottom: 10, // Spacing between images
-    borderRadius: 10, // Rounded corners
-    overflow: "hidden", // To make sure the image fits the container properly
-    elevation: 5, // Adding a shadow effect for 3D look
+  activityContainer: {
+    marginBottom: 15,
+    alignItems: "center", // Center images and text
   },
   image: {
-    width: 150, // Set the width for images
-    height: 150, // Set the height for images
-    borderRadius: 8, // Rounded corners for images
+    borderRadius: 10, // Rounded corners for images
+    marginBottom: 5,
+  },
+  landscapeImage: {
+    width: "100%", // Full width for landscape images
+    height: 200, // Fixed height for landscape images
+  },
+  squareImage: {
+    width: "48%", // Two images fit side-by-side
+    height: 150, // Fixed height for square images
+    marginHorizontal: "1%", // Small space between square images
+  },
+  activityText: {
+    fontSize: 14,
+    color: "#333", // Dark text for date
+    fontWeight: "600",
+  },
+  activityInfo: {
+    fontSize: 12,
+    color: "#666", // Lighter text for info
+    textAlign: "center",
+    marginTop: 3,
   },
 });
