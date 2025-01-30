@@ -9,7 +9,6 @@ import {
   Easing,
   SafeAreaView,
   Image,
-  type FlatList,
 } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import type { StackNavigationProp } from "@react-navigation/stack"
@@ -28,40 +27,40 @@ const onboardingData = [
   {
     id: "1",
     title: "Welcome to Kudumbashree",
-    description: "Join our community of empowered women making a difference",
-    image: "https://example.com/kudumbashree_welcome.png",
+    description: "Empowering women, transforming communities",
+    image: "/placeholder.svg?height=400&width=400",
   },
   {
     id: "2",
-    title: "Financial Growth",
-    description: "Build savings and access micro-finance opportunities",
-    image: "https://example.com/financial_growth.png",
+    title: "Financial Empowerment",
+    description: "Access micro-finance and build savings",
+    image: "/placeholder.svg?height=400&width=400",
   },
   {
     id: "3",
     title: "Skill Development",
     description: "Learn new skills and grow your entrepreneurial journey",
-    image: "https://example.com/skill_development.png",
+    image: "/placeholder.svg?height=400&width=400",
   },
   {
     id: "4",
     title: "Community Support",
     description: "Connect with other members and grow together",
-    image: "https://example.com/community_support.png",
+    image: "/placeholder.svg?height=400&width=400",
   },
 ]
 
 export default function OnboardingScreen({ navigation }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const scrollX = useRef(new Animated.Value(0)).current
-  const slidesRef = useRef<FlatList>(null)
+  const slidesRef = useRef(null)
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_700Bold,
   })
 
-  const viewableItemsChanged = useRef(({ viewableItems }: { viewableItems: Array<{ index: number }> }) => {
+  const viewableItemsChanged = useRef(({ viewableItems }) => {
     setCurrentIndex(viewableItems[0]?.index ?? 0)
   }).current
 
@@ -82,13 +81,13 @@ export default function OnboardingScreen({ navigation }: Props) {
       useNativeDriver: true,
       easing: Easing.inOut(Easing.ease),
     }).start()
-  }, [currentIndex, scrollX])
+  }, [currentIndex, scrollX]) // Added scrollX to dependencies
 
   if (!fontsLoaded) {
     return null
   }
 
-  const renderItem = ({ item, index }: { item: (typeof onboardingData)[0]; index: number }) => {
+  const renderItem = ({ item, index }) => {
     const inputRange = [(index - 1) * width, index * width, (index + 1) * width]
 
     const imageScale = scrollX.interpolate({

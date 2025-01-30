@@ -10,19 +10,25 @@ import {
   Animated,
   Easing,
   Modal,
+  Alert,
 } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import type { StackNavigationProp } from "@react-navigation/stack"
+import type { RouteProp } from "@react-navigation/native"
 import type { RootStackParamList } from "../types/navigation"
 import { Ionicons } from "@expo/vector-icons"
+import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
 
 type ForgotPasswordScreenNavigationProp = StackNavigationProp<RootStackParamList, "ForgotPassword">
+type ForgotPasswordScreenRouteProp = RouteProp<RootStackParamList, "ForgotPassword">
 
 interface Props {
   navigation: ForgotPasswordScreenNavigationProp
+  route: ForgotPasswordScreenRouteProp
 }
 
-export default function ForgotPasswordScreen({ navigation }: Props) {
+export default function ForgotPasswordScreen({ navigation, route }: Props) {
+  const { userType } = route.params
   const [phone, setPhone] = useState("")
   const [otp, setOtp] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -33,6 +39,12 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [newPasswordVisible, setNewPasswordVisible] = useState(false)
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false)
+
+  const [fontsLoaded] = useFonts({
+    Poppins_400Regular,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  })
 
   useEffect(() => {
     Animated.timing(animation, {
@@ -70,6 +82,10 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
     inputRange: [0, 1],
     outputRange: [50, 0],
   })
+
+  if (!fontsLoaded) {
+    return null
+  }
 
   const renderPasswordInput = (
     value: string,
@@ -223,8 +239,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
   title: {
+    fontFamily: "Poppins_700Bold",
     fontSize: 32,
-    fontWeight: "bold",
     color: "white",
     textAlign: "center",
     marginBottom: 40,
@@ -248,18 +264,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   phonePrefix: {
+    fontFamily: "Poppins_400Regular",
     color: "white",
     fontSize: 16,
     marginRight: 5,
   },
   phoneInput: {
     flex: 1,
+    fontFamily: "Poppins_400Regular",
     color: "white",
     fontSize: 16,
     padding: 15,
   },
   input: {
     flex: 1,
+    fontFamily: "Poppins_400Regular",
     color: "white",
     fontSize: 16,
     padding: 15,
@@ -271,16 +290,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   buttonText: {
+    fontFamily: "Poppins_600SemiBold",
     color: "#8B5CF6",
     fontSize: 16,
-    fontWeight: "600",
   },
   linkText: {
+    fontFamily: "Poppins_400Regular",
     color: "white",
     textAlign: "center",
     marginTop: 20,
   },
   errorText: {
+    fontFamily: "Poppins_400Regular",
     color: "#FF6B6B",
     textAlign: "center",
     marginTop: 5,
@@ -306,10 +327,10 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   modalText: {
+    fontFamily: "Poppins_600SemiBold",
     marginBottom: 15,
     textAlign: "center",
     fontSize: 18,
-    fontWeight: "bold",
   },
   modalButton: {
     marginTop: 10,

@@ -44,7 +44,7 @@ export default function ProfileScreen() {
       {/* Profile Section */}
       <View style={styles.profileContainer}>
         <Image
-          source={{ uri: "https://picsum.photos/400/400?random=1" }} // Replace with user's actual profile picture
+          source={{ uri: "./image.png" }} // Replace with user's actual profile picture
           style={styles.profileImage}
         />
         <Text style={styles.profileName}>{userDetails.name}</Text>

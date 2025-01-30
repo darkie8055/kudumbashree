@@ -1,17 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react"
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Animated } from "react-native"
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Animated, ScrollView, Image } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import type { StackNavigationProp } from "@react-navigation/stack"
 import type { RootStackParamList } from "../types/navigation"
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
-
-// Importing screens as components
-import ActivitiesScreen from "./ActivitiesScreen"
-import LawsAndRegulationsScreen from "./LawsAndRegulationsScreen"
-import UpcomingScreen from "./UpcomingScreen"
-import TodaysStoryScreen from "./TodaysStoryScreen"
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">
 
@@ -27,22 +21,24 @@ type Notice = {
 type News = {
   id: string
   headline: string
+  image: string
 }
 
 const sampleNotices: Notice[] = [
   { id: "1", title: "Meeting on Jan 15th, 2025" },
   { id: "2", title: "Audit scheduled for Jan 20th, 2025" },
+  { id: "3", title: "New training program starts Feb 1st" },
 ]
 
 const sampleNews: News[] = [
-  { id: "1", headline: "New Women Empowerment Scheme Launched" },
-  { id: "2", headline: "Kudumbashree Annual Event Announced" },
+  { id: "1", headline: "New Women Empowerment Scheme Launched", image: "https://picsum.photos/200/100?random=1" },
+  { id: "2", headline: "Kudumbashree Annual Event Announced", image: "https://picsum.photos/200/100?random=2" },
+  { id: "3", headline: "Success Story: Local Business Thrives", image: "https://picsum.photos/200/100?random=3" },
 ]
 
 export default function HomeScreen({ navigation }: Props) {
   const [notices, setNotices] = useState<Notice[]>(sampleNotices)
   const [news, setNews] = useState<News[]>(sampleNews)
-  const [activeScreen, setActiveScreen] = useState<string>("Home")
   const [animation] = useState(new Animated.Value(0))
 
   const [fontsLoaded] = useFonts({
@@ -51,39 +47,13 @@ export default function HomeScreen({ navigation }: Props) {
     Poppins_700Bold,
   })
 
-  const startAnimation = useCallback(() => {
+  useEffect(() => {
     Animated.timing(animation, {
       toValue: 1,
       duration: 1000,
       useNativeDriver: true,
     }).start()
   }, [animation])
-
-  useEffect(() => {
-    startAnimation()
-  }, [startAnimation])
-
-  const fetchNotices = async () => {
-    setNotices(sampleNotices)
-  }
-
-  const fetchNews = async () => {
-    setNews(sampleNews)
-  }
-
-  useEffect(() => {
-    fetchNotices()
-    fetchNews()
-  }, [])
-
-  const navigateTo = (screen: string) => {
-    setActiveScreen(screen)
-  }
-
-  if (activeScreen === "Activities") return <ActivitiesScreen goBack={() => setActiveScreen("Home")} />
-  if (activeScreen === "LawsAndRegulations") return <LawsAndRegulationsScreen goBack={() => setActiveScreen("Home")} />
-  if (activeScreen === "Upcoming") return <UpcomingScreen goBack={() => setActiveScreen("Home")} />
-  if (activeScreen === "TodaysStory") return <TodaysStoryScreen goBack={() => setActiveScreen("Home")} />
 
   if (!fontsLoaded) {
     return null
@@ -103,154 +73,143 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Animated.View style={fadeIn}>
-        <Text style={styles.pageHeading}>Home</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Animated.View style={fadeIn}>
+          <Text style={styles.pageHeading}>Welcome, User!</Text>
 
-        {/* Table Navigation Section */}
-        <View style={styles.sectionContainer}>
-          <View style={styles.tableOuterBorder}>
-            <View style={styles.table}>
-              <TouchableOpacity style={styles.tableItem} onPress={() => navigateTo("Activities")}>
-                <Ionicons name="people" size={30} color="#000" style={styles.icon} />
-                <Text style={styles.gridText}>Activities</Text>
+          {/* Quick Actions Section */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionHeader}>Quick Actions</Text>
+            <View style={styles.quickActionsContainer}>
+              <TouchableOpacity style={styles.quickActionItem}>
+                <Ionicons name="calendar-outline" size={24} color="#8B5CF6" />
+                <Text style={styles.quickActionText}>Schedule</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.tableItem} onPress={() => navigateTo("LawsAndRegulations")}>
-                <Ionicons name="hammer" size={30} color="#000" style={styles.icon} />
-                <Text style={styles.gridText}>Laws & Regl</Text>
+              <TouchableOpacity style={styles.quickActionItem}>
+                <Ionicons name="document-text-outline" size={24} color="#8B5CF6" />
+                <Text style={styles.quickActionText}>Reports</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.tableItem} onPress={() => navigateTo("Upcoming")}>
-                <Ionicons name="calendar" size={30} color="#000" style={styles.icon} />
-                <Text style={styles.gridText}>Upcoming</Text>
+              <TouchableOpacity style={styles.quickActionItem}>
+                <Ionicons name="people-outline" size={24} color="#8B5CF6" />
+                <Text style={styles.quickActionText}>Members</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.tableItem} onPress={() => navigateTo("TodaysStory")}>
-                <Ionicons name="book" size={30} color="#000" style={styles.icon} />
-                <Text style={styles.gridText}>Today's Story</Text>
+              <TouchableOpacity style={styles.quickActionItem}>
+                <Ionicons name="cash-outline" size={24} color="#8B5CF6" />
+                <Text style={styles.quickActionText}>Finances</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </View>
 
-        {/* Notice Board Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeader}>Notice Board</Text>
-          <LinearGradient
-            colors={["rgba(129, 69, 155, 0.7)", "rgba(166, 223, 184, 0.7)"]}
-            start={[0.1, 0.1]}
-            end={[1, 1]}
-            style={styles.boardContainer}
-          >
-            <FlatList
-              data={notices}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <View style={styles.boardItem}>
-                  <Text style={styles.boardText}>{item.title}</Text>
+          {/* Notice Board Section */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionHeader}>Notice Board</Text>
+            <LinearGradient
+              colors={["rgba(139, 92, 246, 0.1)", "rgba(236, 72, 153, 0.1)"]}
+              style={styles.boardContainer}
+            >
+              {notices.map((notice) => (
+                <View key={notice.id} style={styles.boardItem}>
+                  <Ionicons name="notifications-outline" size={20} color="#8B5CF6" style={styles.boardIcon} />
+                  <Text style={styles.boardText}>{notice.title}</Text>
                 </View>
-              )}
-            />
-          </LinearGradient>
-        </View>
+              ))}
+            </LinearGradient>
+          </View>
 
-        {/* News Board Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeader}>News Board</Text>
-          <LinearGradient
-            colors={["rgba(129, 69, 155, 0.7)", "rgba(166, 223, 184, 0.7)"]}
-            start={[0.1, 0.1]}
-            end={[1, 1]}
-            style={styles.boardContainer}
-          >
+          {/* News Board Section */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionHeader}>Latest News</Text>
             <FlatList
               data={news}
               keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
               renderItem={({ item }) => (
-                <View style={styles.boardItem}>
-                  <Text style={styles.boardText}>{item.headline}</Text>
-                </View>
+                <TouchableOpacity style={styles.newsItem}>
+                  <Image source={{ uri: item.image }} style={styles.newsImage} />
+                  <Text style={styles.newsHeadline}>{item.headline}</Text>
+                </TouchableOpacity>
               )}
             />
-          </LinearGradient>
-        </View>
-      </Animated.View>
+          </View>
+        </Animated.View>
+      </ScrollView>
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 20,
     flex: 1,
-    paddingHorizontal: 10,
     backgroundColor: "#fff",
+  },
+  scrollContent: {
+    padding: 20,
   },
   pageHeading: {
     fontFamily: "Poppins_700Bold",
     fontSize: 24,
-    color: "#000",
-    textAlign: "center",
-    marginBottom: 25,
+    color: "#333",
+    marginBottom: 20,
   },
   sectionContainer: {
-    marginBottom: 10,
+    marginBottom: 25,
   },
   sectionHeader: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 18,
-    marginVertical: 10,
-    color: "#000",
-    textAlign: "center",
-    marginTop: 30,
+    color: "#333",
+    marginBottom: 10,
   },
-  tableOuterBorder: {
-    borderWidth: 0.6,
-    borderColor: "#000",
-    overflow: "hidden",
-    width: "90%",
-    marginLeft: "auto",
-    marginRight: "auto",
-  },
-  table: {
+  quickActionsContainer: {
     flexDirection: "row",
+    justifyContent: "space-between",
     flexWrap: "wrap",
-    width: "100%",
   },
-  tableItem: {
-    width: "50%",
-    height: 55,
-    backgroundColor: "#fff",
-    flexDirection: "row",
-    justifyContent: "center",
+  quickActionItem: {
+    width: "48%",
+    backgroundColor: "#F3F4F6",
+    padding: 15,
+    borderRadius: 10,
     alignItems: "center",
-    borderColor: "#000",
-    borderWidth: 0.6,
+    marginBottom: 10,
   },
-  icon: {
-    marginRight: 10,
-  },
-  gridText: {
+  quickActionText: {
     fontFamily: "Poppins_400Regular",
-    fontSize: 14,
-    color: "#000",
-    textAlign: "center",
+    marginTop: 5,
+    color: "#4B5563",
   },
   boardContainer: {
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#000",
-    marginRight: 10,
-    marginLeft: 10,
+    padding: 15,
+    borderRadius: 10,
   },
   boardItem: {
-    backgroundColor: "#fff",
-    padding: 10,
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#000",
+  },
+  boardIcon: {
+    marginRight: 10,
   },
   boardText: {
     fontFamily: "Poppins_400Regular",
-    color: "#000",
-    textAlign: "center",
+    color: "#4B5563",
+    flex: 1,
+  },
+  newsItem: {
+    width: 200,
+    marginRight: 15,
+  },
+  newsImage: {
+    width: "100%",
+    height: 100,
+    borderRadius: 10,
+    marginBottom: 5,
+  },
+  newsHeadline: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#4B5563",
   },
 })
 

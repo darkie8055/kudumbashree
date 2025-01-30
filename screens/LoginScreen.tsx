@@ -9,6 +9,7 @@ import {
   Easing,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
@@ -24,7 +25,7 @@ interface Props {
 }
 
 export default function LoginScreen({ navigation }: Props) {
-  const [phone, setPhone] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [animation] = useState(new Animated.Value(0))
@@ -45,9 +46,27 @@ export default function LoginScreen({ navigation }: Props) {
   }, [animation])
 
   const handleLogin = () => {
-    // Here you would typically verify the phone and password with your backend
-    console.log("Logging in with", { phone, password })
-    navigation.navigate("MainTabs")
+    if (username.startsWith("P-") && username.length > 2) {
+      // President login
+      console.log("Logging in as President", { username, password })
+      navigation.navigate("PresidentDashboard")
+    } else if (username.startsWith("KM-") && username.length > 3) {
+      // Kudumbashree Member login
+      console.log("Logging in as Kudumbashree Member", { username, password })
+      navigation.navigate("MainTabs")
+    } else {
+      // Normal user login
+      console.log("Logging in as Normal User", { username, password })
+      navigation.navigate("MainTabs")
+    }
+  }
+
+  const handleForgotPassword = () => {
+    if (username.startsWith("P-") || username.startsWith("KM-")) {
+      navigation.navigate("ForgotPassword", { userType: username.startsWith("P-") ? "president" : "km" })
+    } else {
+      navigation.navigate("ForgotPassword", { userType: "normal" })
+    }
   }
 
   const translateY = animation.interpolate({
@@ -72,22 +91,14 @@ export default function LoginScreen({ navigation }: Props) {
             <Text style={styles.title}>Welcome Back</Text>
             <View style={styles.form}>
               <View style={styles.inputContainer}>
-                <Ionicons name="call-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
-                <View style={styles.phoneInputContainer}>
-                  <Text style={styles.phonePrefix}>+91</Text>
-                  <TextInput
-                    style={styles.phoneInput}
-                    placeholder="Phone Number"
-                    placeholderTextColor="rgba(255,255,255,0.7)"
-                    value={phone}
-                    onChangeText={(text) => {
-                      const cleaned = text.replace(/\D/g, "").slice(0, 10)
-                      setPhone(cleaned)
-                    }}
-                    keyboardType="phone-pad"
-                    maxLength={10}
-                  />
-                </View>
+                <Ionicons name="person-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Username"
+                  placeholderTextColor="rgba(255,255,255,0.7)"
+                  value={username}
+                  onChangeText={setUsername}
+                />
               </View>
               <View style={styles.inputContainer}>
                 <Ionicons name="lock-closed-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
@@ -110,7 +121,7 @@ export default function LoginScreen({ navigation }: Props) {
               <TouchableOpacity style={styles.button} onPress={handleLogin}>
                 <Text style={styles.buttonText}>Login</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
+              <TouchableOpacity onPress={handleForgotPassword}>
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
             </View>
@@ -154,24 +165,6 @@ const styles = StyleSheet.create({
   },
   inputIcon: {
     marginRight: 10,
-  },
-  phoneInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  phonePrefix: {
-    fontFamily: "Poppins_400Regular",
-    color: "white",
-    fontSize: 16,
-    marginRight: 5,
-  },
-  phoneInput: {
-    flex: 1,
-    fontFamily: "Poppins_400Regular",
-    color: "white",
-    fontSize: 16,
-    padding: 15,
   },
   input: {
     flex: 1,

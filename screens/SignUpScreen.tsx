@@ -9,12 +9,14 @@ import {
   ScrollView,
   Animated,
   Easing,
+  Alert,
 } from "react-native"
 import { Picker } from "@react-native-picker/picker"
 import { LinearGradient } from "expo-linear-gradient"
 import type { StackNavigationProp } from "@react-navigation/stack"
 import type { RootStackParamList } from "../types/navigation"
 import { Ionicons } from "@expo/vector-icons"
+import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
 
 type SignUpScreenNavigationProp = StackNavigationProp<RootStackParamList, "SignUp">
 
@@ -24,19 +26,33 @@ interface Props {
 
 export default function SignUpScreen({ navigation }: Props) {
   const [formData, setFormData] = useState({
+    userType: "normal",
     firstName: "",
     lastName: "",
     phone: "",
+    username: "",
     password: "",
+    confirmPassword: "",
     address: "",
+    gender: "",
+    pincode: "",
+    district: "",
+    state: "",
     aadhar: "",
     rationCard: "",
     economicStatus: "",
     category: "",
+    unitNumber: "",
     documentUploaded: false,
   })
 
   const [animation] = useState(new Animated.Value(0))
+
+  const [fontsLoaded] = useFonts({
+    Poppins_400Regular,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  })
 
   useEffect(() => {
     Animated.timing(animation, {
@@ -45,7 +61,7 @@ export default function SignUpScreen({ navigation }: Props) {
       easing: Easing.out(Easing.ease),
       useNativeDriver: true,
     }).start()
-  }, [animation]) // Added animation to dependencies
+  }, [animation])
 
   const handleDocumentUpload = () => {
     setFormData({ ...formData, documentUploaded: true })
@@ -62,8 +78,10 @@ export default function SignUpScreen({ navigation }: Props) {
             style={styles.picker}
           >
             <Picker.Item label="Select Category" value="" />
-            <Picker.Item label="Ezhava" value="Ezhava" />
+            <Picker.Item label="General" value="General" />
             <Picker.Item label="OBC" value="OBC" />
+            <Picker.Item label="SC" value="SC" />
+            <Picker.Item label="ST" value="ST" />
           </Picker>
         </View>
       )
@@ -72,22 +90,42 @@ export default function SignUpScreen({ navigation }: Props) {
   }
 
   const handleSignUp = () => {
-    if (formData.aadhar.length !== 12) {
-      alert("Aadhar number must be 12 digits")
+    if (formData.password !== formData.confirmPassword) {
+      Alert.alert("Password Mismatch", "Password and Confirm Password do not match")
       return
     }
-    if (formData.rationCard.length !== 10) {
-      alert("Ration Card number must be 10 digits")
-      return
+
+    if (formData.userType === "km-member") {
+      if (formData.aadhar.length !== 12) {
+        Alert.alert("Invalid Aadhar", "Aadhar number must be 12 digits")
+        return
+      }
+      if (formData.rationCard.length !== 10) {
+        Alert.alert("Invalid Ration Card", "Ration Card number must be 10 digits")
+        return
+      }
     }
-    // Proceed with sign up
+
     console.log("Sign Up", formData)
+    if (formData.userType === "km-member") {
+      Alert.alert("Registration Complete", "Your KM-Member registration is complete. Please wait for approval.", [
+        { text: "OK", onPress: () => navigation.navigate("WaitingApproval") },
+      ])
+    } else {
+      Alert.alert("Registration Complete", "Your registration is complete.", [
+        { text: "OK", onPress: () => navigation.navigate("Login") },
+      ])
+    }
   }
 
   const translateY = animation.interpolate({
     inputRange: [0, 1],
     outputRange: [50, 0],
   })
+
+  if (!fontsLoaded) {
+    return null
+  }
 
   return (
     <LinearGradient
@@ -101,6 +139,17 @@ export default function SignUpScreen({ navigation }: Props) {
           <Animated.View style={[styles.formContainer, { opacity: animation, transform: [{ translateY }] }]}>
             <Text style={styles.title}>Create Account</Text>
             <View style={styles.form}>
+              <View style={styles.pickerContainer}>
+                <Text style={styles.label}>User Type</Text>
+                <Picker
+                  selectedValue={formData.userType}
+                  onValueChange={(itemValue) => setFormData({ ...formData, userType: itemValue })}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Normal User" value="normal" />
+                  <Picker.Item label="KM-Member" value="km-member" />
+                </Picker>
+              </View>
               <View style={styles.inputContainer}>
                 <Ionicons name="person-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
                 <TextInput
@@ -140,6 +189,21 @@ export default function SignUpScreen({ navigation }: Props) {
                 </View>
               </View>
               <View style={styles.inputContainer}>
+                <Ionicons
+                  name="person-circle-outline"
+                  size={24}
+                  color="rgba(255,255,255,0.7)"
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Username"
+                  placeholderTextColor="rgba(255,255,255,0.7)"
+                  value={formData.username}
+                  onChangeText={(text) => setFormData({ ...formData, username: text })}
+                />
+              </View>
+              <View style={styles.inputContainer}>
                 <Ionicons name="lock-closed-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -147,6 +211,17 @@ export default function SignUpScreen({ navigation }: Props) {
                   placeholderTextColor="rgba(255,255,255,0.7)"
                   value={formData.password}
                   onChangeText={(text) => setFormData({ ...formData, password: text })}
+                  secureTextEntry
+                />
+              </View>
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm Password"
+                  placeholderTextColor="rgba(255,255,255,0.7)"
+                  value={formData.confirmPassword}
+                  onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
                   secureTextEntry
                 />
               </View>
@@ -162,55 +237,129 @@ export default function SignUpScreen({ navigation }: Props) {
                   numberOfLines={3}
                 />
               </View>
-              <View style={styles.inputContainer}>
-                <Ionicons name="card-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Aadhar Number (12 digits)"
-                  placeholderTextColor="rgba(255,255,255,0.7)"
-                  value={formData.aadhar}
-                  onChangeText={(text) => {
-                    const cleaned = text.replace(/\D/g, "").slice(0, 12)
-                    setFormData({ ...formData, aadhar: cleaned })
-                  }}
-                  keyboardType="numeric"
-                  maxLength={12}
-                />
-              </View>
-              <TouchableOpacity style={styles.uploadButton} onPress={handleDocumentUpload}>
-                <Ionicons name="cloud-upload-outline" size={24} color="white" style={styles.uploadIcon} />
-                <Text style={styles.uploadButtonText}>
-                  {formData.documentUploaded ? "Document Uploaded" : "Upload Document"}
-                </Text>
-              </TouchableOpacity>
-              <View style={styles.inputContainer}>
-                <Ionicons name="card-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ration Card Number (10 digits)"
-                  placeholderTextColor="rgba(255,255,255,0.7)"
-                  value={formData.rationCard}
-                  onChangeText={(text) => {
-                    const cleaned = text.replace(/\D/g, "").slice(0, 10)
-                    setFormData({ ...formData, rationCard: cleaned })
-                  }}
-                  keyboardType="numeric"
-                  maxLength={10}
-                />
-              </View>
-              <View style={styles.pickerContainer}>
-                <Text style={styles.label}>Economic Status</Text>
-                <Picker
-                  selectedValue={formData.economicStatus}
-                  onValueChange={(itemValue) => setFormData({ ...formData, economicStatus: itemValue, category: "" })}
-                  style={styles.picker}
-                >
-                  <Picker.Item label="Select Economic Status" value="" />
-                  <Picker.Item label="APL" value="APL" />
-                  <Picker.Item label="BPL" value="BPL" />
-                </Picker>
-              </View>
-              {renderCategoryPicker()}
+              {formData.userType === "normal" && (
+                <>
+                  <View style={styles.pickerContainer}>
+                    <Text style={styles.label}>Gender</Text>
+                    <Picker
+                      selectedValue={formData.gender}
+                      onValueChange={(itemValue) => setFormData({ ...formData, gender: itemValue })}
+                      style={styles.picker}
+                    >
+                      <Picker.Item label="Select Gender" value="" />
+                      <Picker.Item label="Male" value="male" />
+                      <Picker.Item label="Female" value="female" />
+                      <Picker.Item label="Other" value="other" />
+                    </Picker>
+                  </View>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="map-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Pincode"
+                      placeholderTextColor="rgba(255,255,255,0.7)"
+                      value={formData.pincode}
+                      onChangeText={(text) => setFormData({ ...formData, pincode: text })}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <View style={styles.inputContainer}>
+                    <Ionicons
+                      name="business-outline"
+                      size={24}
+                      color="rgba(255,255,255,0.7)"
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="District"
+                      placeholderTextColor="rgba(255,255,255,0.7)"
+                      value={formData.district}
+                      onChangeText={(text) => setFormData({ ...formData, district: text })}
+                    />
+                  </View>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="flag-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="State"
+                      placeholderTextColor="rgba(255,255,255,0.7)"
+                      value={formData.state}
+                      onChangeText={(text) => setFormData({ ...formData, state: text })}
+                    />
+                  </View>
+                </>
+              )}
+              {formData.userType === "km-member" && (
+                <>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="card-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Aadhar Number (12 digits)"
+                      placeholderTextColor="rgba(255,255,255,0.7)"
+                      value={formData.aadhar}
+                      onChangeText={(text) => {
+                        const cleaned = text.replace(/\D/g, "").slice(0, 12)
+                        setFormData({ ...formData, aadhar: cleaned })
+                      }}
+                      keyboardType="numeric"
+                      maxLength={12}
+                    />
+                  </View>
+                  <TouchableOpacity style={styles.uploadButton} onPress={handleDocumentUpload}>
+                    <Ionicons name="cloud-upload-outline" size={24} color="white" style={styles.uploadIcon} />
+                    <Text style={styles.uploadButtonText}>
+                      {formData.documentUploaded ? "Document Uploaded" : "Upload Document"}
+                    </Text>
+                  </TouchableOpacity>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="card-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Ration Card Number (10 digits)"
+                      placeholderTextColor="rgba(255,255,255,0.7)"
+                      value={formData.rationCard}
+                      onChangeText={(text) => {
+                        const cleaned = text.replace(/\D/g, "").slice(0, 10)
+                        setFormData({ ...formData, rationCard: cleaned })
+                      }}
+                      keyboardType="numeric"
+                      maxLength={10}
+                    />
+                  </View>
+                  <View style={styles.pickerContainer}>
+                    <Text style={styles.label}>Economic Status</Text>
+                    <Picker
+                      selectedValue={formData.economicStatus}
+                      onValueChange={(itemValue) =>
+                        setFormData({ ...formData, economicStatus: itemValue, category: "" })
+                      }
+                      style={styles.picker}
+                    >
+                      <Picker.Item label="Select Economic Status" value="" />
+                      <Picker.Item label="APL" value="APL" />
+                      <Picker.Item label="BPL" value="BPL" />
+                    </Picker>
+                  </View>
+                  {renderCategoryPicker()}
+                  <View style={styles.inputContainer}>
+                    <Ionicons
+                      name="business-outline"
+                      size={24}
+                      color="rgba(255,255,255,0.7)"
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Unit Number"
+                      placeholderTextColor="rgba(255,255,255,0.7)"
+                      value={formData.unitNumber}
+                      onChangeText={(text) => setFormData({ ...formData, unitNumber: text })}
+                    />
+                  </View>
+                </>
+              )}
               <TouchableOpacity style={styles.button} onPress={handleSignUp}>
                 <Text style={styles.buttonText}>Sign Up</Text>
               </TouchableOpacity>
@@ -240,8 +389,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
+    fontFamily: "Poppins_700Bold",
     fontSize: 32,
-    fontWeight: "bold",
     color: "white",
     textAlign: "center",
     marginBottom: 40,
@@ -261,6 +410,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    fontFamily: "Poppins_400Regular",
     color: "white",
     fontSize: 16,
     padding: 15,
@@ -271,12 +421,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   phonePrefix: {
+    fontFamily: "Poppins_400Regular",
     color: "white",
     fontSize: 16,
     marginRight: 5,
   },
   phoneInput: {
     flex: 1,
+    fontFamily: "Poppins_400Regular",
     color: "white",
     fontSize: 16,
     padding: 15,
@@ -291,6 +443,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   label: {
+    fontFamily: "Poppins_400Regular",
     color: "white",
     fontSize: 16,
     paddingHorizontal: 15,
@@ -311,6 +464,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   uploadButtonText: {
+    fontFamily: "Poppins_400Regular",
     color: "white",
     fontSize: 16,
   },
@@ -322,11 +476,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   buttonText: {
+    fontFamily: "Poppins_600SemiBold",
     color: "#8B5CF6",
     fontSize: 16,
-    fontWeight: "600",
   },
   linkText: {
+    fontFamily: "Poppins_400Regular",
     color: "white",
     textAlign: "center",
     marginTop: 20,

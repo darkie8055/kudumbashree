@@ -1,212 +1,268 @@
-import React, { useState } from "react"
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Modal, TextInput } from "react-native"
+import React, { useState, useEffect, useCallback } from "react"
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Image,
+  Modal,
+  TextInput,
+  ScrollView,
+  ActivityIndicator,
+  RefreshControl,
+} from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { MaterialIcons } from "@expo/vector-icons"
+import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
+import { useNavigation } from "@react-navigation/native"
+import { debounce } from "lodash"
 
 interface Product {
   id: string
   name: string
-  price: string
+  price: number
   imageUrl: string
   unit: string
   phone: string
+  description: string
+  category: string
 }
 
-interface ProductsByDistrict {
-  [key: string]: Product[]
-}
-
-const sampleProducts: ProductsByDistrict = {
-  Ernakulam: [
-    {
-      id: "1",
-      name: "Handmade Soap",
-      price: "₹150",
-      imageUrl: "https://picsum.photos/400/400?random=1",
-      unit: "Ernakulam Kudumbashree",
-      phone: "9876543210",
-    },
-    {
-      id: "2",
-      name: "Organic Honey",
-      price: "₹250",
-      imageUrl: "https://picsum.photos/400/400?random=2",
-      unit: "Ernakulam Kudumbashree",
-      phone: "9876543210",
-    },
-    // ... (other Ernakulam products)
-  ],
-  Thiruvananthapuram: [
-    {
-      id: "9",
-      name: "Eco-friendly Tote Bag",
-      price: "₹120",
-      imageUrl: "https://picsum.photos/400/400?random=9",
-      unit: "Thiruvananthapuram Kudumbashree",
-      phone: "9876543210",
-    },
-    {
-      id: "10",
-      name: "Recycled Paper Journal",
-      price: "₹220",
-      imageUrl: "https://picsum.photos/400/400?random=10",
-      unit: "Thiruvananthapuram Kudumbashree",
-      phone: "9876543210",
-    },
-    // ... (other Thiruvananthapuram products)
-  ],
-  Kozhikode: [
-    {
-      id: "17",
-      name: "Cotton Handkerchiefs",
-      price: "₹80",
-      imageUrl: "https://picsum.photos/400/400?random=17",
-      unit: "Kozhikode Kudumbashree",
-      phone: "9876543210",
-    },
-    {
-      id: "18",
-      name: "Organic Spices",
-      price: "₹250",
-      imageUrl: "https://picsum.photos/400/400?random=18",
-      unit: "Kozhikode Kudumbashree",
-      phone: "9876543210",
-    },
-    // ... (other Kozhikode products)
-  ],
-}
-
-type SortOption = "none" | "priceLowToHigh" | "priceHighToLow"
+const sampleProducts: Product[] = [
+  {
+    id: "1",
+    name: "Handmade Soap",
+    price: 150,
+    imageUrl: "https://picsum.photos/400/400?random=1",
+    unit: "Ernakulam Kudumbashree",
+    phone: "9876543210",
+    description: "Natural, handmade soap with essential oils.",
+    category: "Beauty",
+  },
+  {
+    id: "2",
+    name: "Organic Honey",
+    price: 250,
+    imageUrl: "https://www.quickpantry.in/cdn/shop/products/dabur-honey-bottle-quick-pantry-1.jpg?v=1710538000&width=750",
+    unit: "Kozhikode Kudumbashree",
+    phone: "9876543211",
+    description: "Pure, organic honey from local beekeepers.",
+    category: "Food",
+  },
+  {
+    id: "3",
+    name: "Handwoven Basket",
+    price: 300,
+    imageUrl: "https://picsum.photos/400/400?random=3",
+    unit: "Thrissur Kudumbashree",
+    phone: "9876543212",
+    description: "Beautiful, handwoven basket made from sustainable materials.",
+    category: "Home",
+  },
+  {
+    id: "4",
+    name: "Spice Mix",
+    price: 100,
+    imageUrl: "https://picsum.photos/400/400?random=4",
+    unit: "Kannur Kudumbashree",
+    phone: "9876543213",
+    description: "Traditional Kerala spice mix for curries.",
+    category: "Food",
+  },
+  {
+    id: "5",
+    name: "Coconut Oil",
+    price: 200,
+    imageUrl: "https://picsum.photos/400/400?random=5",
+    unit: "Alappuzha Kudumbashree",
+    phone: "9876543214",
+    description: "Cold-pressed, pure coconut oil.",
+    category: "Beauty",
+  },
+]
 
 export default function MarketplaceScreen() {
-  const [selectedDistrict, setSelectedDistrict] = useState<string>("Ernakulam")
-  const [isModalVisible, setIsModalVisible] = useState<boolean>(false)
+  const [products, setProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [isDropdownVisible, setIsDropdownVisible] = useState<boolean>(false)
-  const [searchQuery, setSearchQuery] = useState<string>("")
-  const [isSortMenuVisible, setIsSortMenuVisible] = useState<boolean>(false)
-  const [sortOption, setSortOption] = useState<SortOption>("none")
+  const [isModalVisible, setIsModalVisible] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("All")
+  const [sortOption, setSortOption] = useState("name")
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleDistrictChange = (district: string) => {
-    setSelectedDistrict(district)
-    setIsDropdownVisible(false)
-  }
+  const navigation = useNavigation()
 
-  const handleProductPress = (product: Product) => {
+  const fetchProducts = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      // Simulating API call
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      setProducts(sampleProducts)
+    } catch (err) {
+      setError("Failed to fetch products. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchProducts()
+  }, [fetchProducts])
+
+  useEffect(() => {
+    filterAndSortProducts()
+  }, [products, searchQuery, selectedCategory, sortOption]) //Corrected dependency array
+
+  const filterAndSortProducts = useCallback(() => {
+    const filtered = products.filter(
+      (product) =>
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        (selectedCategory === "All" || product.category === selectedCategory),
+    )
+
+    switch (sortOption) {
+      case "name":
+        filtered.sort((a, b) => a.name.localeCompare(b.name))
+        break
+      case "priceLow":
+        filtered.sort((a, b) => a.price - b.price)
+        break
+      case "priceHigh":
+        filtered.sort((a, b) => b.price - a.price)
+        break
+    }
+
+    setFilteredProducts(filtered)
+  }, [products, searchQuery, selectedCategory, sortOption])
+
+  const handleProductPress = useCallback((product: Product) => {
     setSelectedProduct(product)
     setIsModalVisible(true)
+  }, [])
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true)
+    await fetchProducts()
+    setIsRefreshing(false)
+  }, [fetchProducts])
+
+  const debouncedSearch = useCallback(
+    debounce((text: string) => {
+      setSearchQuery(text)
+    }, 300),
+    [],
+  )
+
+  const renderProduct = useCallback(
+    ({ item }: { item: Product }) => (
+      <TouchableOpacity onPress={() => handleProductPress(item)} style={styles.productCard}>
+        <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
+        <Text style={styles.productName}>{item.name}</Text>
+        <Text style={styles.productPrice}>₹{item.price}</Text>
+      </TouchableOpacity>
+    ),
+    [handleProductPress],
+  )
+
+  const categories = ["All", "Beauty", "Food", "Home"]
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8B5CF6" />
+      </View>
+    )
   }
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query)
-  }
-
-  const handleSortOption = (option: SortOption) => {
-    setSortOption(option)
-    setIsSortMenuVisible(false)
-  }
-
-  const sortedProducts = (products: Product[]): Product[] => {
-    if (sortOption === "priceLowToHigh") {
-      return [...products].sort(
-        (a, b) => Number.parseInt(a.price.replace("₹", "")) - Number.parseInt(b.price.replace("₹", "")),
-      )
-    }
-    if (sortOption === "priceHighToLow") {
-      return [...products].sort(
-        (a, b) => Number.parseInt(b.price.replace("₹", "")) - Number.parseInt(a.price.replace("₹", "")),
-      )
-    }
-    return products
-  }
-
-  const renderProduct = ({ item }: { item: Product }) => {
-    if (item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return (
-        <TouchableOpacity onPress={() => handleProductPress(item)} style={styles.productContainer}>
-          <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
-          <Text style={styles.productName}>{item.name}</Text>
-          <Text style={styles.productPrice}>{item.price}</Text>
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchProducts}>
+          <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
-      )
-    }
-    return null
+      </View>
+    )
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Marketplace</Text>
-
-      <LinearGradient
-        colors={["rgba(129, 69, 155, 0.7)", "rgba(166, 223, 184, 0.7)"]}
-        style={styles.pickerSearchContainer}
-      >
-        <TouchableOpacity style={styles.dropdownButton} onPress={() => setIsDropdownVisible(!isDropdownVisible)}>
-          <Text style={styles.dropdownButtonText}>{selectedDistrict}</Text>
-          <MaterialIcons name="arrow-drop-down" size={24} color="black" />
+      <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-
-        {isDropdownVisible && (
-          <View style={styles.dropdownContainer}>
-            <FlatList
-              data={["Ernakulam", "Thiruvananthapuram", "Kozhikode"]}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => (
-                <TouchableOpacity style={styles.dropdownItem} onPress={() => handleDistrictChange(item)}>
-                  <Text style={styles.dropdownItemText}>{item}</Text>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        )}
-
-        <TextInput
-          style={styles.searchBox}
-          placeholder="Search Products..."
-          value={searchQuery}
-          onChangeText={handleSearch}
-        />
+        <Text style={styles.headerTitle}>Marketplace</Text>
       </LinearGradient>
 
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+        <TextInput style={styles.searchInput} placeholder="Search products..." onChangeText={debouncedSearch} />
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesContainer}>
+        {categories.map((category) => (
+          <TouchableOpacity
+            key={category}
+            style={[styles.categoryButton, selectedCategory === category && styles.selectedCategoryButton]}
+            onPress={() => setSelectedCategory(category)}
+          >
+            <Text style={[styles.categoryText, selectedCategory === category && styles.selectedCategoryText]}>
+              {category}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <View style={styles.sortContainer}>
+        <Text style={styles.sortLabel}>Sort by:</Text>
+        <TouchableOpacity style={styles.sortButton} onPress={() => setSortOption("name")}>
+          <Text style={[styles.sortButtonText, sortOption === "name" && styles.activeSortButton]}>Name</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.sortButton} onPress={() => setSortOption("priceLow")}>
+          <Text style={[styles.sortButtonText, sortOption === "priceLow" && styles.activeSortButton]}>
+            Price: Low to High
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.sortButton} onPress={() => setSortOption("priceHigh")}>
+          <Text style={[styles.sortButtonText, sortOption === "priceHigh" && styles.activeSortButton]}>
+            Price: High to Low
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
-        data={sortedProducts(sampleProducts[selectedDistrict])}
+        data={filteredProducts}
         renderItem={renderProduct}
         keyExtractor={(item) => item.id}
         numColumns={2}
         contentContainerStyle={styles.productList}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={["#8B5CF6"]} />}
+        ListEmptyComponent={
+          <Text style={styles.emptyListText}>No products found. Try adjusting your search or filters.</Text>
+        }
       />
-
-      <TouchableOpacity style={styles.sortButton} onPress={() => setIsSortMenuVisible(!isSortMenuVisible)}>
-        <MaterialIcons name="sort" size={30} color="white" />
-      </TouchableOpacity>
-
-      {isSortMenuVisible && (
-        <View style={styles.sortMenu}>
-          <TouchableOpacity onPress={() => handleSortOption("priceLowToHigh")} style={styles.sortMenuItem}>
-            <Text style={styles.sortMenuText}>Price: Low to High</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleSortOption("priceHighToLow")} style={styles.sortMenuItem}>
-            <Text style={styles.sortMenuText}>Price: High to Low</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       <Modal
         visible={isModalVisible}
-        animationType="fade"
-        onRequestClose={() => setIsModalVisible(false)}
+        animationType="slide"
         transparent={true}
+        onRequestClose={() => setIsModalVisible(false)}
       >
         {selectedProduct && (
-          <View style={styles.modalBackdrop}>
+          <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>{selectedProduct.name}</Text>
               <Image source={{ uri: selectedProduct.imageUrl }} style={styles.modalImage} />
-              <Text style={styles.modalPrice}>{selectedProduct.price}</Text>
+              <Text style={styles.modalTitle}>{selectedProduct.name}</Text>
+              <Text style={styles.modalPrice}>₹{selectedProduct.price}</Text>
+              <Text style={styles.modalDescription}>{selectedProduct.description}</Text>
               <Text style={styles.modalUnit}>{selectedProduct.unit}</Text>
               <Text style={styles.modalPhone}>Contact: {selectedProduct.phone}</Text>
-              <TouchableOpacity onPress={() => setIsModalVisible(false)} style={styles.closeButton}>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setIsModalVisible(false)}>
                 <Text style={styles.closeButtonText}>Close</Text>
               </TouchableOpacity>
             </View>
@@ -221,93 +277,128 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f8f8f8",
-    paddingTop: 20,
   },
-  header: {
-    fontSize: 28,
-    fontWeight: "bold",
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    color: "#FF6B6B",
     textAlign: "center",
     marginBottom: 20,
-    color: "#333",
   },
-  pickerSearchContainer: {
-    marginHorizontal: 20,
-    marginBottom: 20,
+  retryButton: {
+    backgroundColor: "#8B5CF6",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    padding: 10,
-    borderWidth: 1,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
   },
-  dropdownButton: {
+  backButton: {
+    marginRight: 15,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  searchContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 15,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    width: "50%",
-    height: 51,
-  },
-  dropdownButtonText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  searchBox: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 15,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    width: "45%",
-  },
-  dropdownContainer: {
-    position: "absolute",
-    top: 60,
-    left: 0,
-    right: 0,
-    backgroundColor: "#fff",
-    elevation: 5,
-    zIndex: 10,
-    borderWidth: 1,
-    borderColor: "#ccc",
-  },
-  dropdownItem: {
-    backgroundColor: "#fff",
-    padding: 10,
-    borderBottomWidth: 1,
-    borderColor: "#ccc",
-  },
-  dropdownItemText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  productList: {
-    paddingHorizontal: 10,
-    paddingBottom: 80,
-  },
-  productContainer: {
     backgroundColor: "#fff",
     margin: 10,
-    borderRadius: 10,
-    elevation: 3,
-    alignItems: "center",
-    justifyContent: "center",
+    borderRadius: 25,
+    paddingHorizontal: 15,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
     flex: 1,
-    maxWidth: "45%",
-    paddingBottom: 10,
+    paddingVertical: 10,
+  },
+  categoriesContainer: {
+    paddingHorizontal: 10,
+    paddingVertical: 15,
+    alignItems: "center",
+  },
+  categoryButton: {
+    paddingHorizontal: 16,
+    height: 25,
+    borderRadius: 20,
+    marginRight: 10,
+    backgroundColor: "#f0f0f0",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  selectedCategoryButton: {
+    backgroundColor: "#8B5CF6",
+    borderColor: "#8B5CF6",
+  },
+  categoryText: {
+    color: "#333",
+    fontWeight: "600",
+  },
+  selectedCategoryText: {
+    color: "#fff",
+  },
+  sortContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  sortLabel: {
+    marginRight: 10,
+    fontWeight: "bold",
+  },
+  sortButton: {
+    marginRight: 10,
+  },
+  sortButtonText: {
+    color: "#666",
+  },
+  activeSortButton: {
+    color: "#8B5CF6",
+    fontWeight: "bold",
+  },
+  productList: {
+    paddingHorizontal: 5,
+  },
+  productCard: {
+    flex: 1,
+    margin: 5,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 10,
+    alignItems: "center",
   },
   productImage: {
     width: "100%",
-    height: 120,
+    height: 150,
+    borderRadius: 10,
     marginBottom: 10,
   },
   productName: {
-    marginLeft: 10,
-    marginRight: 10,
     fontSize: 16,
     fontWeight: "bold",
     textAlign: "center",
@@ -315,35 +406,9 @@ const styles = StyleSheet.create({
   },
   productPrice: {
     fontSize: 14,
-    color: "#888",
+    color: "#666",
   },
-  sortButton: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
-    backgroundColor: "#000",
-    padding: 15,
-    borderRadius: 50,
-    marginBottom: 60,
-  },
-  sortMenu: {
-    position: "absolute",
-    bottom: 140,
-    right: 20,
-    backgroundColor: "#fff",
-    elevation: 5,
-    width: 150,
-  },
-  sortMenuItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderColor: "#ccc",
-  },
-  sortMenuText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  modalBackdrop: {
+  modalContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
@@ -351,48 +416,53 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: "#fff",
-    paddingBottom: 20,
-    paddingTop: 20,
-    justifyContent: "center",
-    alignItems: "center",
     borderRadius: 10,
-    elevation: 5,
+    padding: 20,
     width: "80%",
-    maxWidth: 400,
+    maxHeight: "80%",
+    alignItems: "center",
+  },
+  modalImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 10,
+    marginBottom: 15,
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
     marginBottom: 10,
   },
-  modalImage: {
-    width: "100%",
-    height: 250,
+  modalPrice: {
+    fontSize: 18,
+    color: "#8B5CF6",
     marginBottom: 10,
   },
-  modalPrice: {
-    fontSize: 20,
-    color: "#333",
+  modalDescription: {
+    textAlign: "center",
     marginBottom: 10,
   },
   modalUnit: {
-    fontSize: 16,
-    color: "#555",
+    fontStyle: "italic",
     marginBottom: 5,
   },
   modalPhone: {
-    fontSize: 16,
-    color: "#555",
-    marginBottom: 20,
+    marginBottom: 15,
   },
   closeButton: {
-    backgroundColor: "#007BFF",
-    paddingVertical: 10,
+    backgroundColor: "#8B5CF6",
     paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 5,
   },
   closeButtonText: {
     color: "#fff",
+    fontWeight: "bold",
+  },
+  emptyListText: {
+    textAlign: "center",
+    marginTop: 20,
+    color: "#666",
     fontSize: 16,
   },
 })

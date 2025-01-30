@@ -10,15 +10,16 @@ import OnboardingScreen from "./screens/OnboardingScreen"
 import LoginScreen from "./screens/LoginScreen"
 import SignUpScreen from "./screens/SignUpScreen"
 import ForgotPasswordScreen from "./screens/ForgotPasswordScreen"
+import WaitingApprovalScreen from "./screens/WaitingApprovalScreen"
+import PresidentDashboardScreen from "./screens/PresidentDashboardScreen"
+import KMDashboardScreen from "./screens/KMDashboardScreen"
+import UserDashboardScreen from "./screens/UserDashBoardScreen"
 import HomeScreen from "./screens/HomeScreen"
 import KudumbashreeDetailsScreen from "./screens/KudumbashreeDetailsScreen"
 import MarketplaceScreen from "./screens/MarketplaceScreen"
 import ProfileScreen from "./screens/ProfileScreen"
 
-// Import types
-import type { RootStackParamList } from "./types/navigation"
-
-const Stack = createStackNavigator<RootStackParamList>()
+const Stack = createStackNavigator()
 const Tab = createBottomTabNavigator()
 
 function MainTabs() {
@@ -30,6 +31,7 @@ function MainTabs() {
         tabBarStyle: styles.tabBar,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName
+
           if (route.name === "Home") {
             iconName = focused ? "home" : "home-outline"
           } else if (route.name === "Details") {
@@ -71,6 +73,10 @@ export default function App() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="WaitingApproval" component={WaitingApprovalScreen} />
+        <Stack.Screen name="PresidentDashboard" component={PresidentDashboardScreen} />
+        <Stack.Screen name="KMDashboard" component={KMDashboardScreen} />
+        <Stack.Screen name="UserDashboard" component={UserDashboardScreen} />
         <Stack.Screen name="MainTabs" component={MainTabs} />
       </Stack.Navigator>
     </NavigationContainer>
