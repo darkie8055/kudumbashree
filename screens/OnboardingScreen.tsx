@@ -9,6 +9,7 @@ import {
   Easing,
   SafeAreaView,
   Image,
+  FlatList,
 } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import type { StackNavigationProp } from "@react-navigation/stack"
@@ -28,39 +29,39 @@ const onboardingData = [
     id: "1",
     title: "Welcome to Kudumbashree",
     description: "Empowering women, transforming communities",
-    image: "/placeholder.svg?height=400&width=400",
+    image: "https://example.com/placeholder.jpg", // Use a proper image URL
   },
   {
     id: "2",
     title: "Financial Empowerment",
     description: "Access micro-finance and build savings",
-    image: "/placeholder.svg?height=400&width=400",
+    image: "https://example.com/placeholder.jpg", // Use a proper image URL
   },
   {
     id: "3",
     title: "Skill Development",
     description: "Learn new skills and grow your entrepreneurial journey",
-    image: "/placeholder.svg?height=400&width=400",
+    image: "https://example.com/placeholder.jpg", // Use a proper image URL
   },
   {
     id: "4",
     title: "Community Support",
     description: "Connect with other members and grow together",
-    image: "/placeholder.svg?height=400&width=400",
+    image: "https://example.com/placeholder.jpg", // Use a proper image URL
   },
 ]
 
 export default function OnboardingScreen({ navigation }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const scrollX = useRef(new Animated.Value(0)).current
-  const slidesRef = useRef(null)
+  const slidesRef = useRef<FlatList>(null)
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_700Bold,
   })
 
-  const viewableItemsChanged = useRef(({ viewableItems }) => {
+  const viewableItemsChanged = useRef(({ viewableItems }: { viewableItems: { index: number }[] }) => {
     setCurrentIndex(viewableItems[0]?.index ?? 0)
   }).current
 
@@ -87,7 +88,7 @@ export default function OnboardingScreen({ navigation }: Props) {
     return null
   }
 
-  const renderItem = ({ item, index }) => {
+  const renderItem = ({ item, index }: { item: typeof onboardingData[0]; index: number }) => {
     const inputRange = [(index - 1) * width, index * width, (index + 1) * width]
 
     const imageScale = scrollX.interpolate({
@@ -107,7 +108,7 @@ export default function OnboardingScreen({ navigation }: Props) {
 
     return (
       <View style={styles.slide}>
-        <Animated.View style={[styles.imageContainer, { transform: [{ scale: imageScale }] }]}>
+        <Animated.View style={[styles.imageContainer, { transform: [{ scale: imageScale }] }]} >
           <Image source={{ uri: item.image }} style={styles.image} resizeMode="contain" />
         </Animated.View>
         <Animated.View style={[styles.textContainer, { transform: [{ translateX: titleTranslate }] }]}>
@@ -120,17 +121,11 @@ export default function OnboardingScreen({ navigation }: Props) {
     )
   }
 
-  const Paginator = () => {
+  const HorizontalPageIndicator = () => {
     return (
-      <View style={styles.paginationContainer}>
+      <View style={styles.pageIndicatorContainer}>
         {onboardingData.map((_, i) => {
           const inputRange = [(i - 1) * width, i * width, (i + 1) * width]
-
-          const dotWidth = scrollX.interpolate({
-            inputRange,
-            outputRange: [8, 16, 8],
-            extrapolate: "clamp",
-          })
 
           const opacity = scrollX.interpolate({
             inputRange,
@@ -138,7 +133,12 @@ export default function OnboardingScreen({ navigation }: Props) {
             extrapolate: "clamp",
           })
 
-          return <Animated.View style={[styles.dot, { width: dotWidth, opacity }]} key={i.toString()} />
+          return (
+            <Animated.View
+              key={i}
+              style={[styles.pageIndicatorDot, { opacity }]}
+            />
+          )
         })}
       </View>
     )
@@ -167,7 +167,7 @@ export default function OnboardingScreen({ navigation }: Props) {
           ref={slidesRef}
         />
         <View style={styles.bottomContainer}>
-          <Paginator />
+          <HorizontalPageIndicator />
           <TouchableOpacity style={styles.button} onPress={scrollTo}>
             <Text style={styles.buttonText}>{currentIndex === onboardingData.length - 1 ? "Get Started" : "Next"}</Text>
           </TouchableOpacity>
@@ -219,14 +219,13 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
     alignItems: "center",
   },
-  paginationContainer: {
+  pageIndicatorContainer: {
     flexDirection: "row",
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
+    marginBottom: 10, // Adjust this value as needed
   },
-  dot: {
+  pageIndicatorDot: {
     height: 8,
+    width: 8,
     borderRadius: 4,
     backgroundColor: "white",
     marginHorizontal: 4,
@@ -244,4 +243,3 @@ const styles = StyleSheet.create({
     color: "#8B5CF6",
   },
 })
-

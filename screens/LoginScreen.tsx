@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import {
   View,
   Text,
@@ -14,9 +14,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
+import { getFirestore, collection, query, where, getDocs } from "firebase/firestore"
+import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
 import type { StackNavigationProp } from "@react-navigation/stack"
 import type { RootStackParamList } from "../types/navigation"
-import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, "Login">
 
@@ -25,7 +26,7 @@ interface Props {
 }
 
 export default function LoginScreen({ navigation }: Props) {
-  const [username, setUsername] = useState("")
+  const [phoneNumber, setPhoneNumber] = useState("")
   const [password, setPassword] = useState("")
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [animation] = useState(new Animated.Value(0))
@@ -45,28 +46,60 @@ export default function LoginScreen({ navigation }: Props) {
     }).start()
   }, [animation])
 
-  const handleLogin = () => {
-    if (username.startsWith("P-") && username.length > 2) {
-      // President login
-      console.log("Logging in as President", { username, password })
-      navigation.navigate("PresidentDashboard")
-    } else if (username.startsWith("KM-") && username.length > 3) {
-      // Kudumbashree Member login
-      console.log("Logging in as Kudumbashree Member", { username, password })
-      navigation.navigate("MainTabs")
-    } else {
-      // Normal user login
-      console.log("Logging in as Normal User", { username, password })
-      navigation.navigate("MainTabs")
+  const handleLogin = async () => {
+    if (!/^[0-9]{10}$/.test(phoneNumber)) {
+      Alert.alert("Invalid Phone Number", "Please enter a valid 10-digit phone number.")
+      return
+    }
+
+    try {
+      const db = getFirestore()
+      const collections = ["K-member", "normal", "president"]
+      let userData = null
+      let userRole = ""
+
+      for (const collectionName of collections) {
+        const usersRef = collection(db, collectionName)
+        const q = query(usersRef, where("phone", "==", phoneNumber))
+        const querySnapshot = await getDocs(q)
+
+        if (!querySnapshot.empty) {
+          userData = querySnapshot.docs[0].data()
+          userRole = collectionName
+          break
+        }
+      }
+
+      if (!userData) {
+        Alert.alert("User Not Found", "No account associated with this phone number.")
+        return
+      }
+
+      if (userData.password !== password) {
+        Alert.alert("Incorrect Password", "Please enter the correct password.")
+        return
+      }
+
+      if (userRole === "president") {
+        navigation.navigate("PresidentDashboard")
+      } else if (userRole === "K-member") {
+        if (userData.status === "approved") {
+          navigation.navigate("KMemberTabs")
+        } else if (userData.status === "pending") {
+          navigation.navigate("WaitingApproval")
+        } else {
+          Alert.alert("Access Denied", "Your application has been rejected.")
+        }
+      } else {
+        navigation.navigate("NormalUserTabs")
+      }
+    } catch (error) {
+      Alert.alert("Login Failed", error.message)
     }
   }
 
   const handleForgotPassword = () => {
-    if (username.startsWith("P-") || username.startsWith("KM-")) {
-      navigation.navigate("ForgotPassword", { userType: username.startsWith("P-") ? "president" : "km" })
-    } else {
-      navigation.navigate("ForgotPassword", { userType: "normal" })
-    }
+    navigation.navigate("ForgotPassword", { phoneNumber })
   }
 
   const translateY = animation.interpolate({
@@ -91,13 +124,14 @@ export default function LoginScreen({ navigation }: Props) {
             <Text style={styles.title}>Welcome Back</Text>
             <View style={styles.form}>
               <View style={styles.inputContainer}>
-                <Ionicons name="person-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
+                <Ionicons name="call-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Username"
+                  placeholder="Phone Number"
                   placeholderTextColor="rgba(255,255,255,0.7)"
-                  value={username}
-                  onChangeText={setUsername}
+                  keyboardType="phone-pad"
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
                 />
               </View>
               <View style={styles.inputContainer}>
@@ -125,7 +159,7 @@ export default function LoginScreen({ navigation }: Props) {
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
+            <TouchableOpacity onPress={() => navigation.navigate("Verification")}>
               <Text style={styles.linkText}>Don't have an account? Sign Up</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -200,5 +234,4 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 10,
   },
-})
-
+});

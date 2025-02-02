@@ -1,12 +1,19 @@
 export type RootStackParamList = {
-    // ... (keep existing routes)
-    PresidentDashboard: undefined
-    KMDashboard: undefined
-    UserDashboard: undefined
-    WaitingApproval: undefined
-    ForgotPassword: { userType: "president" | "km" | "normal" }
-  }
-  
-  // ... (keep the rest of the file as is)
-  
-  
+  Onboarding: undefined
+  Login: undefined
+  Verification: undefined
+  SignUp: { phoneNumber: string }
+  PresidentDashboard: undefined
+  KMemberTabs: undefined
+  NormalUserTabs: undefined
+  WaitingApproval: undefined
+  ForgotPassword: { phoneNumber: string }
+  KMemberApproval: undefined
+  MainTabs: undefined
+  Home: undefined
+  Details: undefined
+  Market: undefined
+  Profile: undefined
+  //ForgotPassword: { userType: "president" | "km" | "normal" };
+}
+

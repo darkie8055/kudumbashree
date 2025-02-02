@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,13 +10,21 @@ import {
   Animated,
   Easing,
   Alert,
-} from "react-native"
-import { Picker } from "@react-native-picker/picker"
-import { LinearGradient } from "expo-linear-gradient"
-import type { StackNavigationProp } from "@react-navigation/stack"
-import type { RootStackParamList } from "../types/navigation"
-import { Ionicons } from "@expo/vector-icons"
-import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
+} from "react-native";
+import { Picker } from "@react-native-picker/picker";
+import { LinearGradient } from "expo-linear-gradient";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import type { RootStackParamList } from "../types/navigation";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
+import { firebase } from "../firebase";
+import { getFirestore, collection, doc, setDoc, getDoc } from "firebase/firestore";
+import { useRoute } from '@react-navigation/native';
 
 type SignUpScreenNavigationProp = StackNavigationProp<RootStackParamList, "SignUp">
 
@@ -25,12 +33,14 @@ interface Props {
 }
 
 export default function SignUpScreen({ navigation }: Props) {
+  const route = useRoute();
+  const { phoneNumber } = route.params;
+  
   const [formData, setFormData] = useState({
     userType: "normal",
     firstName: "",
     lastName: "",
-    phone: "",
-    username: "",
+    phone: phoneNumber,
     password: "",
     confirmPassword: "",
     address: "",
@@ -44,15 +54,18 @@ export default function SignUpScreen({ navigation }: Props) {
     category: "",
     unitNumber: "",
     documentUploaded: false,
-  })
+    status: "pending",
+  });
 
-  const [animation] = useState(new Animated.Value(0))
+
+
+  const [animation] = useState(new Animated.Value(0));
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
     Poppins_700Bold,
-  })
+  });
 
   useEffect(() => {
     Animated.timing(animation, {
@@ -60,12 +73,12 @@ export default function SignUpScreen({ navigation }: Props) {
       duration: 1000,
       easing: Easing.out(Easing.ease),
       useNativeDriver: true,
-    }).start()
-  }, [animation])
+    }).start();
+  }, [animation]);
 
   const handleDocumentUpload = () => {
-    setFormData({ ...formData, documentUploaded: true })
-  }
+    setFormData({ ...formData, documentUploaded: true });
+  };
 
   const renderCategoryPicker = () => {
     if (formData.economicStatus === "APL" || formData.economicStatus === "BPL") {
@@ -84,18 +97,18 @@ export default function SignUpScreen({ navigation }: Props) {
             <Picker.Item label="ST" value="ST" />
           </Picker>
         </View>
-      )
+      );
     }
-    return null
-  }
+    return null;
+  };
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     if (formData.password !== formData.confirmPassword) {
       Alert.alert("Password Mismatch", "Password and Confirm Password do not match")
       return
     }
 
-    if (formData.userType === "km-member") {
+    if (formData.userType === "K-member") {
       if (formData.aadhar.length !== 12) {
         Alert.alert("Invalid Aadhar", "Aadhar number must be 12 digits")
         return
@@ -106,25 +119,46 @@ export default function SignUpScreen({ navigation }: Props) {
       }
     }
 
-    console.log("Sign Up", formData)
-    if (formData.userType === "km-member") {
-      Alert.alert("Registration Complete", "Your KM-Member registration is complete. Please wait for approval.", [
-        { text: "OK", onPress: () => navigation.navigate("WaitingApproval") },
-      ])
-    } else {
-      Alert.alert("Registration Complete", "Your registration is complete.", [
-        { text: "OK", onPress: () => navigation.navigate("Login") },
-      ])
+    try {
+      const userTypeCollection = collection(firebase, formData.userType)
+      const userDocRef = doc(userTypeCollection, formData.phone)
+
+      const userDocSnapshot = await getDoc(userDocRef)
+
+      if (userDocSnapshot.exists()) {
+        Alert.alert("Phone Number Exists", "A user with this phone number already exists.")
+        return
+      }
+
+      await setDoc(userDocRef, {
+        ...formData,
+        password: formData.password, // Hash password in a real app!
+      })
+
+      console.log("Document successfully written!")
+
+      if (formData.userType === "K-member") {
+        Alert.alert("Registration Complete", "Your K-Member registration is complete. Please wait for approval.", [
+          { text: "OK", onPress: () => navigation.navigate("WaitingApproval") },
+        ])
+      } else {
+        Alert.alert("Registration Complete", "Your registration is complete.", [
+          { text: "OK", onPress: () => navigation.navigate("Login") },
+        ])
+      }
+    } catch (e) {
+      console.error("Error adding document: ", e)
+      Alert.alert("Error", "An error occurred during registration. Please try again later.")
     }
-  }
+  };
 
   const translateY = animation.interpolate({
     inputRange: [0, 1],
     outputRange: [50, 0],
-  })
+  });
 
   if (!fontsLoaded) {
-    return null
+    return null;
   }
 
   return (
@@ -146,8 +180,8 @@ export default function SignUpScreen({ navigation }: Props) {
                   onValueChange={(itemValue) => setFormData({ ...formData, userType: itemValue })}
                   style={styles.picker}
                 >
-                  <Picker.Item label="Normal User" value="normal" />
-                  <Picker.Item label="KM-Member" value="km-member" />
+                  <Picker.Item label="User" value="normal" />
+                  <Picker.Item label="K-Member" value="K-member" />
                 </Picker>
               </View>
               <View style={styles.inputContainer}>
@@ -170,38 +204,11 @@ export default function SignUpScreen({ navigation }: Props) {
                   onChangeText={(text) => setFormData({ ...formData, lastName: text })}
                 />
               </View>
-              <View style={styles.inputContainer}>
+              <View style={[styles.inputContainer, { height: 50 }]}>
                 <Ionicons name="call-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
-                <View style={styles.phoneInputContainer}>
-                  <Text style={styles.phonePrefix}>+91</Text>
-                  <TextInput
-                    style={styles.phoneInput}
-                    placeholder="Phone Number"
-                    placeholderTextColor="rgba(255,255,255,0.7)"
-                    value={formData.phone}
-                    onChangeText={(text) => {
-                      const cleaned = text.replace(/\D/g, "").slice(0, 10)
-                      setFormData({ ...formData, phone: cleaned })
-                    }}
-                    keyboardType="phone-pad"
-                    maxLength={10}
-                  />
-                </View>
-              </View>
-              <View style={styles.inputContainer}>
-                <Ionicons
-                  name="person-circle-outline"
-                  size={24}
-                  color="rgba(255,255,255,0.7)"
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Username"
-                  placeholderTextColor="rgba(255,255,255,0.7)"
-                  value={formData.username}
-                  onChangeText={(text) => setFormData({ ...formData, username: text })}
-                />
+                  <View style={[styles.phoneInputContainer, { height: 50 }]}>
+                    <Text style={styles.phonePrefix}>+91 {phoneNumber}</Text>
+                  </View>
               </View>
               <View style={styles.inputContainer}>
                 <Ionicons name="lock-closed-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
@@ -290,7 +297,7 @@ export default function SignUpScreen({ navigation }: Props) {
                   </View>
                 </>
               )}
-              {formData.userType === "km-member" && (
+              {formData.userType === "K-member" && (
                 <>
                   <View style={styles.inputContainer}>
                     <Ionicons name="card-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
@@ -371,7 +378,7 @@ export default function SignUpScreen({ navigation }: Props) {
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -487,4 +494,3 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
 })
-

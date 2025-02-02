@@ -1,11 +1,17 @@
-import React from "react"
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
+import { useNavigation } from "@react-navigation/native"
+import type { StackNavigationProp } from "@react-navigation/stack"
+import type { RootStackParamList } from "../types/navigation" // Make sure this path is correct
+
+type PresidentDashboardScreenNavigationProp = StackNavigationProp<RootStackParamList, "PresidentDashboard">
 
 export default function PresidentDashboardScreen() {
+  const navigation = useNavigation<PresidentDashboardScreenNavigationProp>()
+
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
@@ -14,6 +20,10 @@ export default function PresidentDashboardScreen() {
 
   if (!fontsLoaded) {
     return null
+  }
+
+  const handleApproveRequests = () => {
+    navigation.navigate("KMemberApproval")
   }
 
   return (
@@ -31,7 +41,7 @@ export default function PresidentDashboardScreen() {
               <Ionicons name="people-outline" size={40} color="#8B5CF6" />
               <Text style={styles.cardTitle}>Manage Members</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.card}>
+            <TouchableOpacity style={styles.card} onPress={handleApproveRequests}>
               <Ionicons name="clipboard-outline" size={40} color="#8B5CF6" />
               <Text style={styles.cardTitle}>Approve Requests</Text>
             </TouchableOpacity>
