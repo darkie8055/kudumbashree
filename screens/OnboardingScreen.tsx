@@ -29,25 +29,26 @@ const onboardingData = [
     id: "1",
     title: "Welcome to Kudumbashree",
     description: "Empowering women, transforming communities",
-    image: "https://example.com/placeholder.jpg", // Use a proper image URL
+    image: "https://drive.google.com/uc?export=view&id=1w-wF-B7i1NVEHlCuVDrBg4G6gyJ8NQR3", // Use a proper image URL
   },
   {
     id: "2",
     title: "Financial Empowerment",
     description: "Access micro-finance and build savings",
-    image: "https://example.com/placeholder.jpg", // Use a proper image URL
+    image: "https://drive.google.com/uc?export=view&id=1DopVriOk1DVbLmzJb6tfSq8vREBIhNsV", // Use a proper image URL
   },
   {
     id: "3",
     title: "Skill Development",
     description: "Learn new skills and grow your entrepreneurial journey",
-    image: "https://example.com/placeholder.jpg", // Use a proper image URL
+    image: "https://drive.google.com/uc?export=view&id=1bhE1JUR7QQt9iYWsHS-aBAnuW1QBM3m6", // Use a proper image URL
   },
   {
     id: "4",
     title: "Community Support",
     description: "Connect with other members and grow together",
-    image: "https://example.com/placeholder.jpg", // Use a proper image URL
+    image: "https://drive.google.com/uc?export=view&id=1TGfy8KgJP7MbiSbKpfNG7TYCvm8eVkxJ"
+
   },
 ]
 
@@ -190,6 +191,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     flex: 0.7,
     justifyContent: "center",
+    paddingTop:200,
   },
   image: {
     width: width * 0.8,
