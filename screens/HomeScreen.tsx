@@ -1,5 +1,15 @@
-import React, { useState, useEffect, useCallback } from "react"
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Animated, ScrollView, Image } from "react-native"
+import { useState, useEffect, useRef } from "react"
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Animated,
+  ScrollView,
+  Image,
+  Dimensions,
+} from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
@@ -25,10 +35,11 @@ type News = {
 }
 
 const sampleNotices: Notice[] = [
-  { id: "1", title: "Meeting on Jan 15th, 2025" },
-  { id: "2", title: "Audit scheduled for Jan 20th, 2025" },
-  { id: "3", title: "New training program starts Feb 1st" },
+  { id: "1", title: "📢 Meeting on Jan 15th, 2025" },
+  { id: "2", title: "📢 Audit scheduled for Jan 20th, 2025" },
+  { id: "3", title: "📢 New training program starts Feb 1st" },
 ]
+
 
 const sampleNews: News[] = [
   { id: "1", headline: "New Women Empowerment Scheme Launched", image: "https://picsum.photos/200/100?random=1" },
@@ -36,10 +47,14 @@ const sampleNews: News[] = [
   { id: "3", headline: "Success Story: Local Business Thrives", image: "https://picsum.photos/200/100?random=3" },
 ]
 
+const { width } = Dimensions.get("window")
+const ITEM_WIDTH = width * 0.44
+
 export default function HomeScreen({ navigation }: Props) {
   const [notices, setNotices] = useState<Notice[]>(sampleNotices)
   const [news, setNews] = useState<News[]>(sampleNews)
   const [animation] = useState(new Animated.Value(0))
+  const newsListRef = useRef<FlatList>(null)
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -54,6 +69,23 @@ export default function HomeScreen({ navigation }: Props) {
       useNativeDriver: true,
     }).start()
   }, [animation])
+
+  useEffect(() => {
+    let index = 0
+
+    const scrollInterval = setInterval(() => {
+      if (newsListRef.current && news.length > 0) {
+        newsListRef.current.scrollToOffset({
+          offset: index * (ITEM_WIDTH + 15), // Adjusted for spacing
+          animated: true,
+        })
+
+        index = (index + 1) % news.length // Loop back to the first item
+      }
+    }, 3000)
+
+    return () => clearInterval(scrollInterval)
+  }, [news])
 
   if (!fontsLoaded) {
     return null
@@ -74,9 +106,11 @@ export default function HomeScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Animated.View style={fadeIn}>
+        <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.header}>
           <Text style={styles.pageHeading}>Welcome, User!</Text>
+        </LinearGradient>
 
+        <Animated.View style={fadeIn}>
           {/* Quick Actions Section */}
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionHeader}>Quick Actions</Text>
@@ -120,6 +154,7 @@ export default function HomeScreen({ navigation }: Props) {
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionHeader}>Latest News</Text>
             <FlatList
+              ref={newsListRef}
               data={news}
               keyExtractor={(item) => item.id}
               horizontal
@@ -144,16 +179,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   scrollContent: {
-    padding: 20,
+    flexGrow: 1,
+  },
+  header: {
+    paddingTop: 40,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   pageHeading: {
     fontFamily: "Poppins_700Bold",
-    fontSize: 24,
-    color: "#333",
+    fontSize: 28,
+    color: "#fff",
     marginBottom: 20,
   },
   sectionContainer: {
     marginBottom: 25,
+    paddingHorizontal: 20,
   },
   sectionHeader: {
     fontFamily: "Poppins_600SemiBold",
@@ -167,12 +210,17 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   quickActionItem: {
-    width: "48%",
+    width: ITEM_WIDTH,
     backgroundColor: "#F3F4F6",
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
     marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   quickActionText: {
     fontFamily: "Poppins_400Regular",
@@ -212,4 +260,3 @@ const styles = StyleSheet.create({
     color: "#4B5563",
   },
 })
-
