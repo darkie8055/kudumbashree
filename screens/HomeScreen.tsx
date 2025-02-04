@@ -35,9 +35,9 @@ type News = {
 }
 
 const sampleNotices: Notice[] = [
-  { id: "1", title: "📢 Meeting on Jan 15th, 2025" },
-  { id: "2", title: "📢 Audit scheduled for Jan 20th, 2025" },
-  { id: "3", title: "📢 New training program starts Feb 1st" },
+  { id: "1", title: " Meeting on Jan 15th, 2025" },
+  { id: "2", title: " Audit scheduled for Jan 20th, 2025" },
+  { id: "3", title: " New training program starts Feb 1st" },
 ]
 
 
@@ -116,20 +116,20 @@ export default function HomeScreen({ navigation }: Props) {
             <Text style={styles.sectionHeader}>Quick Actions</Text>
             <View style={styles.quickActionsContainer}>
               <TouchableOpacity style={styles.quickActionItem}>
-                <Ionicons name="calendar-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.quickActionText}>Schedule</Text>
+                <Ionicons name="list-outline" size={24} color="#8B5CF6" />
+                <Text style={styles.quickActionText}>ACTIVITIES</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.quickActionItem}>
+                <Ionicons name="book-outline" size={24} color="#8B5CF6" />
+                <Text style={styles.quickActionText}>Rules & RGL</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.quickActionItem}>
+                <Ionicons name="calender-clear-outline" size={24} color="#8B5CF6" />
+                <Text style={styles.quickActionText}>UPCOMING</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.quickActionItem}>
                 <Ionicons name="document-text-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.quickActionText}>Reports</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickActionItem}>
-                <Ionicons name="people-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.quickActionText}>Members</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickActionItem}>
-                <Ionicons name="cash-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.quickActionText}>Finances</Text>
+                <Text style={styles.quickActionText}>TODAY'S STORY</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -182,8 +182,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   header: {
-    paddingTop: 40,
-    paddingBottom: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,

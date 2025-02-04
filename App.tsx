@@ -44,7 +44,7 @@ function KMemberTabs() {
 
           return (
             <View style={[styles.tabCircle, focused ? styles.activeTab : styles.inactiveTab]}>
-              <Ionicons name={iconName} size={size} color={color} />
+              <Ionicons name={iconName} size={size} color="#FF7EE2" />
             </View>
           )
         },

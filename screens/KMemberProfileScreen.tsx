@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { View, Text, StyleSheet, Image, TouchableOpacity, TextInput, ScrollView } from "react-native"
+import { View, Text, StyleSheet, Image, TouchableOpacity, TextInput, ScrollView, Alert } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -40,7 +40,24 @@ export default function ProfileScreen() {
   })
 
   const handleEditButton = () => {
-    setIsEditing(!isEditing)
+    if (isEditing) {
+      // Save changes
+      setIsEditing(false)
+      Alert.alert(
+        "Success",
+        "Details saved successfully",
+        [
+          {
+            text: "OK",
+            onPress: () => console.log("OK Pressed"),
+          },
+        ],
+        { cancelable: false },
+      )
+    } else {
+      // Enter edit mode
+      setIsEditing(true)
+    }
   }
 
   const handleChange = (field: keyof UserDetails, value: string) => {
@@ -106,7 +123,7 @@ export default function ProfileScreen() {
                   {isEditing ? (
                     <TextInput
                       style={styles.detailInput}
-                      value={value}
+                      value={value.toString()}
                       onChangeText={(text) => handleChange(key as keyof UserDetails, text)}
                     />
                   ) : (
