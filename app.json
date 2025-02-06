@@ -17,9 +17,10 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage":"./rabit.gif" ,
+        "foregroundImage": "./rabit.gif",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.darkie80.KudumbashreeApp"
     },
     "web": {
       "favicon": "./assets/favicon.png"

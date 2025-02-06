@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   productImage: {
-    width: "100%",
+    width: "200",
     height: 200,
     borderTopLeftRadius: 10,
     borderTopRightRadius: 10,

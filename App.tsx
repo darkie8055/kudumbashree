@@ -44,7 +44,7 @@ function KMemberTabs() {
 
           return (
             <View style={[styles.tabCircle, focused ? styles.activeTab : styles.inactiveTab]}>
-              <Ionicons name={iconName} size={size} color="#FF7EE2" />
+              <Ionicons name={iconName} size={size} color={focused ? "#FFFFFF" : "#FF7EE2"} />
             </View>
           )
         },
@@ -76,7 +76,7 @@ function NormalUserTabs() {
 
           return (
             <View style={[styles.tabCircle, focused ? styles.activeTab : styles.inactiveTab]}>
-              <Ionicons name={iconName} size={size} color={color} />
+              <Ionicons name={iconName} size={size} color={focused ? "#FFFFFF" : "#FF7EE2"} />
             </View>
           )
         },
@@ -91,7 +91,7 @@ function NormalUserTabs() {
 export default function App() {
   return (
     <NavigationContainer>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
       <Stack.Navigator
         initialRouteName="Onboarding"
         screenOptions={{
@@ -141,43 +141,33 @@ export default function App() {
 const styles = StyleSheet.create({
   tabBar: {
     position: "absolute",
-    backgroundColor: "rgba(255, 255, 255, 0)",
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
     elevation: 0,
     borderTopWidth: 0,
-    height: 55,
-    bottom: 10,
-    left: 10,
-    right: 10,
-    borderRadius: 20,
+    height: 60,
+    bottom: 5,
+    left: 20,
+    right: 20,
+    borderRadius: 30,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+
   },
   tabCircle: {
-    width: 70,
-    height: 45,
+    width: 50,
+    height: 50,
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 30,
+    borderRadius: 25,
   },
   activeTab: {
-    backgroundColor: "#000",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 3,
+    backgroundColor: "#FF7EE2",
   },
   inactiveTab: {
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 3,
+    backgroundColor: "transparent",
   },
 })
 

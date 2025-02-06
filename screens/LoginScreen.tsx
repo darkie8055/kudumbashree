@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { getFirestore, collection, query, where, getDocs } from "firebase/firest
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
 import type { StackNavigationProp } from "@react-navigation/stack"
 import type { RootStackParamList } from "../types/navigation"
+import Toast from 'react-native-toast-message'
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, "Login">
 
@@ -80,19 +81,33 @@ export default function LoginScreen({ navigation }: Props) {
         return
       }
 
-      if (userRole === "president") {
-        navigation.navigate("PresidentDashboard")
-      } else if (userRole === "K-member") {
-        if (userData.status === "approved") {
-          navigation.navigate("KMemberTabs")
-        } else if (userData.status === "pending") {
-          navigation.navigate("WaitingApproval")
+      // Show success toast
+      Toast.show({
+        type: 'success',
+        text1: 'Login Successful',
+        text2: 'Welcome back!',
+        visibilityTime: 3000,
+        autoHide: true,
+        topOffset: 30,
+        bottomOffset: 40,
+      })
+
+      // Navigate after a short delay to allow the toast to be visible
+      setTimeout(() => {
+        if (userRole === "president") {
+          navigation.navigate("PresidentDashboard")
+        } else if (userRole === "K-member") {
+          if (userData.status === "approved") {
+            navigation.navigate("KMemberTabs")
+          } else if (userData.status === "pending") {
+            navigation.navigate("WaitingApproval")
+          } else {
+            Alert.alert("Access Denied", "Your application has been rejected.")
+          }
         } else {
-          Alert.alert("Access Denied", "Your application has been rejected.")
+          navigation.navigate("NormalUserTabs")
         }
-      } else {
-        navigation.navigate("NormalUserTabs")
-      }
+      }, 1000)
     } catch (error) {
       Alert.alert("Login Failed", error.message)
     }
@@ -165,6 +180,7 @@ export default function LoginScreen({ navigation }: Props) {
           </Animated.View>
         </KeyboardAvoidingView>
       </SafeAreaView>
+      <Toast />
     </LinearGradient>
   )
 }
@@ -234,4 +250,4 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 10,
   },
-});
+})
