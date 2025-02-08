@@ -29,7 +29,7 @@ const onboardingData = [
     id: "1",
     title: "Welcome to Kudumbashree",
     description: "Empowering women, transforming communities",
-    image: "https://drive.google.com/uc?export=view&id=1w-wF-B7i1NVEHlCuVDrBg4G6gyJ8NQR3", // Use a proper image URL
+    image: "https://drive.google.com/uc?export=view&id=1M6qDfYBE3ehY19B4xBjkKKuT98C_kRfI", // Use a proper image URL
   },
   {
     id: "2",
@@ -147,7 +147,7 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   return (
     <LinearGradient
-      colors={["#8B5CF6", "#EC4899"]}
+      colors={["white", "white"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
@@ -186,6 +186,7 @@ const styles = StyleSheet.create({
     width,
     flex: 1,
     alignItems: "center",
+    color:"black",
     padding: 20,
   },
   imageContainer: {
@@ -206,12 +207,12 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_700Bold",
     fontSize: 28,
     marginBottom: 10,
-    color: "white",
+    color: "#610C9F",
     textAlign: "center",
   },
   description: {
     fontFamily: "Poppins_400Regular",
-    color: "white",
+    color: "#8367c7",
     textAlign: "center",
     paddingHorizontal: 64,
     fontSize: 16,
@@ -223,13 +224,13 @@ const styles = StyleSheet.create({
   },
   pageIndicatorContainer: {
     flexDirection: "row",
-    marginBottom: 10, // Adjust this value as needed
+    marginBottom: 10, 
   },
   pageIndicatorDot: {
     height: 8,
     width: 8,
     borderRadius: 4,
-    backgroundColor: "white",
+    backgroundColor: "#8367c7",
     marginHorizontal: 4,
   },
   button: {
@@ -238,6 +239,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 50,
     borderRadius: 25,
     marginTop: 20,
+    borderWidth: 2, 
+    borderColor: "#8367c7", 
+    margin: 10, 
   },
   buttonText: {
     fontFamily: "Poppins_700Bold",
