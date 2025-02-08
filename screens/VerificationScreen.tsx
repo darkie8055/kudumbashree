@@ -23,6 +23,10 @@ import { LogBox } from "react-native";
 
 LogBox.ignoreLogs([
   "Warning: FirebaseRecaptcha: Support for defaultProps will be removed from function components in a future major release.",
+  "Firebase: Error (auth/cancelled-popup-request).",
+  "Firebase: Error (auth/popup-closed-by-user).",
+  "Error: Cancelled by user.",
+  "Failed to initialize reCAPTCHA Enterprise config. Triggering the reCAPTCHA v2 verification."
 ]);
 
 // Import your Firebase configuration
@@ -33,6 +37,23 @@ type VerificationScreenNavigationProp = StackNavigationProp<RootStackParamList, 
 interface Props {
   navigation: VerificationScreenNavigationProp;
 }
+
+// Update recaptchaStyles
+const recaptchaStyles = {
+  container: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  webview: {
+    width: 300,
+    height: 400,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    overflow: 'hidden' as const,
+  },
+};
 
 export default function VerificationScreen({ navigation }: Props) {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -65,14 +86,7 @@ export default function VerificationScreen({ navigation }: Props) {
       setLoading(true);
       const auth = getAuth();
       const phoneProvider = new PhoneAuthProvider(auth);
-
-      const formattedPhoneNumber = "+91" + phoneNumber; // Add India country code
-
-      // Make sure the reCAPTCHA is verified before proceeding
-      if (!recaptchaVerifier.current || !recaptchaVerifier.current?.verify()) {
-        Alert.alert("Error", "Please complete the reCAPTCHA challenge.");
-        return;
-      }
+      const formattedPhoneNumber = "+91" + phoneNumber;
 
       const verificationId = await phoneProvider.verifyPhoneNumber(
         formattedPhoneNumber,
@@ -80,9 +94,16 @@ export default function VerificationScreen({ navigation }: Props) {
       );
       setVerificationId(verificationId);
       Alert.alert("Success", "Verification code has been sent to your phone.");
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Failed to send verification code. Please try again.");
+    } catch (err: any) {
+      // Don't log the error but show the alert
+      if (err?.message === 'Cancelled by user' || 
+          err?.code === 'auth/cancelled-popup-request' || 
+          err?.code === 'auth/popup-closed-by-user') {
+        Alert.alert("Cancelled", "Verification was cancelled. Please try again.");
+      } else {
+        console.error(err);
+        Alert.alert("Error", "Failed to send verification code. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -119,89 +140,86 @@ export default function VerificationScreen({ navigation }: Props) {
   }
 
   return (
-    <LinearGradient
-      colors={["#8B5CF6", "#EC4899"]}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
-      <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
-          <Animated.View style={[styles.formContainer, { opacity: animation, transform: [{ translateY }] }]}>
-            <Text style={styles.title}>Verify Phone</Text>
-            <View style={styles.form}>
-              {!verificationId ? (
-                <>
-                  <View style={styles.phoneInputContainer}>
-                    <Text style={styles.phonePrefix}>+91</Text>
-                    <TextInput
-                      style={styles.phoneInput}
-                      placeholder="Enter Phone Number"
-                      placeholderTextColor="rgba(255,255,255,0.7)"
-                      value={phoneNumber}
-                      onChangeText={(text) => {
-                        const cleaned = text.replace(/\D/g, "").slice(0, 10);
-                        setPhoneNumber(cleaned);
-                      }}
-                      keyboardType="phone-pad"
-                      maxLength={10}
-                    />
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.button, loading && styles.buttonDisabled]}
-                    onPress={sendVerificationCode}
-                    disabled={loading || phoneNumber.length !== 10}
-                  >
-                    <Text style={styles.buttonText}>{loading ? "Sending..." : "Send Verification Code"}</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <>
-                  <View style={styles.otpContainer}>
-                    <TextInput
-                      style={styles.otpInput}
-                      placeholder="Enter OTP"
-                      placeholderTextColor="rgba(255,255,255,0.7)"
-                      value={code}
-                      onChangeText={setCode}
-                      keyboardType="number-pad"
-                      maxLength={6}
-                    />
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.button, loading && styles.buttonDisabled]}
-                    onPress={confirmCode}
-                    disabled={loading || code.length !== 6}
-                  >
-                    <Text style={styles.buttonText}>{loading ? "Verifying..." : "Verify Code"}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => {
-                    setVerificationId("");
-                    setCode("");
-                  }}>
-                    <Text style={styles.resendText}>Resend Code</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-            <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-              <Text style={styles.linkText}>Already have an account? Login</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+    <>
+      <LinearGradient
+        colors={["#8B5CF6", "#EC4899"]}
+        style={styles.container}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <SafeAreaView style={styles.container}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
+            <Animated.View style={[styles.formContainer, { opacity: animation, transform: [{ translateY }] }]}>
+              <Text style={styles.title}>Verify Phone</Text>
+              <View style={styles.form}>
+                {!verificationId ? (
+                  <>
+                    <View style={styles.phoneInputContainer}>
+                      <Text style={styles.phonePrefix}>+91</Text>
+                      <TextInput
+                        style={styles.phoneInput}
+                        placeholder="Enter Phone Number"
+                        placeholderTextColor="rgba(255,255,255,0.7)"
+                        value={phoneNumber}
+                        onChangeText={(text) => {
+                          const cleaned = text.replace(/\D/g, "").slice(0, 10);
+                          setPhoneNumber(cleaned);
+                        }}
+                        keyboardType="phone-pad"
+                        maxLength={10}
+                      />
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.button, loading && styles.buttonDisabled]}
+                      onPress={sendVerificationCode}
+                      disabled={loading || phoneNumber.length !== 10}
+                    >
+                      <Text style={styles.buttonText}>{loading ? "Sending..." : "Send Verification Code"}</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.otpContainer}>
+                      <TextInput
+                        style={styles.otpInput}
+                        placeholder="Enter OTP"
+                        placeholderTextColor="rgba(255,255,255,0.7)"
+                        value={code}
+                        onChangeText={setCode}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                      />
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.button, loading && styles.buttonDisabled]}
+                      onPress={confirmCode}
+                      disabled={loading || code.length !== 6}
+                    >
+                      <Text style={styles.buttonText}>{loading ? "Verifying..." : "Verify Code"}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => {
+                      setVerificationId("");
+                      setCode("");
+                    }}>
+                      <Text style={styles.resendText}>Resend Code</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+              <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+                <Text style={styles.linkText}>Already have an account? Login</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </LinearGradient>
 
-      {/* Add Firebase reCAPTCHA Modal */}
       <FirebaseRecaptchaVerifierModal
         ref={recaptchaVerifier}
-        firebaseConfig={firebaseConfig}  // Ensure this is initialized with your Firebase configuration
-        attemptInvisibleVerification={false} // Use visible reCAPTCHA for better debugging
-        onError={(error) => {
-          console.error(error);
-          Alert.alert("Error", "reCAPTCHA failed. Please try again.");
-        }}
+        firebaseConfig={firebaseConfig}
+        attemptInvisibleVerification={false}
       />
-    </LinearGradient>
+    </>
   );
 }
 
@@ -284,5 +302,12 @@ const styles = StyleSheet.create({
     color: "white",
     textAlign: "center",
     textDecorationLine: "underline",
+  },
+  recaptchaTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 20,
+    color: "white",
+    textAlign: "center",
+    marginBottom: 15,
   },
 });

@@ -9,9 +9,11 @@ import type { RootStackParamList } from "../types/navigation" // Make sure this 
 
 type PresidentDashboardScreenNavigationProp = StackNavigationProp<RootStackParamList, "PresidentDashboard">
 
-export default function PresidentDashboardScreen() {
-  const navigation = useNavigation<PresidentDashboardScreenNavigationProp>()
+type Props = {
+  navigation: any; // We'll type this properly later
+};
 
+export default function PresidentDashboardScreen({ navigation }: Props) {
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
@@ -26,6 +28,45 @@ export default function PresidentDashboardScreen() {
     navigation.navigate("KMemberApproval")
   }
 
+  const dashboardItems = [
+    {
+      title: "Manage Members",
+      icon: "people",
+      onPress: () => navigation.navigate('PresidentStack', { 
+        screen: 'ApprovedMembers' 
+      }),
+      color: "#8B5CF6"
+    },
+    {
+      title: "Approve Requests",
+      icon: "clipboard",
+      onPress: handleApproveRequests,
+      color: "#8B5CF6"
+    },
+    {
+      title: "View Reports",
+      icon: "bar-chart",
+      onPress: () => navigation.navigate("ViewReports"),
+      color: "#8B5CF6"
+    },
+    {
+      title: "Schedule Meetings",
+      icon: "calendar",
+      onPress: () => navigation.navigate('PresidentStack', { 
+        screen: 'ScheduleMeeting' 
+      }),
+      color: "#8B5CF6"
+    },
+    {
+      title: "Add Notice/News",
+      icon: "newspaper" as keyof typeof Ionicons.glyphMap,
+      onPress: () => navigation.navigate("PresidentStack", 
+        { screen: "AddNoticeNews" }),
+
+      color: "#8B5CF6"
+    },
+  ];
+
   return (
     <LinearGradient
       colors={["#8B5CF6", "#EC4899"]}
@@ -37,22 +78,12 @@ export default function PresidentDashboardScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Text style={styles.title}>President Dashboard</Text>
           <View style={styles.cardContainer}>
-            <TouchableOpacity style={styles.card}>
-              <Ionicons name="people-outline" size={40} color="#8B5CF6" />
-              <Text style={styles.cardTitle}>Manage Members</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.card} onPress={handleApproveRequests}>
-              <Ionicons name="clipboard-outline" size={40} color="#8B5CF6" />
-              <Text style={styles.cardTitle}>Approve Requests</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.card}>
-              <Ionicons name="bar-chart-outline" size={40} color="#8B5CF6" />
-              <Text style={styles.cardTitle}>View Reports</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.card}>
-              <Ionicons name="calendar-outline" size={40} color="#8B5CF6" />
-              <Text style={styles.cardTitle}>Schedule Meetings</Text>
-            </TouchableOpacity>
+            {dashboardItems.map((item, index) => (
+              <TouchableOpacity key={index} style={styles.card} onPress={item.onPress}>
+                <Ionicons name={item.icon + "-outline"} size={40} color={item.color} />
+                <Text style={styles.cardTitle}>{item.title}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </ScrollView>
       </SafeAreaView>

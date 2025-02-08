@@ -1,10 +1,51 @@
-import React from "react"
-import { View, Text, StyleSheet, ActivityIndicator } from "react-native"
+import React, { useEffect, useState } from "react"
+import { View, Text, StyleSheet, ActivityIndicator, Alert } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { useFonts, Poppins_400Regular, Poppins_700Bold } from "@expo-google-fonts/poppins"
+import { firebase } from "../firebase"
+import { doc, onSnapshot } from "firebase/firestore"
 
-export default function WaitingApprovalScreen() {
+export default function WaitingApprovalScreen({ route, navigation }) {
+  const { phone } = route.params
+  const [status, setStatus] = useState("pending")
+
+  useEffect(() => {
+    // Listen to real-time updates of the user's status
+    const userRef = doc(firebase, "K-member", phone)
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        const userData = doc.data()
+        if (userData.status === "approved") {
+          Alert.alert(
+            "Approved!",
+            "Your registration has been approved. Please login to continue.",
+            [
+              {
+                text: "OK",
+                onPress: () => navigation.replace("Login")
+              }
+            ]
+          )
+        } else if (userData.status === "rejected") {
+          Alert.alert(
+            "Registration Rejected",
+            "Your registration has been rejected. Please contact support for more information.",
+            [
+              {
+                text: "OK",
+                onPress: () => navigation.replace("Login")
+              }
+            ]
+          )
+        }
+      }
+    })
+
+    // Cleanup subscription
+    return () => unsubscribe()
+  }, [])
+
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_700Bold,

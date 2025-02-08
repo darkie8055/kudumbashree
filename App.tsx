@@ -3,6 +3,7 @@ import { NavigationContainer } from "@react-navigation/native"
 import { createStackNavigator } from "@react-navigation/stack"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { Ionicons } from "@expo/vector-icons"
+import { Poppins_600SemiBold } from "@expo-google-fonts/poppins"
 
 // Import screens
 import OnboardingScreen from "./screens/OnboardingScreen"
@@ -18,11 +19,17 @@ import HomeScreen from "./screens/HomeScreen"
 import KudumbashreeDetailsScreen from "./screens/KudumbashreeDetailsScreen"
 import MarketplaceScreen from "./screens/MarketplaceScreen"
 import KMemberApprovalScreen from "./screens/KMemberApprovalScreen"
+import ApprovedMembersScreen from "./screens/ApprovedMembersScreen"
+import ScheduleMeetingScreen from "./screens/ScheduleMeetingScreen"
+import AddNoticeNewsScreen from "./screens/AddNoticeNewsScreen"
 
 const Stack = createStackNavigator()
 const Tab = createBottomTabNavigator()
 
-function KMemberTabs() {
+function KMemberTabs({ route }) {
+  // Get phone number from route params
+  const phoneNumber = route.params?.phoneNumber;
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -50,15 +57,31 @@ function KMemberTabs() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Details" component={KudumbashreeDetailsScreen} />
-      <Tab.Screen name="Market" component={MarketplaceScreen} />
-      <Tab.Screen name="Profile" component={KMemberProfileScreen} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen} 
+      />
+      <Tab.Screen 
+        name="Details" 
+        component={KudumbashreeDetailsScreen} 
+      />
+      <Tab.Screen 
+        name="Market" 
+        component={MarketplaceScreen} 
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={KMemberProfileScreen}
+        initialParams={{ phoneNumber }} // Pass phone number to profile screen
+      />
     </Tab.Navigator>
-  )
+  );
 }
 
-function NormalUserTabs() {
+function NormalUserTabs({ route }) {
+  // Get phone number from route params
+  const phoneNumber = route.params?.phoneNumber;
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -82,10 +105,71 @@ function NormalUserTabs() {
         },
       })}
     >
-      <Tab.Screen name="Market" component={MarketplaceScreen} />
-      <Tab.Screen name="Profile" component={NormalUserProfileScreen} />
+      <Tab.Screen 
+        name="Market" 
+        component={MarketplaceScreen} 
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={NormalUserProfileScreen}
+        initialParams={{ phoneNumber }} // Pass phone number to profile screen
+      />
     </Tab.Navigator>
-  )
+  );
+}
+
+function PresidentStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen 
+        name="PresidentDashboard" 
+        component={PresidentDashboardScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="ApprovedMembers" 
+        component={ApprovedMembersScreen}
+        options={{
+          title: "Manage Members",
+          headerStyle: {
+            backgroundColor: '#8B5CF6',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontFamily: 'Poppins_600SemiBold',
+          },
+        }}
+      />
+      <Stack.Screen 
+        name="ScheduleMeeting" 
+        component={ScheduleMeetingScreen}
+        options={{
+          title: "Schedule Meeting",
+          headerStyle: {
+            backgroundColor: '#8B5CF6',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontFamily: 'Poppins_600SemiBold',
+          },
+        }}
+      />
+      <Stack.Screen 
+        name="AddNoticeNews" 
+        component={AddNoticeNewsScreen}
+        options={{
+          title: "Add Notice/News",
+          headerStyle: {
+            backgroundColor: '#8B5CF6',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontFamily: 'Poppins_600SemiBold',
+          },
+        }}
+      />
+    </Stack.Navigator>
+  );
 }
 
 export default function App() {
@@ -133,6 +217,11 @@ export default function App() {
           }}
         />
         <Stack.Screen name="KMemberApproval" component={KMemberApprovalScreen} />
+        <Stack.Screen 
+          name="PresidentStack" 
+          component={PresidentStack} 
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   )
@@ -141,7 +230,7 @@ export default function App() {
 const styles = StyleSheet.create({
   tabBar: {
     position: "absolute",
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    backgroundColor: "rgba(255, 255, 255, 1)",
     elevation: 0,
     borderTopWidth: 0,
     height: 60,

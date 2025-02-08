@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   Dimensions,
   Modal,
   Pressable,
+  RefreshControl,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
@@ -20,6 +21,8 @@ import { LinearGradient } from "expo-linear-gradient"
 import type { StackNavigationProp } from "@react-navigation/stack"
 import type { RootStackParamList } from "../types/navigation"
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { firebase } from '../firebase';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">
 
@@ -30,6 +33,11 @@ interface Props {
 type Notice = {
   id: string
   title: string
+  description?: string
+  date?: Date
+  type?: 'meeting' | 'notice'
+  createdAt?: any
+  venue?: string
 }
 
 type News = {
@@ -95,19 +103,60 @@ const { width } = Dimensions.get("window")
 const ITEM_WIDTH = width * 0.44
 
 export default function HomeScreen({ navigation }: Props) {
-  const [notices] = useState<Notice[]>(sampleNotices)
+  const [notices, setNotices] = useState<Notice[]>([])
   const [news] = useState<News[]>(sampleNews)
   const [animation] = useState(new Animated.Value(0))
   const newsListRef = useRef<FlatList>(null)
   const scaleAnimations = useRef<{ [key: string]: Animated.Value }>({}).current
   const [modalVisible, setModalVisible] = useState(false)
   const [selectedNews, setSelectedNews] = useState<News | null>(null)
+  const [expandedNotice, setExpandedNotice] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [currentNoticeIndex, setCurrentNoticeIndex] = useState(0)
+  const [pauseScroll, setPauseScroll] = useState(false)
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
     Poppins_700Bold,
   })
+
+  const fetchNotices = async () => {
+    try {
+      const noticesRef = collection(firebase, 'notices');
+      const q = query(noticesRef, orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      const noticesList = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        title: doc.data().title || '',
+        description: doc.data().description,
+        date: doc.data().date?.toDate(),
+        type: doc.data().type,
+        createdAt: doc.data().createdAt,
+        venue: doc.data().venue,
+      })) as Notice[];
+      
+      setNotices(noticesList);
+    } catch (error) {
+      console.error("Error fetching notices:", error);
+    }
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await fetchNotices()
+    } catch (error) {
+      console.error("Error refreshing:", error)
+    } finally {
+      setRefreshing(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchNotices();
+  }, []);
 
   useEffect(() => {
     Animated.timing(animation, {
@@ -133,6 +182,18 @@ export default function HomeScreen({ navigation }: Props) {
 
     return () => clearInterval(scrollInterval)
   }, [news])
+
+  useEffect(() => {
+    if (expandedNotice || pauseScroll) return;
+
+    const interval = setInterval(() => {
+      if (notices.length > 1) {
+        setCurrentNoticeIndex((prev) => (prev + 1) % notices.length);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [notices.length, expandedNotice, pauseScroll]);
 
   const scrollLeft = () => {
     if (newsListRef.current) {
@@ -207,9 +268,69 @@ export default function HomeScreen({ navigation }: Props) {
     ],
   }
 
+  const renderNotice = (notice: Notice) => (
+    <View key={notice.id} style={styles.boardItem}>
+      <TouchableOpacity 
+        style={styles.noticeHeader}
+        onPress={() => setExpandedNotice(expandedNotice === notice.id ? null : notice.id)}
+      >
+        <Ionicons 
+          name={notice.type === 'meeting' ? "calendar-outline" : "notifications-outline"} 
+          size={20} 
+          color="#8B5CF6" 
+          style={styles.boardIcon} 
+        />
+        <View style={styles.headerContent}>
+          <Text style={styles.boardText}>{notice.title}</Text>
+          {notice.date && (
+            <Text style={styles.noticeDate}>
+              {notice.date.toLocaleDateString()} {notice.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          )}
+          {notice.venue && (
+            <Text style={styles.venueText}>Venue: {notice.venue}</Text>
+          )}
+        </View>
+        <Ionicons 
+          name={expandedNotice === notice.id ? "chevron-up" : "chevron-down"} 
+          size={20} 
+          color="#8B5CF6" 
+        />
+      </TouchableOpacity>
+      
+      {expandedNotice === notice.id && notice.description && (
+        <View style={styles.expandedContent}>
+          <Text style={styles.noticeDescription}>{notice.description}</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  const goToPreviousNotice = () => {
+    setPauseScroll(true);
+    setCurrentNoticeIndex((prev) => (prev === 0 ? notices.length - 1 : prev - 1));
+    setTimeout(() => setPauseScroll(false), 3000);
+  };
+
+  const goToNextNotice = () => {
+    setPauseScroll(true);
+    setCurrentNoticeIndex((prev) => (prev + 1) % notices.length);
+    setTimeout(() => setPauseScroll(false), 3000);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#8B5CF6"]}
+            tintColor="#8B5CF6"
+          />
+        }
+      >
         <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.header}>
           <Text style={styles.pageHeading}>Welcome, User!</Text>
         </LinearGradient>
@@ -245,12 +366,38 @@ export default function HomeScreen({ navigation }: Props) {
               colors={["rgba(139, 92, 246, 0.1)", "rgba(236, 72, 153, 0.1)"]}
               style={styles.boardContainer}
             >
-              {notices.map((notice) => (
-                <View key={notice.id} style={styles.boardItem}>
-                  <Ionicons name="notifications-outline" size={20} color="#8B5CF6" style={styles.boardIcon} />
-                  <Text style={styles.boardText}>{notice.title}</Text>
+              {notices.length > 0 ? (
+                <View>
+                  {renderNotice(notices[currentNoticeIndex])}
+                  <View style={styles.noticeNavigation}>
+                    <TouchableOpacity 
+                      style={styles.navButton} 
+                      onPress={goToPreviousNotice}
+                    >
+                      <Ionicons name="chevron-back" size={24} color="#8B5CF6" />
+                    </TouchableOpacity>
+                    <View style={styles.dotContainer}>
+                      {notices.map((_, index) => (
+                        <View
+                          key={index}
+                          style={[
+                            styles.dot,
+                            index === currentNoticeIndex && styles.activeDot
+                          ]}
+                        />
+                      ))}
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.navButton} 
+                      onPress={goToNextNotice}
+                    >
+                      <Ionicons name="chevron-forward" size={24} color="#8B5CF6" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              ))}
+              ) : (
+                <Text style={styles.emptyNotice}>No notices available</Text>
+              )}
             </LinearGradient>
           </View>
 
@@ -363,9 +510,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   boardItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: 8,
+    marginBottom: 8,
+    padding: 8,
   },
   boardIcon: {
     marginRight: 10,
@@ -448,5 +596,74 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "bold",
     textAlign: "center",
+  },
+  noticeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  headerContent: {
+    flex: 1,
+    marginRight: 10,
+  },
+  expandedContent: {
+    paddingLeft: 34, // Aligns with the text after icon
+    paddingTop: 8,
+    paddingBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(139, 92, 246, 0.1)',
+  },
+  noticeDate: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  noticeDescription: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#4B5563",
+    marginTop: 4,
+  },
+  emptyNotice: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+    padding: 10,
+  },
+  dotContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#D1D5DB',
+    marginHorizontal: 4,
+  },
+  activeDot: {
+    backgroundColor: '#8B5CF6',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  venueText: {
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  noticeNavigation: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingHorizontal: 10,
+  },
+  navButton: {
+    padding: 5,
   },
 })

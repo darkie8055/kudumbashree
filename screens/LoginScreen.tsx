@@ -98,14 +98,14 @@ export default function LoginScreen({ navigation }: Props) {
           navigation.navigate("PresidentDashboard")
         } else if (userRole === "K-member") {
           if (userData.status === "approved") {
-            navigation.navigate("KMemberTabs")
+            navigation.navigate("KMemberTabs", { phoneNumber })
           } else if (userData.status === "pending") {
             navigation.navigate("WaitingApproval")
           } else {
             Alert.alert("Access Denied", "Your application has been rejected.")
           }
         } else {
-          navigation.navigate("NormalUserTabs")
+          navigation.navigate("NormalUserTabs", { phoneNumber })
         }
       }, 1000)
     } catch (error) {

@@ -10,6 +10,8 @@ import {
   Animated,
   Easing,
   Alert,
+  ActivityIndicator,
+  Image,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,9 +24,15 @@ import {
   Poppins_600SemiBold,
   Poppins_700Bold,
 } from "@expo-google-fonts/poppins";
-import { firebase } from "../firebase";
-import { getFirestore, collection, doc, setDoc, getDoc } from "firebase/firestore";
+import { initializeApp } from 'firebase/app';
+import { firebaseConfig } from "../firebase";
+import { getFirestore, collection, doc, setDoc, getDoc, query, where, getDocs } from "firebase/firestore";
 import { useRoute } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import axios from 'axios';
+import * as DocumentPicker from 'expo-document-picker';
+import { RouteProp } from '@react-navigation/native';
 
 type SignUpScreenNavigationProp = StackNavigationProp<RootStackParamList, "SignUp">
 
@@ -32,8 +40,15 @@ interface Props {
   navigation: SignUpScreenNavigationProp
 }
 
+type RouteParams = {
+  phoneNumber: string;
+}
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 export default function SignUpScreen({ navigation }: Props) {
-  const route = useRoute();
+  const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
   const { phoneNumber } = route.params;
   
   const [formData, setFormData] = useState({
@@ -55,9 +70,8 @@ export default function SignUpScreen({ navigation }: Props) {
     unitNumber: "",
     documentUploaded: false,
     status: "pending",
+    profilePhotoUrl: "",
   });
-
-
 
   const [animation] = useState(new Animated.Value(0));
 
@@ -66,6 +80,11 @@ export default function SignUpScreen({ navigation }: Props) {
     Poppins_600SemiBold,
     Poppins_700Bold,
   });
+
+  const [aadharDocumentUrl, setAadharDocumentUrl] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
 
   useEffect(() => {
     Animated.timing(animation, {
@@ -76,8 +95,108 @@ export default function SignUpScreen({ navigation }: Props) {
     }).start();
   }, [animation]);
 
-  const handleDocumentUpload = () => {
-    setFormData({ ...formData, documentUploaded: true });
+  const fetchAddressFromPincode = async (pincode: string) => {
+    try {
+      const response = await axios.get(`https://api.postalpincode.in/pincode/${pincode}`);
+      if (response.data[0].Status === "Success") {
+        const postOffice = response.data[0].PostOffice[0];
+        setFormData({
+          ...formData,
+          pincode,
+          state: postOffice.State,
+          district: postOffice.District
+        });
+      } else {
+        Alert.alert("Error", "Please enter a valid pincode");
+        setFormData({
+          ...formData,
+          pincode,
+          state: "",
+          district: ""
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching address:", error);
+      Alert.alert("Error", "Please enter a valid pincode");
+      setFormData({
+        ...formData,
+        pincode,
+        state: "",
+        district: ""
+      });
+    }
+  };
+
+  const handleDocumentUpload = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        copyToCacheDirectory: true
+      });
+
+      if (result.assets && result.assets[0]) {
+        setIsLoading(true);
+        const storage = getStorage(app);
+        const fileRef = storageRef(storage, `aadhar-documents/${formData.phone}-${Date.now()}.pdf`);
+        
+        const response = await fetch(result.assets[0].uri);
+        const blob = await response.blob();
+        
+        const metadata = {
+          contentType: result.assets[0].mimeType || 'application/pdf',
+        };
+        
+        await uploadBytes(fileRef, blob, metadata);
+        const downloadUrl = await getDownloadURL(fileRef);
+        
+        setAadharDocumentUrl(downloadUrl);
+        setFormData({ ...formData, documentUploaded: true });
+        setIsLoading(false);
+        Alert.alert("Success", "Document uploaded successfully");
+      }
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      setIsLoading(false);
+      Alert.alert("Error", "Failed to upload document");
+    }
+  };
+
+  const handleProfilePhotoUpload = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert("Permission Required", "Please allow access to your photo library");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+
+      if (!result.canceled) {
+        setIsPhotoUploading(true);
+        const storage = getStorage(app);
+        const photoRef = storageRef(storage, `profile-photos/${formData.phone}-${Date.now()}.jpg`);
+        
+        const response = await fetch(result.assets[0].uri);
+        const blob = await response.blob();
+        
+        await uploadBytes(photoRef, blob);
+        const downloadUrl = await getDownloadURL(photoRef);
+        
+        setFormData({ ...formData, profilePhotoUrl: downloadUrl });
+        Alert.alert("Success", "Profile photo uploaded successfully");
+      }
+    } catch (error) {
+      console.error("Error uploading photo:", error);
+      Alert.alert("Error", "Failed to upload profile photo");
+    } finally {
+      setIsPhotoUploading(false);
+    }
   };
 
   const renderCategoryPicker = () => {
@@ -103,52 +222,112 @@ export default function SignUpScreen({ navigation }: Props) {
   };
 
   const handleSignUp = async () => {
-    if (formData.password !== formData.confirmPassword) {
-      Alert.alert("Password Mismatch", "Password and Confirm Password do not match")
-      return
-    }
-
-    if (formData.userType === "K-member") {
-      if (formData.aadhar.length !== 12) {
-        Alert.alert("Invalid Aadhar", "Aadhar number must be 12 digits")
-        return
-      }
-      if (formData.rationCard.length !== 10) {
-        Alert.alert("Invalid Ration Card", "Ration Card number must be 10 digits")
-        return
-      }
-    }
-
     try {
-      const userTypeCollection = collection(firebase, formData.userType)
-      const userDocRef = doc(userTypeCollection, formData.phone)
+      setIsSubmitting(true);
 
-      const userDocSnapshot = await getDoc(userDocRef)
-
-      if (userDocSnapshot.exists()) {
-        Alert.alert("Phone Number Exists", "A user with this phone number already exists.")
-        return
+      if (formData.password !== formData.confirmPassword) {
+        Alert.alert("Password Mismatch", "Password and Confirm Password do not match");
+        return;
       }
-
-      await setDoc(userDocRef, {
-        ...formData,
-        password: formData.password, // Hash password in a real app!
-      })
-
-      console.log("Document successfully written!")
 
       if (formData.userType === "K-member") {
-        Alert.alert("Registration Complete", "Your K-Member registration is complete. Please wait for approval.", [
-          { text: "OK", onPress: () => navigation.navigate("WaitingApproval") },
-        ])
+        if (formData.aadhar.length !== 12) {
+          Alert.alert("Invalid Aadhar", "Aadhar number must be 12 digits");
+          return;
+        }
+        if (formData.rationCard.length !== 10) {
+          Alert.alert("Invalid Ration Card", "Ration Card number must be 10 digits");
+          return;
+        }
+      }
+
+      if (formData.userType === "K-member" && !aadharDocumentUrl) {
+        Alert.alert("Document Required", "Please upload your Aadhar document");
+        return;
+      }
+
+      const userTypeCollection = collection(db, formData.userType);
+      const userDocRef = doc(userTypeCollection, formData.phone);
+
+      const userDocSnapshot = await getDoc(userDocRef);
+
+      if (userDocSnapshot.exists()) {
+        Alert.alert("Phone Number Exists", "A user with this phone number already exists.");
+        return;
+      }
+
+      if (formData.userType === "K-member") {
+        try {
+          const presidentsRef = collection(db, "president");
+          const q = query(presidentsRef, where("unitNumber", "==", formData.unitNumber));
+          const presidentSnapshot = await getDocs(q);
+
+          if (presidentSnapshot.empty) {
+            Alert.alert("Error", "No president found for this unit. Please check your unit number.");
+            return;
+          }
+
+          // Get the president's data and check for unitName
+          const presidentData = presidentSnapshot.docs[0].data();
+          if (!presidentData.unitName) {
+            console.error("President data:", presidentData); // Debug log
+            Alert.alert("Error", "Unit name not found. Please contact administrator.");
+            return;
+          }
+
+          // Store user data with pending status and verified unitName
+          const userData = {
+            ...formData,
+            password: formData.password,
+            aadharDocumentUrl,
+            profilePhotoUrl: formData.profilePhotoUrl,
+            status: "pending",
+            presidentId: presidentSnapshot.docs[0].id,
+            unitName: presidentData.unitName
+          };
+
+          console.log("User data being stored:", userData); // Debug log
+
+          await setDoc(userDocRef, userData);
+
+          Alert.alert(
+            "Registration Complete", 
+            "Your K-Member registration is complete. Please wait for approval from your unit president.", 
+            [
+              { 
+                text: "OK", 
+                onPress: () => navigation.navigate("WaitingApproval", { phone: formData.phone }) 
+              },
+            ]
+          );
+        } catch (error) {
+          console.error("Error in K-member registration:", error);
+          Alert.alert("Error", "Failed to complete registration. Please try again.");
+        }
       } else {
-        Alert.alert("Registration Complete", "Your registration is complete.", [
-          { text: "OK", onPress: () => navigation.navigate("Login") },
-        ])
+        // For normal users, just store the data
+        await setDoc(userDocRef, {
+          ...formData,
+          password: formData.password,
+          profilePhotoUrl: formData.profilePhotoUrl,
+        });
+
+        Alert.alert(
+          "Registration Complete", 
+          "Your registration is complete.", 
+          [
+            { 
+              text: "OK", 
+              onPress: () => navigation.navigate("Login") 
+            },
+          ]
+        );
       }
     } catch (e) {
-      console.error("Error adding document: ", e)
-      Alert.alert("Error", "An error occurred during registration. Please try again later.")
+      console.error("Error adding document: ", e);
+      Alert.alert("Error", "An error occurred during registration. Please try again later.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -266,35 +445,51 @@ export default function SignUpScreen({ navigation }: Props) {
                       placeholder="Pincode"
                       placeholderTextColor="rgba(255,255,255,0.7)"
                       value={formData.pincode}
-                      onChangeText={(text) => setFormData({ ...formData, pincode: text })}
+                      onChangeText={(text) => {
+                        const cleaned = text.replace(/\D/g, "").slice(0, 6);
+                        setFormData({ ...formData, pincode: cleaned });
+                        if (cleaned.length === 6) {
+                          fetchAddressFromPincode(cleaned);
+                        }
+                      }}
                       keyboardType="numeric"
+                      maxLength={6}
                     />
                   </View>
-                  <View style={styles.inputContainer}>
-                    <Ionicons
-                      name="business-outline"
-                      size={24}
-                      color="rgba(255,255,255,0.7)"
-                      style={styles.inputIcon}
-                    />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="District"
-                      placeholderTextColor="rgba(255,255,255,0.7)"
-                      value={formData.district}
-                      onChangeText={(text) => setFormData({ ...formData, district: text })}
-                    />
-                  </View>
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="flag-outline" size={24} color="rgba(255,255,255,0.7)" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="State"
-                      placeholderTextColor="rgba(255,255,255,0.7)"
-                      value={formData.state}
-                      onChangeText={(text) => setFormData({ ...formData, state: text })}
-                    />
-                  </View>
+                  {formData.district && formData.state && (
+                    <>
+                      <View style={styles.inputContainer}>
+                        <Ionicons
+                          name="business-outline"
+                          size={24}
+                          color="rgba(255,255,255,0.7)"
+                          style={styles.inputIcon}
+                        />
+                        <TextInput
+                          style={styles.input}
+                          placeholder="District"
+                          placeholderTextColor="rgba(255,255,255,0.7)"
+                          value={formData.district}
+                          editable={false}
+                        />
+                      </View>
+                      <View style={styles.inputContainer}>
+                        <Ionicons 
+                          name="flag-outline" 
+                          size={24} 
+                          color="rgba(255,255,255,0.7)" 
+                          style={styles.inputIcon} 
+                        />
+                        <TextInput
+                          style={styles.input}
+                          placeholder="State"
+                          placeholderTextColor="rgba(255,255,255,0.7)"
+                          value={formData.state}
+                          editable={false}
+                        />
+                      </View>
+                    </>
+                  )}
                 </>
               )}
               {formData.userType === "K-member" && (
@@ -314,10 +509,19 @@ export default function SignUpScreen({ navigation }: Props) {
                       maxLength={12}
                     />
                   </View>
-                  <TouchableOpacity style={styles.uploadButton} onPress={handleDocumentUpload}>
-                    <Ionicons name="cloud-upload-outline" size={24} color="white" style={styles.uploadIcon} />
+                  <TouchableOpacity 
+                    style={styles.uploadButton} 
+                    onPress={handleDocumentUpload}
+                    disabled={isLoading}
+                  >
+                    <Ionicons 
+                      name={isLoading ? "reload-outline" : "cloud-upload-outline"} 
+                      size={24} 
+                      color="white" 
+                      style={[styles.uploadIcon, isLoading && styles.rotating]} 
+                    />
                     <Text style={styles.uploadButtonText}>
-                      {formData.documentUploaded ? "Document Uploaded" : "Upload Document"}
+                      {isLoading ? "Uploading..." : formData.documentUploaded ? "Document Uploaded" : "Upload Document"}
                     </Text>
                   </TouchableOpacity>
                   <View style={styles.inputContainer}>
@@ -367,8 +571,42 @@ export default function SignUpScreen({ navigation }: Props) {
                   </View>
                 </>
               )}
-              <TouchableOpacity style={styles.button} onPress={handleSignUp}>
-                <Text style={styles.buttonText}>Sign Up</Text>
+              <View style={styles.photoUploadContainer}>
+                <TouchableOpacity 
+                  style={styles.photoUploadButton} 
+                  onPress={handleProfilePhotoUpload}
+                  disabled={isPhotoUploading}
+                >
+                  {formData.profilePhotoUrl ? (
+                    <Image 
+                      source={{ uri: formData.profilePhotoUrl }} 
+                      style={styles.profilePhoto}
+                    />
+                  ) : (
+                    <>
+                      <Ionicons 
+                        name={isPhotoUploading ? "reload-outline" : "camera-outline"} 
+                        size={24} 
+                        color="white" 
+                        style={[styles.uploadIcon, isPhotoUploading && styles.rotating]} 
+                      />
+                      <Text style={styles.photoUploadText}>
+                        {isPhotoUploading ? "Uploading..." : "Add Profile Photo"}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity 
+                style={styles.button} 
+                onPress={handleSignUp}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color="#8B5CF6" />
+                ) : (
+                  <Text style={styles.buttonText}>Sign Up</Text>
+                )}
               </TouchableOpacity>
             </View>
             <TouchableOpacity onPress={() => navigation.navigate("Login")}>
@@ -492,5 +730,33 @@ const styles = StyleSheet.create({
     color: "white",
     textAlign: "center",
     marginTop: 20,
+  },
+  rotating: {
+    opacity: 0.7,
+  },
+  photoUploadContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  photoUploadButton: {
+    width: 140,
+    height: 140,
+    borderRadius: 80,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  profilePhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  photoUploadText: {
+    color: 'white',
+    marginTop: 8,
+    fontFamily: 'Poppins_400Regular',
+    fontSize: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 })
