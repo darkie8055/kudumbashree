@@ -8,12 +8,17 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { firebase } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function AddNoticeNewsScreen() {
   const [activeTab, setActiveTab] = useState<'notice' | 'news'>('notice');
@@ -25,12 +30,12 @@ export default function AddNoticeNewsScreen() {
   const [venue, setVenue] = useState('');
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
   
   // News fields
   const [newsHeadline, setNewsHeadline] = useState('');
   const [newsContent, setNewsContent] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [image, setImage] = useState<string | null>(null);
 
   const handleAddNotice = async () => {
     if (!noticeTitle.trim()) {
@@ -69,7 +74,7 @@ export default function AddNoticeNewsScreen() {
   };
 
   const handleAddNews = async () => {
-    if (!newsHeadline.trim() || !imageUrl.trim()) {
+    if (!newsHeadline.trim() || !image) {
       Alert.alert('Error', 'Please fill all required fields');
       return;
     }
@@ -82,7 +87,8 @@ export default function AddNoticeNewsScreen() {
         headline: newsHeadline,
         content: newsContent,
         image: imageUrl,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        type: 'news'
       });
 
       Alert.alert('Success', 'News added successfully', [{
@@ -91,6 +97,7 @@ export default function AddNoticeNewsScreen() {
           setNewsHeadline('');
           setNewsContent('');
           setImageUrl('');
+          setImage(null);
         }
       }]);
     } catch (error) {
@@ -98,6 +105,38 @@ export default function AddNoticeNewsScreen() {
       Alert.alert('Error', 'Failed to add news');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setLoading(true);
+      try {
+        const storage = getStorage();
+        const imageRef = ref(storage, `news/${Date.now()}`);
+        
+        // Convert image to blob
+        const response = await fetch(result.assets[0].uri);
+        const blob = await response.blob();
+        
+        // Upload to Firebase Storage
+        await uploadBytes(imageRef, blob);
+        const url = await getDownloadURL(imageRef);
+        setImage(url);
+        setImageUrl(url);
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        Alert.alert('Error', 'Failed to upload image');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -156,23 +195,27 @@ export default function AddNoticeNewsScreen() {
 
             <View style={styles.dateTimeContainer}>
               <TouchableOpacity 
-                style={styles.dateTimeButton} 
+                style={[styles.dateTimeButton, { flex: 1 }]} 
                 onPress={() => setShowDatePicker(true)}
               >
                 <Text style={styles.dateTimeButtonText}>
                   Select Date: {date.toLocaleDateString()}
                 </Text>
               </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.dateTimeButton} 
-                onPress={() => setShowTimePicker(true)}
-              >
-                <Text style={styles.dateTimeButtonText}>
-                  Select Time: {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </TouchableOpacity>
             </View>
+
+            {(showDatePicker && Platform.OS === 'android') && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) {
+                    setDate(selectedDate);
+                  }
+                }}
+              />
+            )}
 
             <TouchableOpacity 
               style={[styles.submitButton, loading && styles.disabledButton]}
@@ -208,14 +251,25 @@ export default function AddNoticeNewsScreen() {
               numberOfLines={4}
             />
 
-            <Text style={styles.label}>Image URL</Text>
-            <TextInput
-              style={styles.input}
-              value={imageUrl}
-              onChangeText={setImageUrl}
-              placeholder="Enter image URL"
-              placeholderTextColor="#9CA3AF"
-            />
+            <View>
+              <Text style={styles.label}>Image</Text>
+              <TouchableOpacity 
+                style={styles.imageButton} 
+                onPress={pickImage}
+              >
+                {image ? (
+                  <Image 
+                    source={{ uri: image }} 
+                    style={styles.selectedImage} 
+                  />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <Ionicons name="image-outline" size={24} color="#6B7280" />
+                    <Text style={styles.imagePlaceholderText}>Select Image</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity 
               style={[styles.submitButton, loading && styles.disabledButton]}
@@ -329,5 +383,29 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.7,
+  },
+  imageButton: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    height: 200,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  selectedImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imagePlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imagePlaceholderText: {
+    marginTop: 8,
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+    color: '#6B7280',
   },
 }); 

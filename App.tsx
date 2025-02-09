@@ -51,7 +51,7 @@ function KMemberTabs({ route }) {
 
           return (
             <View style={[styles.tabCircle, focused ? styles.activeTab : styles.inactiveTab]}>
-              <Ionicons name={iconName} size={size} color={focused ? "#FFFFFF" : "#FF7EE2"} />
+              <Ionicons name={iconName} size={size} color={focused ? "#FFFFFF" : "#8B5CF6"} />
             </View>
           )
         },
@@ -99,7 +99,7 @@ function NormalUserTabs({ route }) {
 
           return (
             <View style={[styles.tabCircle, focused ? styles.activeTab : styles.inactiveTab]}>
-              <Ionicons name={iconName} size={size} color={focused ? "#FFFFFF" : "#FF7EE2"} />
+              <Ionicons name={iconName} size={size} color={focused ? "#FFFFFF" : "#8B5CF6"} />
             </View>
           )
         },
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   activeTab: {
-    backgroundColor: "#FF7EE2",
+    backgroundColor: "#8B5CF6",
   },
   inactiveTab: {
     backgroundColor: "transparent",

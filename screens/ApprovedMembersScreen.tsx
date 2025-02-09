@@ -12,6 +12,7 @@ import { firebase } from '../firebase';
 import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
+import LinearGradient from 'expo-linear-gradient';
 
 export default function ApprovedMembersScreen() {
   const [members, setMembers] = useState([]);
@@ -88,32 +89,34 @@ export default function ApprovedMembersScreen() {
 
   const renderMemberCard = ({ item }) => (
     <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.memberName}>{item.firstName} {item.lastName}</Text>
-        <TouchableOpacity 
-          onPress={() => handleDelete(item.id, `${item.firstName} ${item.lastName}`)}
-          style={styles.deleteButton}
-        >
-          <Ionicons name="trash-outline" size={24} color="#EF4444" />
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.detailsContainer}>
-        <View style={styles.detailRow}>
-          <Text style={styles.label}>Phone:</Text>
-          <Text style={styles.value}>{item.phone}</Text>
+      <View style={styles.cardContent}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.memberName}>{item.firstName} {item.lastName}</Text>
+          <TouchableOpacity 
+            onPress={() => handleDelete(item.id, `${item.firstName} ${item.lastName}`)}
+            style={styles.deleteButton}
+          >
+            <Ionicons name="trash-outline" size={24} color="#EC4899" />
+          </TouchableOpacity>
         </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.label}>Address:</Text>
-          <Text style={styles.value}>{item.address}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.label}>Aadhar:</Text>
-          <Text style={styles.value}>{item.aadhar}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.label}>Ration Card:</Text>
-          <Text style={styles.value}>{item.rationCard}</Text>
+        
+        <View style={styles.detailsContainer}>
+          <View style={styles.detailRow}>
+            <Text style={styles.label}>Phone:</Text>
+            <Text style={styles.value}>{item.phone}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.label}>Address:</Text>
+            <Text style={styles.value}>{item.address}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.label}>Aadhar:</Text>
+            <Text style={styles.value}>{item.aadhar}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.label}>Ration Card:</Text>
+            <Text style={styles.value}>{item.rationCard}</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -158,13 +161,13 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+  },
+  cardContent: {
+    padding: 16,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -175,7 +178,7 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 18,
     fontFamily: 'Poppins_600SemiBold',
-    color: '#1F2937',
+    color: '#8B5CF6',
   },
   deleteButton: {
     padding: 8,
@@ -187,16 +190,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 4,
   },
   label: {
     fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
-    color: '#4B5563',
+    color: '#8B5CF6',
   },
   value: {
     fontSize: 14,
     fontFamily: 'Poppins_400Regular',
-    color: '#1F2937',
+    color: '#4B5563',
   },
   loadingContainer: {
     flex: 1,
@@ -207,7 +211,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     fontFamily: 'Poppins_400Regular',
-    color: '#6B7280',
+    color: '#8B5CF6',
     marginTop: 24,
   },
 }); 

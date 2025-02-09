@@ -14,6 +14,7 @@ import {
   Modal,
   Pressable,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
@@ -21,8 +22,9 @@ import { LinearGradient } from "expo-linear-gradient"
 import type { StackNavigationProp } from "@react-navigation/stack"
 import type { RootStackParamList } from "../types/navigation"
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, getFirestore, doc, getDoc } from 'firebase/firestore';
 import { firebase } from '../firebase';
+import { getAuth } from "firebase/auth";
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">
 
@@ -104,7 +106,7 @@ const ITEM_WIDTH = width * 0.44
 
 export default function HomeScreen({ navigation }: Props) {
   const [notices, setNotices] = useState<Notice[]>([])
-  const [news] = useState<News[]>(sampleNews)
+  const [news, setNews] = useState<News[]>([])
   const [animation] = useState(new Animated.Value(0))
   const newsListRef = useRef<FlatList>(null)
   const scaleAnimations = useRef<{ [key: string]: Animated.Value }>({}).current
@@ -114,6 +116,9 @@ export default function HomeScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false)
   const [currentNoticeIndex, setCurrentNoticeIndex] = useState(0)
   const [pauseScroll, setPauseScroll] = useState(false)
+  const [slideAnim] = useState(new Animated.Value(0))
+  const [firstName, setFirstName] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -143,10 +148,29 @@ export default function HomeScreen({ navigation }: Props) {
     }
   };
 
+  const fetchNews = async () => {
+    try {
+      const newsRef = collection(firebase, 'news');
+      const q = query(newsRef, orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      const newsList = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        headline: doc.data().headline || '',
+        content: doc.data().content || '',
+        image: doc.data().image || '',
+      })) as News[];
+      
+      setNews(newsList);
+    } catch (error) {
+      console.error("Error fetching news:", error);
+    }
+  };
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
     try {
-      await fetchNotices()
+      await Promise.all([fetchNotices(), fetchNews()])
     } catch (error) {
       console.error("Error refreshing:", error)
     } finally {
@@ -156,6 +180,10 @@ export default function HomeScreen({ navigation }: Props) {
 
   useEffect(() => {
     fetchNotices();
+  }, []);
+
+  useEffect(() => {
+    fetchNews();
   }, []);
 
   useEffect(() => {
@@ -188,9 +216,30 @@ export default function HomeScreen({ navigation }: Props) {
 
     const interval = setInterval(() => {
       if (notices.length > 1) {
-        setCurrentNoticeIndex((prev) => (prev + 1) % notices.length);
+        Animated.sequence([
+          Animated.timing(slideAnim, {
+            toValue: -1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          setCurrentNoticeIndex((prev) => (prev + 1) % notices.length);
+          
+          Animated.sequence([
+            Animated.timing(slideAnim, {
+              toValue: 1,
+              duration: 0,
+              useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        });
       }
-    }, 3000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [notices.length, expandedNotice, pauseScroll]);
@@ -252,6 +301,38 @@ export default function HomeScreen({ navigation }: Props) {
     [handleHover, scaleAnimations],
   )
 
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setIsLoading(true);
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const phoneNumber = user.phoneNumber?.replace('+91', '') || '';
+        const db = getFirestore();
+        const collections = ["K-member", "normal", "president"];
+        
+        for (const collection of collections) {
+          const docRef = doc(db, collection, phoneNumber);
+          const userDoc = await getDoc(docRef);
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setFirstName(userData.firstName || userData.FirstName || "User");
+            break;
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
   if (!fontsLoaded) {
     return null
   }
@@ -284,7 +365,7 @@ export default function HomeScreen({ navigation }: Props) {
           <Text style={styles.boardText}>{notice.title}</Text>
           {notice.date && (
             <Text style={styles.noticeDate}>
-              {notice.date.toLocaleDateString()} {notice.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {notice.date.toLocaleDateString()}
             </Text>
           )}
           {notice.venue && (
@@ -307,16 +388,60 @@ export default function HomeScreen({ navigation }: Props) {
   );
 
   const goToPreviousNotice = () => {
-    setPauseScroll(true);
-    setCurrentNoticeIndex((prev) => (prev === 0 ? notices.length - 1 : prev - 1));
-    setTimeout(() => setPauseScroll(false), 3000);
+    Animated.sequence([
+      Animated.timing(slideAnim, {
+        toValue: -1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 1,
+        duration: 0,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setPauseScroll(true);
+      setCurrentNoticeIndex((prev) => (prev === 0 ? notices.length - 1 : prev - 1));
+      setTimeout(() => setPauseScroll(false), 3000);
+    });
   };
 
   const goToNextNotice = () => {
-    setPauseScroll(true);
-    setCurrentNoticeIndex((prev) => (prev + 1) % notices.length);
-    setTimeout(() => setPauseScroll(false), 3000);
+    Animated.sequence([
+      Animated.timing(slideAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: -1,
+        duration: 0,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setPauseScroll(true);
+      setCurrentNoticeIndex((prev) => (prev + 1) % notices.length);
+      setTimeout(() => setPauseScroll(false), 3000);
+    });
   };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8B5CF6" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -332,7 +457,7 @@ export default function HomeScreen({ navigation }: Props) {
         }
       >
         <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.header}>
-          <Text style={styles.pageHeading}>Welcome, User!</Text>
+          <Text style={styles.headerText}>Welcome, {firstName || "User"}!</Text>
         </LinearGradient>
 
         <Animated.View style={fadeIn}>
@@ -368,7 +493,24 @@ export default function HomeScreen({ navigation }: Props) {
             >
               {notices.length > 0 ? (
                 <View>
-                  {renderNotice(notices[currentNoticeIndex])}
+                  <Animated.View
+                    style={{
+                      transform: [
+                        {
+                          translateX: slideAnim.interpolate({
+                            inputRange: [-1, 0, 1],
+                            outputRange: [-300, 0, 300],
+                          }),
+                        },
+                      ],
+                      opacity: slideAnim.interpolate({
+                        inputRange: [-1, 0, 1],
+                        outputRange: [0, 1, 0],
+                      }),
+                    }}
+                  >
+                    {renderNotice(notices[currentNoticeIndex])}
+                  </Animated.View>
                   <View style={styles.noticeNavigation}>
                     <TouchableOpacity 
                       style={styles.navButton} 
@@ -455,6 +597,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+    paddingBottom: 90,
   },
   scrollContent: {
     flexGrow: 1,
@@ -466,7 +609,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
-  pageHeading: {
+  headerText: {
     fontFamily: "Poppins_700Bold",
     fontSize: 28,
     color: "#fff",
@@ -665,5 +808,15 @@ const styles = StyleSheet.create({
   },
   navButton: {
     padding: 5,
+  },
+  buttonGradientBorder: {
+    borderRadius: 15,
+    padding: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
   },
 })

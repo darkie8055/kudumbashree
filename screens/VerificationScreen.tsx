@@ -10,6 +10,7 @@ import {
   Easing,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -62,6 +63,8 @@ export default function VerificationScreen({ navigation }: Props) {
   const [animation] = useState(new Animated.Value(0));
   const [loading, setLoading] = useState(false);
   const [recaptchaVisible, setRecaptchaVisible] = useState(false);
+  const [sendButtonScale] = useState(new Animated.Value(1));
+  const [verifyButtonScale] = useState(new Animated.Value(1));
 
   const recaptchaVerifier = useRef(null); // reCAPTCHA verifier reference
 
@@ -130,6 +133,15 @@ export default function VerificationScreen({ navigation }: Props) {
     }
   };
 
+  const animateScale = (scale: Animated.Value, value: number) => {
+    Animated.spring(scale, {
+      toValue: value,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 5,
+    }).start();
+  };
+
   const translateY = animation.interpolate({
     inputRange: [0, 1],
     outputRange: [50, 0],
@@ -140,86 +152,125 @@ export default function VerificationScreen({ navigation }: Props) {
   }
 
   return (
-    <>
-      <LinearGradient
-        colors={["#8B5CF6", "#EC4899"]}
-        style={styles.container}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <SafeAreaView style={styles.container}>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
-            <Animated.View style={[styles.formContainer, { opacity: animation, transform: [{ translateY }] }]}>
-              <Text style={styles.title}>Verify Phone</Text>
-              <View style={styles.form}>
-                {!verificationId ? (
-                  <>
-                    <View style={styles.phoneInputContainer}>
-                      <Text style={styles.phonePrefix}>+91</Text>
-                      <TextInput
-                        style={styles.phoneInput}
-                        placeholder="Enter Phone Number"
-                        placeholderTextColor="rgba(255,255,255,0.7)"
-                        value={phoneNumber}
-                        onChangeText={(text) => {
-                          const cleaned = text.replace(/\D/g, "").slice(0, 10);
-                          setPhoneNumber(cleaned);
+    <LinearGradient
+      colors={["rgba(162,39,142,0.01)", "rgba(162,39,142,0.03)"]}
+      style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
+          <Animated.View style={[styles.formContainer, { opacity: animation, transform: [{ translateY }] }]}>
+            <LinearGradient
+              colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+              style={styles.gradientBorder}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.whiteBackground}>
+                <Text style={styles.title}>Verify Phone</Text>
+                <View style={styles.form}>
+                  {!verificationId ? (
+                    <>
+                      <View style={styles.inputContainer}>
+                        <View style={styles.prefixContainer}>
+                          <Text style={styles.phonePrefix}>+91</Text>
+                        </View>
+                        <TextInput
+                          style={styles.input}
+                          placeholder="Enter Phone Number"
+                          placeholderTextColor="rgba(162,39,142,0.7)"
+                          value={phoneNumber}
+                          onChangeText={(text) => {
+                            const cleaned = text.replace(/\D/g, "").slice(0, 10);
+                            setPhoneNumber(cleaned);
+                          }}
+                          keyboardType="phone-pad"
+                          maxLength={10}
+                        />
+                      </View>
+                      <View style={styles.buttonContainer}>
+                        <Animated.View style={{ transform: [{ scale: sendButtonScale }] }}>
+                          <Pressable
+                            style={[styles.button, loading && styles.buttonDisabled]}
+                            onPress={sendVerificationCode}
+                            onPressIn={() => animateScale(sendButtonScale, 0.95)}
+                            onPressOut={() => animateScale(sendButtonScale, 1)}
+                            disabled={loading || phoneNumber.length !== 10}
+                          >
+                            <LinearGradient
+                              colors={["rgba(139, 92, 246, 1)", "rgba(236, 72, 153, 1)"]}
+                              style={styles.buttonGradient}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                            >
+                              <Text style={styles.buttonText}>{loading ? "Sending..." : "Send Verification Code"}</Text>
+                            </LinearGradient>
+                          </Pressable>
+                        </Animated.View>
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <View style={styles.inputContainer}>
+                        <TextInput
+                          style={[styles.input, styles.otpInput]}
+                          placeholder="Enter OTP"
+                          placeholderTextColor="rgba(162,39,142,0.7)"
+                          value={code}
+                          onChangeText={setCode}
+                          keyboardType="number-pad"
+                          maxLength={6}
+                        />
+                      </View>
+                      <View style={styles.buttonContainer}>
+                        <Animated.View style={{ transform: [{ scale: verifyButtonScale }] }}>
+                          <Pressable
+                            style={[styles.button, code.length !== 6 && styles.buttonDisabled]}
+                            onPress={confirmCode}
+                            onPressIn={() => code.length === 6 && animateScale(verifyButtonScale, 0.95)}
+                            onPressOut={() => code.length === 6 && animateScale(verifyButtonScale, 1)}
+                            disabled={loading || code.length !== 6}
+                          >
+                            <LinearGradient
+                              colors={["rgba(139, 92, 246, 1)", "rgba(236, 72, 153, 1)"]}
+                              style={styles.buttonGradient}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                            >
+                              <Text style={styles.buttonText}>
+                                {loading ? "Verifying..." : code.length === 6 ? "Verify Code" : `Enter ${6 - code.length} more digit${6 - code.length === 1 ? '' : 's'}`}
+                              </Text>
+                            </LinearGradient>
+                          </Pressable>
+                        </Animated.View>
+                      </View>
+                      <TouchableOpacity 
+                        style={styles.resendButton}
+                        onPress={() => {
+                          setVerificationId("");
+                          setCode("");
                         }}
-                        keyboardType="phone-pad"
-                        maxLength={10}
-                      />
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.button, loading && styles.buttonDisabled]}
-                      onPress={sendVerificationCode}
-                      disabled={loading || phoneNumber.length !== 10}
-                    >
-                      <Text style={styles.buttonText}>{loading ? "Sending..." : "Send Verification Code"}</Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <>
-                    <View style={styles.otpContainer}>
-                      <TextInput
-                        style={styles.otpInput}
-                        placeholder="Enter OTP"
-                        placeholderTextColor="rgba(255,255,255,0.7)"
-                        value={code}
-                        onChangeText={setCode}
-                        keyboardType="number-pad"
-                        maxLength={6}
-                      />
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.button, loading && styles.buttonDisabled]}
-                      onPress={confirmCode}
-                      disabled={loading || code.length !== 6}
-                    >
-                      <Text style={styles.buttonText}>{loading ? "Verifying..." : "Verify Code"}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {
-                      setVerificationId("");
-                      setCode("");
-                    }}>
-                      <Text style={styles.resendText}>Resend Code</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
+                      >
+                        <Text style={styles.resendText}>Resend Code</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+                <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+                  <Text style={styles.linkText}>Already have an account? Login</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-                <Text style={styles.linkText}>Already have an account? Login</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </LinearGradient>
-
+            </LinearGradient>
+          </Animated.View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
       <FirebaseRecaptchaVerifierModal
         ref={recaptchaVerifier}
         firebaseConfig={firebaseConfig}
         attemptInvisibleVerification={false}
       />
-    </>
+    </LinearGradient>
   );
 }
 
@@ -229,85 +280,111 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   formContainer: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 20,
-    padding: 20,
     marginHorizontal: 20,
+    borderRadius: 20,
+    padding: 1.5,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  gradientBorder: {
+    borderRadius: 18,
+    padding: 2,
+  },
+  whiteBackground: {
+    backgroundColor: 'white',
+    borderRadius: 15,
+    padding: 20,
   },
   title: {
     fontFamily: "Poppins_700Bold",
     fontSize: 32,
-    color: "white",
+    color: "rgb(162,39,142)",
     textAlign: "center",
     marginBottom: 40,
   },
   form: {
     gap: 16,
   },
-  phoneInputContainer: {
+  inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "#F3F4F6",
     borderRadius: 25,
     paddingHorizontal: 15,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  prefixContainer: {
+    paddingRight: 10,
+    borderRightWidth: 1,
+    borderRightColor: "rgba(162,39,142,0.2)",
   },
   phonePrefix: {
-    fontFamily: "Poppins_400Regular",
-    color: "white",
+    fontFamily: "Poppins_600SemiBold",
+    color: "rgb(162,39,142)",
     fontSize: 16,
-    padding: 15,
   },
-  phoneInput: {
+  input: {
     flex: 1,
     fontFamily: "Poppins_400Regular",
-    color: "white",
+    color: "rgb(162,39,142)",
     fontSize: 16,
     padding: 15,
-  },
-  otpContainer: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 25,
-    paddingHorizontal: 15,
   },
   otpInput: {
-    fontFamily: "Poppins_400Regular",
-    color: "white",
-    fontSize: 16,
-    padding: 15,
     textAlign: "center",
-    letterSpacing: 5,
+    letterSpacing: 8,
+  },
+  buttonContainer: {
+    borderRadius: 25,
+    overflow: 'hidden',
+    marginVertical: 5,
   },
   button: {
-    backgroundColor: "white",
-    padding: 15,
     borderRadius: 25,
-    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   buttonDisabled: {
-    opacity: 0.7,
+    opacity: 0.3,
+  },
+  buttonGradient: {
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    borderRadius: 25,
   },
   buttonText: {
-    fontFamily: "Poppins_600SemiBold",
-    color: "#8B5CF6",
+    fontFamily: "Poppins_700Bold",
+    color: "white",
     fontSize: 16,
   },
-  linkText: {
-    fontFamily: "Poppins_400Regular",
-    color: "white",
-    textAlign: "center",
-    marginTop: 20,
+  resendButton: {
+    alignItems: "center",
+    padding: 8,
   },
   resendText: {
     fontFamily: "Poppins_400Regular",
-    color: "white",
-    textAlign: "center",
+    color: "rgb(162,39,142)",
+    fontSize: 14,
     textDecorationLine: "underline",
   },
-  recaptchaTitle: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 20,
-    color: "white",
+  linkText: {
+    fontFamily: "Poppins_400Regular",
+    color: "rgb(162,39,142)",
     textAlign: "center",
-    marginBottom: 15,
+    marginTop: 20,
   },
 });
