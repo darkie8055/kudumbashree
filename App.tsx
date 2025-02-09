@@ -236,7 +236,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    position: "fixed",
+    position: "absolute",
     backgroundColor: "rgba(255, 255, 255, 1)",
     elevation: 0,
     borderTopWidth: 0,

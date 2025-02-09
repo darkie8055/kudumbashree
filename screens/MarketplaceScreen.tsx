@@ -13,6 +13,7 @@ import {
   Animated,
   StatusBar,
   Dimensions,
+  ScrollView,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
@@ -30,6 +31,12 @@ interface Product {
   unit: string
   phone: string
   category: string
+  location: string
+}
+
+interface CartItem {
+  product: Product
+  quantity: number
 }
 
 const sampleProducts: Product[] = [
@@ -42,6 +49,7 @@ const sampleProducts: Product[] = [
     phone: "9876543210",
     description: "Natural, handmade soap with essential oils.",
     category: "Beauty",
+    location: "Ernakulam",
   },
   {
     id: "2",
@@ -53,38 +61,8 @@ const sampleProducts: Product[] = [
     phone: "9876543211",
     description: "Pure, organic honey from local beekeepers.",
     category: "Food",
+    location: "Kozhikode",
   },
-  {
-    id: "3",
-    name: "Handwoven Basket",
-    price: 300,
-    imageUrl: "https://picsum.photos/400/400?random=3",
-    unit: "Thrissur Kudumbashree",
-    phone: "9876543212",
-    description: "Beautiful, handwoven basket made from sustainable materials.",
-    category: "Home",
-  },
-  {
-    id: "4",
-    name: "Spice Mix",
-    price: 100,
-    imageUrl: "https://picsum.photos/400/400?random=4",
-    unit: "Kannur Kudumbashree",
-    phone: "9876543213",
-    description: "Traditional Kerala spice mix for curries.",
-    category: "Food",
-  },
-  {
-    id: "5",
-    name: "Coconut Oil",
-    price: 200,
-    imageUrl: "https://picsum.photos/400/400?random=5",
-    unit: "Alappuzha Kudumbashree",
-    phone: "9876543214",
-    description: "Cold-pressed, pure coconut oil.",
-    category: "Beauty",
-  },
-  // Add more sample products to ensure scrolling
   ...Array(15)
     .fill(null)
     .map((_, index) => ({
@@ -96,6 +74,7 @@ const sampleProducts: Product[] = [
       phone: "9876543200",
       description: "Sample product description.",
       category: ["Beauty", "Food", "Home"][Math.floor(Math.random() * 3)],
+      location: ["Ernakulam", "Kozhikode", "Thrissur", "Kannur"][Math.floor(Math.random() * 4)],
     })),
 ]
 
@@ -105,6 +84,7 @@ const ITEM_WIDTH = width * 0.44
 export default function MarketplaceScreen() {
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [cart, setCart] = useState<CartItem[]>([])
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -113,6 +93,8 @@ export default function MarketplaceScreen() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isLocationDropdownVisible, setIsLocationDropdownVisible] = useState(false)
+  const [selectedLocation, setSelectedLocation] = useState("")
   const scrollY = useRef(new Animated.Value(0)).current
   const headerHeight = useRef(new Animated.Value(200)).current
 
@@ -128,7 +110,6 @@ export default function MarketplaceScreen() {
     setIsLoading(true)
     setError(null)
     try {
-      // Simulate fetching products from an API
       await new Promise((resolve) => setTimeout(resolve, 1000))
       setProducts(sampleProducts)
     } catch (error) {
@@ -144,13 +125,14 @@ export default function MarketplaceScreen() {
 
   useEffect(() => {
     filterAndSortProducts()
-  }, [products, searchQuery, selectedCategory, sortOption]) //Corrected dependency array
+  }, [products, searchQuery, selectedCategory, sortOption, selectedLocation])
 
   const filterAndSortProducts = useCallback(() => {
     const filtered = products.filter((product) => {
       const nameMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
       const categoryMatch = selectedCategory === "All" || product.category === selectedCategory
-      return nameMatch && categoryMatch
+      const locationMatch = selectedLocation === "" || selectedLocation === "All" || product.location === selectedLocation
+      return nameMatch && categoryMatch && locationMatch
     })
 
     const sortedProducts = [...filtered]
@@ -159,12 +141,14 @@ export default function MarketplaceScreen() {
       sortedProducts.sort((a, b) => a.price - b.price)
     } else if (sortOption === "priceHigh") {
       sortedProducts.sort((a, b) => b.price - a.price)
+    } else if (sortOption === "location") {
+      sortedProducts.sort((a, b) => a.location.localeCompare(b.location))
     } else {
       sortedProducts.sort((a, b) => a.name.localeCompare(b.name))
     }
 
     setFilteredProducts(sortedProducts)
-  }, [products, searchQuery, selectedCategory, sortOption])
+  }, [products, searchQuery, selectedCategory, sortOption, selectedLocation])
 
   const handleProductPress = useCallback((product: Product) => {
     setSelectedProduct(product)
@@ -184,33 +168,56 @@ export default function MarketplaceScreen() {
     [],
   )
 
+  const handleAddToCart = useCallback((product: Product) => {
+    const existingItemIndex = cart.findIndex((item) => item.product.id === product.id)
+    if (existingItemIndex !== -1) {
+      const updatedCart = [...cart]
+      updatedCart[existingItemIndex].quantity += 1
+      setCart(updatedCart)
+    } else {
+      setCart([...cart, { product, quantity: 1 }])
+    }
+  }, [cart])
+
+  const handleRemoveFromCart = useCallback((product: Product) => {
+    const updatedCart = cart.filter((item) => item.product.id !== product.id)
+    setCart(updatedCart)
+  }, [cart])
+
+  const handleQuantityChange = useCallback(
+    (product: Product, quantity: number) => {
+      if (quantity <= 0) {
+        handleRemoveFromCart(product)
+      } else {
+        const updatedCart = cart.map((item) =>
+          item.product.id === product.id ? { ...item, quantity } : item
+        )
+        setCart(updatedCart)
+      }
+    },
+    [cart, handleRemoveFromCart]
+  )
+
   const renderProduct = useCallback(
-    ({ item, index }: { item: Product; index: number }) => {
-      const inputRange = [-1, 0, 200 + 230 * index - 100, 200 + 230 * (index + 2) - 100]
-      const scale = scrollY.interpolate({
-        inputRange,
-        outputRange: [1, 1, 1, 0.8],
-        extrapolate: "clamp",
-      })
-      const opacity = scrollY.interpolate({
-        inputRange,
-        outputRange: [1, 1, 1, 0],
-        extrapolate: "clamp",
-      })
+    ({ item }: { item: Product }) => {
       return (
-        <Animated.View style={[styles.productCard, { transform: [{ scale }], opacity }]}>
+        <View style={styles.productCard}>
           <TouchableOpacity onPress={() => handleProductPress(item)}>
             <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
             <Text style={styles.productName}>{item.name}</Text>
             <Text style={styles.productPrice}>₹{item.price}</Text>
           </TouchableOpacity>
-        </Animated.View>
+          <TouchableOpacity style={styles.addToCartButton} onPress={() => handleAddToCart(item)}>
+            <Text style={styles.addToCartButtonText}>Add to Cart</Text>
+          </TouchableOpacity>
+        </View>
       )
     },
-    [handleProductPress, scrollY],
+    [handleProductPress, handleAddToCart]
   )
 
   const categories = ["All", "Beauty", "Food", "Home"]
+  const locations = ["All", "Ernakulam", "Idukki", "Kochi", "Thrissur", "Kannur", "Palakkad", "Kottayam", "Alappuzha", "Pathanamthitta"]
 
   const renderHeader = useCallback(() => {
     const headerTranslate = scrollY.interpolate({
@@ -220,7 +227,7 @@ export default function MarketplaceScreen() {
     })
 
     return (
-      <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslate }] }]}>
+      <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslate }] }]} >
         <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.gradientHeader}>
           <Text style={styles.pageHeading}>Marketplace</Text>
         </LinearGradient>
@@ -252,98 +259,80 @@ export default function MarketplaceScreen() {
                 </Text>
               </TouchableOpacity>
             )}
-            contentContainerStyle={styles.categoriesContainer}
           />
         </View>
 
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeader}>Sort by</Text>
-          <View style={styles.sortContainer}>
-            <TouchableOpacity style={styles.sortButton} onPress={() => setSortOption("name")}>
-              <Text style={[styles.sortButtonText, sortOption === "name" && styles.activeSortButton]}>Name</Text>
+          <Text style={styles.sectionHeader}>Sort By</Text>
+          <View style={styles.sortButtonsContainer}>
+            <TouchableOpacity
+              style={[styles.sortButton, sortOption === "name" && styles.selectedSortButton]}
+              onPress={() => setSortOption("name")}
+            >
+              <Text style={styles.sortButtonText}>Name</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.sortButton} onPress={() => setSortOption("priceLow")}>
-              <Text style={[styles.sortButtonText, sortOption === "priceLow" && styles.activeSortButton]}>
-                Price: Low to High
-              </Text>
+            <TouchableOpacity
+              style={[styles.sortButton, sortOption === "priceLow" && styles.selectedSortButton]}
+              onPress={() => setSortOption("priceLow")}
+            >
+              <Text style={styles.sortButtonText}>Price Low to High</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.sortButton} onPress={() => setSortOption("priceHigh")}>
-              <Text style={[styles.sortButtonText, sortOption === "priceHigh" && styles.activeSortButton]}>
-                Price: High to Low
-              </Text>
+            <TouchableOpacity
+              style={[styles.sortButton, sortOption === "priceHigh" && styles.selectedSortButton]}
+              onPress={() => setSortOption("priceHigh")}
+            >
+              <Text style={styles.sortButtonText}>Price High to Low</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.sortButton, sortOption === "location" && styles.selectedSortButton]}
+              onPress={() => setIsLocationDropdownVisible(!isLocationDropdownVisible)}
+            >
+              <Text style={styles.sortButtonText}>Location</Text>
             </TouchableOpacity>
           </View>
-        </View>
-
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeader}>Products</Text>
+          {isLocationDropdownVisible && (
+            <View style={styles.locationDropdown}>
+              <FlatList
+                data={locations}
+                keyExtractor={(item) => item}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.locationOption}
+                    onPress={() => {
+                      setSelectedLocation(item)
+                      setIsLocationDropdownVisible(false)
+                    }}
+                  >
+                    <Text style={styles.locationOptionText}>{item}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+              <Text style={styles.showMoreText}>Scroll down for more</Text>
+            </View>
+          )}
         </View>
       </Animated.View>
     )
-  }, [scrollY, debouncedSearch, selectedCategory, sortOption])
+  }, [selectedCategory, sortOption, selectedLocation, isLocationDropdownVisible, scrollY])
 
   if (!fontsLoaded) {
     return null
   }
 
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#8B5CF6" />
-      </View>
-    )
-  }
-
-  if (error) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchProducts}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    )
-  }
-
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#8B5CF6" />
-      <Animated.FlatList
+      <StatusBar barStyle="dark-content" />
+      <FlatList
         data={filteredProducts}
         renderItem={renderProduct}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        contentContainerStyle={styles.productList}
+        contentContainerStyle={styles.productListContainer}
         ListHeaderComponent={renderHeader}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={["#8B5CF6"]} />}
-        ListEmptyComponent={
-          <Text style={styles.emptyListText}>No products found. Try adjusting your search or filters.</Text>
-        }
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
-        scrollEventThrottle={16}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
       />
-
-      <Modal
-        visible={isModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsModalVisible(false)}
-      >
-        {selectedProduct && (
-          <View style={styles.modalContainer}>
-            <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.modalContent}>
-              <Image source={{ uri: selectedProduct.imageUrl }} style={styles.modalImage} />
-              <Text style={styles.modalTitle}>{selectedProduct.name}</Text>
-              <Text style={styles.modalPrice}>₹{selectedProduct.price}</Text>
-              <Text style={styles.modalDescription}>{selectedProduct.description}</Text>
-              <Text style={styles.modalUnit}>{selectedProduct.unit}</Text>
-              <Text style={styles.modalPhone}>Contact: {selectedProduct.phone}</Text>
-              <TouchableOpacity style={styles.closeButton} onPress={() => setIsModalVisible(false)}>
-                <Text style={styles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
-        )}
+      <Modal visible={isModalVisible} onRequestClose={() => setIsModalVisible(false)}>
+        {/* Modal Content */}
       </Modal>
     </SafeAreaView>
   )
@@ -355,222 +344,145 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     paddingBottom: 90,
   },
-  gradientHeader: {
-    paddingTop: 20,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
   header: {
+    padding: 16,
     backgroundColor: "#fff",
-    zIndex: 1000,
+    zIndex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  errorText: {
-    fontFamily: "Poppins_400Regular",
-    fontSize: 18,
-    color: "#FF6B6B",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: "#8B5CF6",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 5,
-  },
-  retryButtonText: {
-    fontFamily: "Poppins_600SemiBold",
-    color: "#fff",
+  gradientHeader: {
+    padding: 16,
+    borderRadius: 8,
   },
   pageHeading: {
-    fontFamily: "Poppins_700Bold",
-    fontSize: 28,
+    fontSize: 24,
+    fontWeight: "bold",
     color: "#fff",
-    marginBottom: 20,
   },
   searchContainer: {
+    marginTop: 16,
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F3F4F6",
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    marginHorizontal: 20,
-    marginTop: -20,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 8,
+    paddingVertical: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingLeft: 10,
   },
   searchIcon: {
     marginRight: 10,
   },
-  searchInput: {
-    flex: 1,
-    fontFamily: "Poppins_400Regular",
-    paddingVertical: 10,
-    color: "#333",
-  },
   sectionContainer: {
-    marginBottom: 25,
-    paddingHorizontal: 20,
+    marginTop: 24,
+    paddingHorizontal: 10,
   },
   sectionHeader: {
-    fontFamily: "Poppins_600SemiBold",
     fontSize: 18,
-    color: "#333",
-    marginBottom: 10,
-  },
-  categoriesContainer: {
-    paddingBottom: 10,
+    fontWeight: "bold",
+    marginBottom: 8,
   },
   categoryButton: {
+    backgroundColor: "#f0f0f0",
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 10,
-    backgroundColor: "#F3F4F6",
+    marginRight: 8,
+    borderRadius: 8,
   },
   selectedCategoryButton: {
     backgroundColor: "#8B5CF6",
   },
   categoryText: {
-    fontFamily: "Poppins_600SemiBold",
-    color: "#4B5563",
+    fontSize: 14,
+    color: "#333",
   },
   selectedCategoryText: {
     color: "#fff",
   },
-  sortContainer: {
+  sortButtonsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
+    marginTop: 8,
   },
   sortButton: {
-    marginRight: 10,
-    marginBottom: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-    backgroundColor: "#F3F4F6",
+    padding: 8,
+    backgroundColor: "#f0f0f0",
+    marginRight: 8,
+    marginBottom: 8,
+    borderRadius: 8,
+  },
+  selectedSortButton: {
+    backgroundColor: "#8B5CF6",
   },
   sortButtonText: {
-    fontFamily: "Poppins_400Regular",
-    color: "#4B5563",
-  },
-  activeSortButton: {
-    color: "#8B5CF6",
-    fontFamily: "Poppins_600SemiBold",
-  },
-  productList: {
-    paddingHorizontal: 10,
-  },
-  productCard: {
-    flex: 1,
-    margin: 5,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 10,
-    padding: 10,
-    alignItems: "center",
-    width: ITEM_WIDTH,
-    overflow: "hidden",
-    elevation: 5,
-  },
-  productImage: {
-    width: "200",
-    height: 200,
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-  },
-  productName: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 16,
-    textAlign: "center",
-    marginBottom: 5,
+    fontSize: 14,
     color: "#333",
   },
-  productPrice: {
-    fontFamily: "Poppins_400Regular",
-    fontSize: 14,
-    color: "#8B5CF6",
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
+  locationDropdown: {
     backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 20,
-    width: "90%",
-    maxHeight: "80%",
-    alignItems: "center",
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    marginTop: 8,
   },
-  modalImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 10,
-    marginBottom: 15,
-  },
-  modalTitle: {
-    fontFamily: "Poppins_700Bold",
-    fontSize: 20,
-    marginBottom: 10,
-    color: "#fff",
-  },
-  modalPrice: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 18,
-    color: "#fff",
-    marginBottom: 10,
-  },
-  modalDescription: {
-    fontFamily: "Poppins_400Regular",
-    textAlign: "center",
-    marginBottom: 10,
-    color: "#fff",
-  },
-  modalUnit: {
-    fontFamily: "Poppins_400Regular",
-    fontStyle: "italic",
-    marginBottom: 5,
-    color: "#fff",
-  },
-  modalPhone: {
-    fontFamily: "Poppins_400Regular",
-    marginBottom: 15,
-    color: "#fff",
-  },
-  closeButton: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 20,
+  locationOption: {
     paddingVertical: 10,
-    borderRadius: 5,
   },
-  closeButtonText: {
-    fontFamily: "Poppins_600SemiBold",
-    color: "#8B5CF6",
+  locationOptionText: {
+    fontSize: 14,
+    color: "#333",
   },
-  emptyListText: {
-    fontFamily: "Poppins_400Regular",
+  showMoreText: {
     textAlign: "center",
-    marginTop: 20,
-    color: "#4B5563",
+    fontSize: 12,
+    color: "#888",
+    marginTop: 5,
+  },
+  productCard: {
+    width: ITEM_WIDTH,
+    margin: 8,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  productImage: {
+    width: "100%",
+    height: 120,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  productName: {
+    fontSize: 14,
+    fontWeight: "bold",
+    marginVertical: 8,
+    marginLeft: 8,
+  },
+  productPrice: {
     fontSize: 16,
+    fontWeight: "bold",
+    color: "#ff0000",
+    marginBottom: 8,
+    marginLeft: 8,
+  },
+  addToCartButton: {
+    backgroundColor: "#8B5CF6",
+    paddingVertical: 8,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    alignItems: "center",
+  },
+  addToCartButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  productListContainer: {
+    paddingBottom: 70,
   },
 })
-
