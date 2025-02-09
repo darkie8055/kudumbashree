@@ -8,6 +8,14 @@ import { LinearGradient } from "expo-linear-gradient"
 const CUSTOMER_SERVICE_NUMBER = "+918891115593"
 const WHATSAPP_NUMBER = "+918891115593" // You can change this if it's different
 
+/*************  ✨ Codeium Command ⭐  *************/
+/**
+ * A floating button that can be used to display a menu with three options: to talk to an agent, call customer service, and open WhatsApp.
+ *
+ * @returns A React component that displays a floating button and a menu with three options.
+ */
+
+/******  80f48484-2e60-484a-8456-4c2f94d6b095  *******/
 const FloatingButton = () => {
   const [isOpen, setIsOpen] = useState(false)
   const animation = useState(new Animated.Value(0))[0]
@@ -118,7 +126,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 20,
     right: 10,
-    paddingBottom:50,
+    paddingBottom:60,
   },
   button: {
     width: 50,
@@ -142,7 +150,7 @@ const styles = StyleSheet.create({
   menu: {
     position: "absolute",
     bottom: 100,
-    right: 5,
+    right: 0,
     
   },
   menuItem: {
@@ -154,7 +162,7 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderRadius: 25,
     paddingVertical: 8,
-    paddingHorizontal: 5,
+    paddingHorizontal: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,

@@ -4,6 +4,7 @@ import { createStackNavigator } from "@react-navigation/stack"
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs"
 import { Ionicons } from "@expo/vector-icons"
 import { Poppins_600SemiBold } from "@expo-google-fonts/poppins"
+import ScreenWithFloatingButton from "./components/ScreenWithFloatingButton"
 
 // Import screens
 import OnboardingScreen from "./screens/OnboardingScreen"
@@ -31,6 +32,7 @@ function KMemberTabs({ route }) {
   const phoneNumber = route.params?.phoneNumber;
   
   return (
+    <ScreenWithFloatingButton>
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
@@ -75,6 +77,7 @@ function KMemberTabs({ route }) {
         initialParams={{ phoneNumber }} // Pass phone number to profile screen
       />
     </Tab.Navigator>
+    </ScreenWithFloatingButton>
   );
 }
 
@@ -83,6 +86,7 @@ function NormalUserTabs({ route }) {
   const phoneNumber = route.params?.phoneNumber;
   
   return (
+    <ScreenWithFloatingButton>
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
@@ -115,11 +119,13 @@ function NormalUserTabs({ route }) {
         initialParams={{ phoneNumber }} // Pass phone number to profile screen
       />
     </Tab.Navigator>
+    </ScreenWithFloatingButton>
   );
 }
 
 function PresidentStack() {
   return (
+    
     <Stack.Navigator>
       <Stack.Screen 
         name="PresidentDashboard" 
@@ -169,6 +175,7 @@ function PresidentStack() {
         }}
       />
     </Stack.Navigator>
+    
   );
 }
 
@@ -229,12 +236,12 @@ export default function App() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    position: "absolute",
+    position: "fixed",
     backgroundColor: "rgba(255, 255, 255, 1)",
     elevation: 0,
     borderTopWidth: 0,
-    height: 60,
-    bottom: 5,
+    height: 0,
+    bottom: 70,
     left: 20,
     right: 20,
     borderRadius: 30,
