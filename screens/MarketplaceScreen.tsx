@@ -267,7 +267,7 @@ export default function MarketplaceScreen() {
           />
         </View>
 
-        <TouchableOpacity style={styles.cartIcon} onPress={() => navigation.navigate("CartScreen",{ cart })}>
+        <TouchableOpacity style={styles.cartIcon} onPress={() => navigation.navigate("Cart",{ cart })}>
           <Ionicons name="cart" size={30} color="#fff" />
           {cart.length > 0 && (
             <View style={styles.cartBadge}>
@@ -336,9 +336,7 @@ export default function MarketplaceScreen() {
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       />
-      <Modal visible={isModalVisible} onRequestClose={() => setIsModalVisible(false)}>
-        {/* Modal Content */}
-      </Modal>
+     
     </SafeAreaView>
   )
 }
