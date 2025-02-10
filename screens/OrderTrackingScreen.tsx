@@ -1,21 +1,27 @@
-import type React from "react"
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from "react-native"
-import { Ionicons } from "@expo/vector-icons"
+import type React from "react";
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 interface OrderTrackingScreenProps {
-  orderId: string
-  items: string
-  total: number
+  orderId: string;
+  items: string;
+  total: number;
   steps: {
-    id: string
-    title: string
-    date: string
-    completed: boolean
-    icon: string
-  }[]
+    id: string;
+    title: string;
+    date: string;
+    completed: boolean;
+    icon: string;
+  }[] | undefined; // Allow undefined for steps
 }
 
 const OrderTrackingScreen: React.FC<OrderTrackingScreenProps> = ({ orderId, items, total, steps }) => {
+  // Check if total is a valid number before calling toFixed()
+  const formattedTotal = typeof total === 'number' && !isNaN(total) ? total.toFixed(2) : "0.00";
+
+  // Ensure steps is always an array (even if undefined or null)
+  const validSteps = Array.isArray(steps) ? steps : [];
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -33,19 +39,19 @@ const OrderTrackingScreen: React.FC<OrderTrackingScreenProps> = ({ orderId, item
           <Text style={styles.orderId}>Order #{orderId}</Text>
           <Text style={styles.orderDate}>Placed on December 15, 2020</Text>
           <Text style={styles.orderDetails}>
-            Items: {items} Total: ₹{total.toFixed(2)}
+            Items: {items} Total: ₹{formattedTotal}
           </Text>
         </View>
       </View>
 
       <View style={styles.timeline}>
-        {steps.map((step, index) => (
+        {validSteps.map((step, index) => (
           <View key={step.id} style={styles.timelineItem}>
             <View style={styles.timelineIconContainer}>
               <View style={[styles.timelineIcon, step.completed ? styles.completedIcon : styles.pendingIcon]}>
                 <Ionicons name={step.icon} size={24} color={step.completed ? "#fff" : "#999"} />
               </View>
-              {index < steps.length - 1 && (
+              {index < validSteps.length - 1 && (
                 <View style={[styles.timelineLine, step.completed ? styles.completedLine : styles.pendingLine]} />
               )}
             </View>
@@ -57,8 +63,8 @@ const OrderTrackingScreen: React.FC<OrderTrackingScreenProps> = ({ orderId, item
         ))}
       </View>
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -68,6 +74,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     padding: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
@@ -165,7 +172,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
   },
-})
+});
 
-export default OrderTrackingScreen
-
+export default OrderTrackingScreen;
