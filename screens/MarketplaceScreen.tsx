@@ -82,6 +82,8 @@ const sampleProducts: Product[] = [
 const { width } = Dimensions.get("window")
 const ITEM_WIDTH = width * 0.44
 
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList)
+
 export default function MarketplaceScreen() {
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
@@ -226,14 +228,19 @@ export default function MarketplaceScreen() {
   const locations = [
     "All",
     "Ernakulam",
-    "Idukki",
-    "Kochi",
+    "Kozhikode",
     "Thrissur",
     "Kannur",
-    "Palakkad",
     "Kottayam",
+    "Palakkad",
+    "Malappuram",
+    "Thiruvananthapuram",
     "Alappuzha",
+    "Kollam",
     "Pathanamthitta",
+    "Idukki",
+    "Wayanad",
+    "Kasaragod",
   ]
   const sortOptions = ["name", "priceLow", "priceHigh", "location"]
 
@@ -264,9 +271,7 @@ export default function MarketplaceScreen() {
           <Ionicons name="cart" size={30} color="#fff" />
           {cart.length > 0 && (
             <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>
-                {cart.reduce((acc, item) => acc + item.quantity, 0)}
-              </Text>
+              <Text style={styles.cartBadgeText}>{cart.reduce((acc, item) => acc + item.quantity, 0)}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -321,7 +326,7 @@ export default function MarketplaceScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <FlatList
+      <AnimatedFlatList
         data={filteredProducts}
         renderItem={renderProduct}
         keyExtractor={(item) => item.id}
@@ -329,6 +334,7 @@ export default function MarketplaceScreen() {
         contentContainerStyle={styles.productListContainer}
         ListHeaderComponent={renderHeader}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       />
       <Modal visible={isModalVisible} onRequestClose={() => setIsModalVisible(false)}>
         {/* Modal Content */}
@@ -466,3 +472,4 @@ const styles = StyleSheet.create({
     paddingBottom: 70,
   },
 })
+
