@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -15,82 +15,101 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
-} from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
-import type { StackNavigationProp } from "@react-navigation/stack"
-import type { RootStackParamList } from "../types/navigation"
-import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
-import { collection, getDocs, query, orderBy, getFirestore, doc, getDoc } from 'firebase/firestore';
-import { firebase } from '../firebase';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import type { RootStackParamList } from "../types/navigation";
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  getFirestore,
+  doc,
+  getDoc,
+} from "firebase/firestore";
+import { firebase } from "../firebase";
 import { getAuth } from "firebase/auth";
 
-type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">
+type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">;
 
 interface Props {
-  navigation: HomeScreenNavigationProp
+  navigation: HomeScreenNavigationProp;
 }
 
 type Notice = {
-  id: string
-  title: string
-  description?: string
-  date?: Date
-  type?: 'meeting' | 'notice'
-  createdAt?: any
-  venue?: string
-}
+  id: string;
+  title: string;
+  description?: string;
+  date?: Date;
+  type?: "meeting" | "notice";
+  createdAt?: any;
+  venue?: string;
+};
 
 type News = {
-  id: string
-  headline: string
-  image: string
-  content: string
-}
+  id: string;
+  headline: string;
+  image: string;
+  content: string;
+};
 
 const sampleNotices: Notice[] = [
   { id: "1", title: " Meeting on Jan 15th, 2025" },
   { id: "2", title: " Audit scheduled for Jan 20th, 2025" },
   { id: "3", title: " New training program starts Feb 1st" },
-]
+];
 
 const sampleNews: News[] = [
   {
     id: "1",
     headline: "New Women Empowerment Scheme Launched",
     image: "https://picsum.photos/200/100?random=1",
-    content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed nec enim nec eros elementum ultricies.",
+    content:
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed nec enim nec eros elementum ultricies.",
   },
   {
     id: "2",
     headline: "Kudumbashree Annual Event Announced",
     image: "https://picsum.photos/200/100?random=2",
-    content: "Nulla facilisi. Duis sed odio sit amet nibh vulputate cursus a sit amet mauris.",
+    content:
+      "Nulla facilisi. Duis sed odio sit amet nibh vulputate cursus a sit amet mauris.",
   },
   {
     id: "3",
     headline: "Success Story: Local Business Thrives",
     image: "https://picsum.photos/200/100?random=3",
-    content: "Donec ullamcorper nulla non metus auctor fringilla. Vestibulum id ligula porta felis euismod semper.",
+    content:
+      "Donec ullamcorper nulla non metus auctor fringilla. Vestibulum id ligula porta felis euismod semper.",
   },
   {
     id: "4",
     headline: "Community Project Gains Recognition",
     image: "https://picsum.photos/200/100?random=4",
-    content: "Aenean eu leo quam. Pellentesque ornare sem lacinia quam venenatis vestibulum.",
+    content:
+      "Aenean eu leo quam. Pellentesque ornare sem lacinia quam venenatis vestibulum.",
   },
   {
     id: "5",
     headline: "Innovative Initiative Wins Award",
     image: "https://picsum.photos/200/100?random=5",
-    content: "Sed posuere consectetur est at lobortis. Cras mattis consectetur purus sit amet fermentum.",
+    content:
+      "Sed posuere consectetur est at lobortis. Cras mattis consectetur purus sit amet fermentum.",
   },
   {
     id: "6",
     headline: "Local Artisans Showcase Talent",
     image: "https://picsum.photos/200/100?random=6",
-    content: "Donec sed odio dui. Donec ullamcorper nulla non metus auctor fringilla.",
+    content:
+      "Donec sed odio dui. Donec ullamcorper nulla non metus auctor fringilla.",
   },
   {
     id: "7",
@@ -99,49 +118,49 @@ const sampleNews: News[] = [
     content:
       "Cras mattis consectetur purus sit amet fermentum. Duis mollis, est non commodo luctus, nisi erat porttitor ligula.",
   },
-]
+];
 
-const { width } = Dimensions.get("window")
-const ITEM_WIDTH = width * 0.44
+const { width } = Dimensions.get("window");
+const ITEM_WIDTH = width * 0.44;
 
 export default function HomeScreen({ navigation }: Props) {
-  const [notices, setNotices] = useState<Notice[]>([])
-  const [news, setNews] = useState<News[]>([])
-  const [animation] = useState(new Animated.Value(0))
-  const newsListRef = useRef<FlatList>(null)
-  const scaleAnimations = useRef<{ [key: string]: Animated.Value }>({}).current
-  const [modalVisible, setModalVisible] = useState(false)
-  const [selectedNews, setSelectedNews] = useState<News | null>(null)
-  const [expandedNotice, setExpandedNotice] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-  const [currentNoticeIndex, setCurrentNoticeIndex] = useState(0)
-  const [pauseScroll, setPauseScroll] = useState(false)
-  const [slideAnim] = useState(new Animated.Value(0))
-  const [firstName, setFirstName] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [news, setNews] = useState<News[]>([]);
+  const [animation] = useState(new Animated.Value(0));
+  const newsListRef = useRef<FlatList>(null);
+  const scaleAnimations = useRef<{ [key: string]: Animated.Value }>({}).current;
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedNews, setSelectedNews] = useState<News | null>(null);
+  const [expandedNotice, setExpandedNotice] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [currentNoticeIndex, setCurrentNoticeIndex] = useState(0);
+  const [pauseScroll, setPauseScroll] = useState(false);
+  const [slideAnim] = useState(new Animated.Value(0));
+  const [firstName, setFirstName] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
     Poppins_700Bold,
-  })
+  });
 
   const fetchNotices = async () => {
     try {
-      const noticesRef = collection(firebase, 'notices');
-      const q = query(noticesRef, orderBy('createdAt', 'desc'));
+      const noticesRef = collection(firebase, "notices");
+      const q = query(noticesRef, orderBy("createdAt", "desc"));
       const querySnapshot = await getDocs(q);
-      
-      const noticesList = querySnapshot.docs.map(doc => ({
+
+      const noticesList = querySnapshot.docs.map((doc) => ({
         id: doc.id,
-        title: doc.data().title || '',
+        title: doc.data().title || "",
         description: doc.data().description,
         date: doc.data().date?.toDate(),
         type: doc.data().type,
         createdAt: doc.data().createdAt,
         venue: doc.data().venue,
       })) as Notice[];
-      
+
       setNotices(noticesList);
     } catch (error) {
       console.error("Error fetching notices:", error);
@@ -150,17 +169,17 @@ export default function HomeScreen({ navigation }: Props) {
 
   const fetchNews = async () => {
     try {
-      const newsRef = collection(firebase, 'news');
-      const q = query(newsRef, orderBy('createdAt', 'desc'));
+      const newsRef = collection(firebase, "news");
+      const q = query(newsRef, orderBy("createdAt", "desc"));
       const querySnapshot = await getDocs(q);
-      
-      const newsList = querySnapshot.docs.map(doc => ({
+
+      const newsList = querySnapshot.docs.map((doc) => ({
         id: doc.id,
-        headline: doc.data().headline || '',
-        content: doc.data().content || '',
-        image: doc.data().image || '',
+        headline: doc.data().headline || "",
+        content: doc.data().content || "",
+        image: doc.data().image || "",
       })) as News[];
-      
+
       setNews(newsList);
     } catch (error) {
       console.error("Error fetching news:", error);
@@ -168,15 +187,15 @@ export default function HomeScreen({ navigation }: Props) {
   };
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true)
+    setRefreshing(true);
     try {
-      await Promise.all([fetchNotices(), fetchNews()])
+      await Promise.all([fetchNotices(), fetchNews()]);
     } catch (error) {
-      console.error("Error refreshing:", error)
+      console.error("Error refreshing:", error);
     } finally {
-      setRefreshing(false)
+      setRefreshing(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
     fetchNotices();
@@ -191,25 +210,25 @@ export default function HomeScreen({ navigation }: Props) {
       toValue: 1,
       duration: 1000,
       useNativeDriver: true,
-    }).start()
-  }, [animation])
+    }).start();
+  }, [animation]);
 
   useEffect(() => {
-    let index = 0
+    let index = 0;
 
     const scrollInterval = setInterval(() => {
       if (newsListRef.current && news.length > 0) {
         newsListRef.current.scrollToOffset({
           offset: index * (ITEM_WIDTH + 15),
           animated: true,
-        })
+        });
 
-        index = (index + 1) % news.length
+        index = (index + 1) % news.length;
       }
-    }, 3000)
+    }, 3000);
 
-    return () => clearInterval(scrollInterval)
-  }, [news])
+    return () => clearInterval(scrollInterval);
+  }, [news]);
 
   useEffect(() => {
     if (expandedNotice || pauseScroll) return;
@@ -224,7 +243,7 @@ export default function HomeScreen({ navigation }: Props) {
           }),
         ]).start(() => {
           setCurrentNoticeIndex((prev) => (prev + 1) % notices.length);
-          
+
           Animated.sequence([
             Animated.timing(slideAnim, {
               toValue: 1,
@@ -247,48 +266,52 @@ export default function HomeScreen({ navigation }: Props) {
   const scrollLeft = () => {
     if (newsListRef.current) {
       newsListRef.current.scrollToOffset({
-        offset: Math.max(0, newsListRef.current.props.contentOffset?.x - ITEM_WIDTH - 15),
+        offset: Math.max(
+          0,
+          newsListRef.current.props.contentOffset?.x - ITEM_WIDTH - 15
+        ),
         animated: true,
-      })
+      });
     }
-  }
+  };
 
   const scrollRight = () => {
     if (newsListRef.current) {
-      news
+      news;
       newsListRef.current.scrollToOffset({
-        offset: (newsListRef.current.props.contentOffset?.x || 0) + ITEM_WIDTH + 15,
+        offset:
+          (newsListRef.current.props.contentOffset?.x || 0) + ITEM_WIDTH + 15,
         animated: true,
-      })
+      });
     }
-  }
+  };
 
   const handleHover = useCallback(
     (id: string, isHovered: boolean) => {
       if (!scaleAnimations[id]) {
-        scaleAnimations[id] = new Animated.Value(1)
+        scaleAnimations[id] = new Animated.Value(1);
       }
       Animated.spring(scaleAnimations[id], {
         toValue: isHovered ? 1.1 : 1,
         useNativeDriver: true,
         tension: 40,
         friction: 7,
-      }).start()
+      }).start();
     },
-    [scaleAnimations],
-  )
+    [scaleAnimations]
+  );
 
   const renderNewsItem = useCallback(
     ({ item }: { item: News }) => {
-      const scale = scaleAnimations[item.id] || new Animated.Value(1)
+      const scale = scaleAnimations[item.id] || new Animated.Value(1);
       return (
         <TouchableOpacity
           onPressIn={() => handleHover(item.id, true)}
           onPressOut={() => handleHover(item.id, false)}
           style={styles.newsItem}
           onPress={() => {
-            setSelectedNews(item)
-            setModalVisible(true)
+            setSelectedNews(item);
+            setModalVisible(true);
           }}
         >
           <Animated.View style={{ transform: [{ scale }] }}>
@@ -296,10 +319,10 @@ export default function HomeScreen({ navigation }: Props) {
           </Animated.View>
           <Text style={styles.newsHeadline}>{item.headline}</Text>
         </TouchableOpacity>
-      )
+      );
     },
-    [handleHover, scaleAnimations],
-  )
+    [handleHover, scaleAnimations]
+  );
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -309,14 +332,14 @@ export default function HomeScreen({ navigation }: Props) {
         const user = auth.currentUser;
         if (!user) return;
 
-        const phoneNumber = user.phoneNumber?.replace('+91', '') || '';
+        const phoneNumber = user.phoneNumber?.replace("+91", "") || "";
         const db = getFirestore();
         const collections = ["K-member", "normal", "president"];
-        
+
         for (const collection of collections) {
           const docRef = doc(db, collection, phoneNumber);
           const userDoc = await getDoc(docRef);
-          
+
           if (userDoc.exists()) {
             const userData = userDoc.data();
             setFirstName(userData.firstName || userData.FirstName || "User");
@@ -334,7 +357,7 @@ export default function HomeScreen({ navigation }: Props) {
   }, []);
 
   if (!fontsLoaded) {
-    return null
+    return null;
   }
 
   const fadeIn = {
@@ -347,45 +370,55 @@ export default function HomeScreen({ navigation }: Props) {
         }),
       },
     ],
-  }
+  };
 
-  const renderNotice = (notice: Notice) => (
-    <View key={notice.id} style={styles.boardItem}>
-      <TouchableOpacity 
-        style={styles.noticeHeader}
-        onPress={() => setExpandedNotice(expandedNotice === notice.id ? null : notice.id)}
-      >
-        <Ionicons 
-          name={notice.type === 'meeting' ? "calendar-outline" : "notifications-outline"} 
-          size={20} 
-          color="#8B5CF6" 
-          style={styles.boardIcon} 
-        />
-        <View style={styles.headerContent}>
-          <Text style={styles.boardText}>{notice.title}</Text>
-          {notice.date && (
-            <Text style={styles.noticeDate}>
-              {notice.date.toLocaleDateString()}
-            </Text>
-          )}
-          {notice.venue && (
-            <Text style={styles.venueText}>Venue: {notice.venue}</Text>
-          )}
-        </View>
-        <Ionicons 
-          name={expandedNotice === notice.id ? "chevron-up" : "chevron-down"} 
-          size={20} 
-          color="#8B5CF6" 
-        />
-      </TouchableOpacity>
-      
-      {expandedNotice === notice.id && notice.description && (
-        <View style={styles.expandedContent}>
-          <Text style={styles.noticeDescription}>{notice.description}</Text>
-        </View>
-      )}
-    </View>
-  );
+  const renderNotice = (notice: Notice) => {
+    if (!notice) return null; // Add this check
+
+    return (
+      <View key={notice.id} style={styles.boardItem}>
+        <TouchableOpacity
+          style={styles.noticeHeader}
+          onPress={() =>
+            setExpandedNotice(expandedNotice === notice.id ? null : notice.id)
+          }
+        >
+          <Ionicons
+            name={
+              notice?.type === "meeting"
+                ? "calendar-outline"
+                : "notifications-outline"
+            }
+            size={20}
+            color="#8B5CF6"
+            style={styles.boardIcon}
+          />
+          <View style={styles.headerContent}>
+            <Text style={styles.boardText}>{notice.title}</Text>
+            {notice.date && (
+              <Text style={styles.noticeDate}>
+                {notice.date.toLocaleDateString()}
+              </Text>
+            )}
+            {notice.venue && (
+              <Text style={styles.venueText}>Venue: {notice.venue}</Text>
+            )}
+          </View>
+          <Ionicons
+            name={expandedNotice === notice.id ? "chevron-up" : "chevron-down"}
+            size={20}
+            color="#8B5CF6"
+          />
+        </TouchableOpacity>
+
+        {expandedNotice === notice.id && notice.description && (
+          <View style={styles.expandedContent}>
+            <Text style={styles.noticeDescription}>{notice.description}</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const goToPreviousNotice = () => {
     Animated.sequence([
@@ -406,7 +439,9 @@ export default function HomeScreen({ navigation }: Props) {
       }),
     ]).start(() => {
       setPauseScroll(true);
-      setCurrentNoticeIndex((prev) => (prev === 0 ? notices.length - 1 : prev - 1));
+      setCurrentNoticeIndex((prev) =>
+        prev === 0 ? notices.length - 1 : prev - 1
+      );
       setTimeout(() => setPauseScroll(false), 3000);
     });
   };
@@ -445,7 +480,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
@@ -478,7 +513,11 @@ export default function HomeScreen({ navigation }: Props) {
                 <Text style={styles.quickActionText}>UPCOMING</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.quickActionItem}>
-                <Ionicons name="document-text-outline" size={24} color="#8B5CF6" />
+                <Ionicons
+                  name="document-text-outline"
+                  size={24}
+                  color="#8B5CF6"
+                />
                 <Text style={styles.quickActionText}>TODAY'S STORY</Text>
               </TouchableOpacity>
             </View>
@@ -512,8 +551,8 @@ export default function HomeScreen({ navigation }: Props) {
                     {renderNotice(notices[currentNoticeIndex])}
                   </Animated.View>
                   <View style={styles.noticeNavigation}>
-                    <TouchableOpacity 
-                      style={styles.navButton} 
+                    <TouchableOpacity
+                      style={styles.navButton}
                       onPress={goToPreviousNotice}
                     >
                       <Ionicons name="chevron-back" size={24} color="#8B5CF6" />
@@ -524,16 +563,20 @@ export default function HomeScreen({ navigation }: Props) {
                           key={index}
                           style={[
                             styles.dot,
-                            index === currentNoticeIndex && styles.activeDot
+                            index === currentNoticeIndex && styles.activeDot,
                           ]}
                         />
                       ))}
                     </View>
-                    <TouchableOpacity 
-                      style={styles.navButton} 
+                    <TouchableOpacity
+                      style={styles.navButton}
                       onPress={goToNextNotice}
                     >
-                      <Ionicons name="chevron-forward" size={24} color="#8B5CF6" />
+                      <Ionicons
+                        name="chevron-forward"
+                        size={24}
+                        color="#8B5CF6"
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -547,7 +590,10 @@ export default function HomeScreen({ navigation }: Props) {
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionHeader}>Latest News</Text>
             <View style={styles.newsContainer}>
-              <TouchableOpacity style={styles.scrollButton} onPress={scrollLeft}>
+              <TouchableOpacity
+                style={styles.scrollButton}
+                onPress={scrollLeft}
+              >
                 <Ionicons name="chevron-back" size={24} color="#8B5CF6" />
               </TouchableOpacity>
               <FlatList
@@ -558,7 +604,10 @@ export default function HomeScreen({ navigation }: Props) {
                 showsHorizontalScrollIndicator={false}
                 renderItem={renderNewsItem}
               />
-              <TouchableOpacity style={styles.scrollButton} onPress={scrollRight}>
+              <TouchableOpacity
+                style={styles.scrollButton}
+                onPress={scrollRight}
+              >
                 <Ionicons name="chevron-forward" size={24} color="#8B5CF6" />
               </TouchableOpacity>
             </View>
@@ -570,19 +619,29 @@ export default function HomeScreen({ navigation }: Props) {
           transparent={true}
           visible={modalVisible}
           onRequestClose={() => {
-            setModalVisible(!modalVisible)
+            setModalVisible(!modalVisible);
           }}
         >
           <View style={styles.centeredView}>
             <View style={styles.modalView}>
               {selectedNews && (
                 <>
-                  <Pressable style={[styles.closeButton]} onPress={() => setModalVisible(!modalVisible)}>
+                  <Pressable
+                    style={[styles.closeButton]}
+                    onPress={() => setModalVisible(!modalVisible)}
+                  >
                     <Text style={styles.textStyle}>Close</Text>
                   </Pressable>
-                  <Image source={{ uri: selectedNews.image }} style={styles.modalImage} />
-                  <Text style={styles.modalHeadline}>{selectedNews.headline}</Text>
-                  <Text style={styles.modalContent}>{selectedNews.content}</Text>
+                  <Image
+                    source={{ uri: selectedNews.image }}
+                    style={styles.modalImage}
+                  />
+                  <Text style={styles.modalHeadline}>
+                    {selectedNews.headline}
+                  </Text>
+                  <Text style={styles.modalContent}>
+                    {selectedNews.content}
+                  </Text>
                 </>
               )}
             </View>
@@ -590,7 +649,7 @@ export default function HomeScreen({ navigation }: Props) {
         </Modal>
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -653,7 +712,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   boardItem: {
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
     borderRadius: 8,
     marginBottom: 8,
     padding: 8,
@@ -742,8 +801,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   noticeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 8,
   },
   headerContent: {
@@ -755,7 +814,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(139, 92, 246, 0.1)',
+    borderTopColor: "rgba(139, 92, 246, 0.1)",
   },
   noticeDate: {
     fontFamily: "Poppins_400Regular",
@@ -777,33 +836,33 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   dotContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: "#D1D5DB",
     marginHorizontal: 4,
   },
   activeDot: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: "#8B5CF6",
     width: 10,
     height: 10,
     borderRadius: 5,
   },
   venueText: {
     fontSize: 14,
-    fontFamily: 'Poppins_400Regular',
-    color: '#6B7280',
+    fontFamily: "Poppins_400Regular",
+    color: "#6B7280",
     marginTop: 2,
   },
   noticeNavigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 10,
     paddingHorizontal: 10,
   },
@@ -816,8 +875,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
   },
-})
+});
