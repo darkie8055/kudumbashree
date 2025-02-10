@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect, useCallback, useRef } from "react"
 import {
   View,
@@ -8,12 +10,10 @@ import {
   Image,
   Modal,
   TextInput,
-  ActivityIndicator,
   RefreshControl,
   Animated,
   StatusBar,
   Dimensions,
-  ScrollView,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
@@ -44,7 +44,8 @@ const sampleProducts: Product[] = [
     id: "1",
     name: "Handmade Soap",
     price: 150,
-    imageUrl: "https://www.quickpantry.in/cdn/shop/products/dabur-honey-bottle-quick-pantry-1.jpg?v=1710538000&width=750",
+    imageUrl:
+      "https://www.quickpantry.in/cdn/shop/products/dabur-honey-bottle-quick-pantry-1.jpg?v=1710538000&width=750",
     unit: "Ernakulam Kudumbashree",
     phone: "9876543210",
     description: "Natural, handmade soap with essential oils.",
@@ -125,13 +126,14 @@ export default function MarketplaceScreen() {
 
   useEffect(() => {
     filterAndSortProducts()
-  }, [products, searchQuery, selectedCategory, sortOption, selectedLocation])
+  }, [products, searchQuery, selectedCategory, sortOption, selectedLocation]) //Corrected dependency array
 
   const filterAndSortProducts = useCallback(() => {
     const filtered = products.filter((product) => {
       const nameMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
       const categoryMatch = selectedCategory === "All" || product.category === selectedCategory
-      const locationMatch = selectedLocation === "" || selectedLocation === "All" || product.location === selectedLocation
+      const locationMatch =
+        selectedLocation === "" || selectedLocation === "All" || product.location === selectedLocation
       return nameMatch && categoryMatch && locationMatch
     })
 
@@ -168,34 +170,38 @@ export default function MarketplaceScreen() {
     [],
   )
 
-  const handleAddToCart = useCallback((product: Product) => {
-    const existingItemIndex = cart.findIndex((item) => item.product.id === product.id)
-    if (existingItemIndex !== -1) {
-      const updatedCart = [...cart]
-      updatedCart[existingItemIndex].quantity += 1
-      setCart(updatedCart)
-    } else {
-      setCart([...cart, { product, quantity: 1 }])
-    }
-  }, [cart])
+  const handleAddToCart = useCallback(
+    (product: Product) => {
+      const existingItemIndex = cart.findIndex((item) => item.product.id === product.id)
+      if (existingItemIndex !== -1) {
+        const updatedCart = [...cart]
+        updatedCart[existingItemIndex].quantity += 1
+        setCart(updatedCart)
+      } else {
+        setCart([...cart, { product, quantity: 1 }])
+      }
+    },
+    [cart],
+  )
 
-  const handleRemoveFromCart = useCallback((product: Product) => {
-    const updatedCart = cart.filter((item) => item.product.id !== product.id)
-    setCart(updatedCart)
-  }, [cart])
+  const handleRemoveFromCart = useCallback(
+    (product: Product) => {
+      const updatedCart = cart.filter((item) => item.product.id !== product.id)
+      setCart(updatedCart)
+    },
+    [cart],
+  )
 
   const handleQuantityChange = useCallback(
     (product: Product, quantity: number) => {
       if (quantity <= 0) {
         handleRemoveFromCart(product)
       } else {
-        const updatedCart = cart.map((item) =>
-          item.product.id === product.id ? { ...item, quantity } : item
-        )
+        const updatedCart = cart.map((item) => (item.product.id === product.id ? { ...item, quantity } : item))
         setCart(updatedCart)
       }
     },
-    [cart, handleRemoveFromCart]
+    [cart, handleRemoveFromCart],
   )
 
   const renderProduct = useCallback(
@@ -213,11 +219,23 @@ export default function MarketplaceScreen() {
         </View>
       )
     },
-    [handleProductPress, handleAddToCart]
+    [handleProductPress, handleAddToCart],
   )
 
   const categories = ["All", "Beauty", "Food", "Home"]
-  const locations = ["All", "Ernakulam", "Idukki", "Kochi", "Thrissur", "Kannur", "Palakkad", "Kottayam", "Alappuzha", "Pathanamthitta"]
+  const locations = [
+    "All",
+    "Ernakulam",
+    "Idukki",
+    "Kochi",
+    "Thrissur",
+    "Kannur",
+    "Palakkad",
+    "Kottayam",
+    "Alappuzha",
+    "Pathanamthitta",
+  ]
+  const sortOptions = ["name", "priceLow", "priceHigh", "location"]
 
   const renderHeader = useCallback(() => {
     const headerTranslate = scrollY.interpolate({
@@ -227,7 +245,7 @@ export default function MarketplaceScreen() {
     })
 
     return (
-      <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslate }] }]} >
+      <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslate }] }]}>
         <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.gradientHeader}>
           <Text style={styles.pageHeading}>Marketplace</Text>
         </LinearGradient>
@@ -241,6 +259,17 @@ export default function MarketplaceScreen() {
             placeholderTextColor="#999"
           />
         </View>
+
+        <TouchableOpacity style={styles.cartIcon} onPress={() => navigation.navigate("Cart", { cart })}>
+          <Ionicons name="cart" size={30} color="#fff" />
+          {cart.length > 0 && (
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>
+                {cart.reduce((acc, item) => acc + item.quantity, 0)}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionHeader}>Categories</Text>
@@ -264,56 +293,26 @@ export default function MarketplaceScreen() {
 
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionHeader}>Sort By</Text>
-          <View style={styles.sortButtonsContainer}>
-            <TouchableOpacity
-              style={[styles.sortButton, sortOption === "name" && styles.selectedSortButton]}
-              onPress={() => setSortOption("name")}
-            >
-              <Text style={styles.sortButtonText}>Name</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.sortButton, sortOption === "priceLow" && styles.selectedSortButton]}
-              onPress={() => setSortOption("priceLow")}
-            >
-              <Text style={styles.sortButtonText}>Price Low to High</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.sortButton, sortOption === "priceHigh" && styles.selectedSortButton]}
-              onPress={() => setSortOption("priceHigh")}
-            >
-              <Text style={styles.sortButtonText}>Price High to Low</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.sortButton, sortOption === "location" && styles.selectedSortButton]}
-              onPress={() => setIsLocationDropdownVisible(!isLocationDropdownVisible)}
-            >
-              <Text style={styles.sortButtonText}>Location</Text>
-            </TouchableOpacity>
-          </View>
-          {isLocationDropdownVisible && (
-            <View style={styles.locationDropdown}>
-              <FlatList
-                data={locations}
-                keyExtractor={(item) => item}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.locationOption}
-                    onPress={() => {
-                      setSelectedLocation(item)
-                      setIsLocationDropdownVisible(false)
-                    }}
-                  >
-                    <Text style={styles.locationOptionText}>{item}</Text>
-                  </TouchableOpacity>
-                )}
-              />
-              <Text style={styles.showMoreText}>Scroll down for more</Text>
-            </View>
-          )}
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={sortOptions}
+            keyExtractor={(item) => item}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.categoryButton, sortOption === item && styles.selectedCategoryButton]}
+                onPress={() => setSortOption(item)}
+              >
+                <Text style={[styles.categoryText, sortOption === item && styles.selectedCategoryText]}>
+                  {item.charAt(0).toUpperCase() + item.slice(1).replace(/([A-Z])/g, " $1")}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
         </View>
       </Animated.View>
     )
-  }, [selectedCategory, sortOption, selectedLocation, isLocationDropdownVisible, scrollY])
+  }, [selectedCategory, cart, debouncedSearch, scrollY, sortOption])
 
   if (!fontsLoaded) {
     return null
@@ -375,6 +374,27 @@ const styles = StyleSheet.create({
   searchIcon: {
     marginRight: 10,
   },
+  cartIcon: {
+    position: "absolute",
+    top: 30,
+    right: 25,
+  },
+  cartBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: "#EC4899",
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cartBadgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
   sectionContainer: {
     marginTop: 24,
     paddingHorizontal: 10,
@@ -400,46 +420,6 @@ const styles = StyleSheet.create({
   },
   selectedCategoryText: {
     color: "#fff",
-  },
-  sortButtonsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: 8,
-  },
-  sortButton: {
-    padding: 8,
-    backgroundColor: "#f0f0f0",
-    marginRight: 8,
-    marginBottom: 8,
-    borderRadius: 8,
-  },
-  selectedSortButton: {
-    backgroundColor: "#8B5CF6",
-  },
-  sortButtonText: {
-    fontSize: 14,
-    color: "#333",
-  },
-  locationDropdown: {
-    backgroundColor: "#fff",
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    marginTop: 8,
-  },
-  locationOption: {
-    paddingVertical: 10,
-  },
-  locationOptionText: {
-    fontSize: 14,
-    color: "#333",
-  },
-  showMoreText: {
-    textAlign: "center",
-    fontSize: 12,
-    color: "#888",
-    marginTop: 5,
   },
   productCard: {
     width: ITEM_WIDTH,

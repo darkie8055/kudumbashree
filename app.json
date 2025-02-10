@@ -20,7 +20,10 @@
         "foregroundImage": "./rabit.gif",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.darkie80.KudumbashreeApp"
+      "package": "com.darkie80.KudumbashreeApp",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,6 +38,11 @@
       ],
       "@react-native-firebase/app",
       "@react-native-firebase/auth"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b18e5860-1526-44e5-9cfb-980270233c62"
+      }
+    }
   }
 }
