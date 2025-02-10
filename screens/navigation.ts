@@ -14,6 +14,7 @@ export type RootStackParamList = {
   Details: undefined
   Market: undefined
   Profile: undefined
+  
   //ForgotPassword: { userType: "president" | "km" | "normal" };
 }
 

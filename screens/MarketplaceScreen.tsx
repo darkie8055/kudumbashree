@@ -267,7 +267,7 @@ export default function MarketplaceScreen() {
           />
         </View>
 
-        <TouchableOpacity style={styles.cartIcon} onPress={() => navigation.navigate("Cart", { cart })}>
+        <TouchableOpacity style={styles.cartIcon} onPress={() => navigation.navigate("CartScreen",{ cart })}>
           <Ionicons name="cart" size={30} color="#fff" />
           {cart.length > 0 && (
             <View style={styles.cartBadge}>

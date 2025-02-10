@@ -25,6 +25,12 @@ import ApprovedMembersScreen from "./screens/ApprovedMembersScreen"
 import ScheduleMeetingScreen from "./screens/ScheduleMeetingScreen"
 import AddNoticeNewsScreen from "./screens/AddNoticeNewsScreen"
 
+// Import new checkout screens
+import PaymentMethodScreen from "./screens/PaymentMethodScreen"
+import AddressScreen from "./screens/AddressScreen"
+import OrderSummaryScreen from "./screens/OrderSummaryScreen"
+import OrderTrackingScreen from "./screens/OrderTrackingScreen"
+
 const Stack = createNativeStackNavigator()
 const Tab = createBottomTabNavigator()
 
@@ -152,6 +158,18 @@ function PresidentStack() {
   )
 }
 
+function CheckoutStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Cart" component={CartScreen} />
+      <Stack.Screen name="Payment" component={PaymentMethodScreen} />
+      <Stack.Screen name="Address" component={AddressScreen} />
+      <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
+      <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
+    </Stack.Navigator>
+  )
+}
+
 export default function App() {
   return (
     <NavigationContainer>
@@ -198,7 +216,7 @@ export default function App() {
         />
         <Stack.Screen name="KMemberApproval" component={KMemberApprovalScreen} />
         <Stack.Screen name="PresidentStack" component={PresidentStack} options={{ headerShown: false }} />
-        <Stack.Screen name="Cart" component={CartScreen} />
+        <Stack.Screen name="CheckoutStack" component={CheckoutStack} options={{ headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   )

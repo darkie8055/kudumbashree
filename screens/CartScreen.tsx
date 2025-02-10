@@ -65,19 +65,34 @@ const CartScreen = ({ route }) => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Your Cart</Text>
       </View>
-      <FlatList
-        data={cart}
-        renderItem={renderCartItem}
-        keyExtractor={(item) => item.product.id}
-        contentContainerStyle={styles.cartList}
-      />
-      <View style={styles.totalContainer}>
-        <Text style={styles.totalText}>Total:</Text>
-        <Text style={styles.totalAmount}>₹{getTotalAmount()}</Text>
-      </View>
-      <TouchableOpacity style={styles.checkoutButton}>
-        <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
-      </TouchableOpacity>
+
+      {cart.length === 0 ? (
+        <View style={styles.emptyCart}>
+          <Ionicons name="cart-outline" size={64} color="#ccc" />
+          <Text style={styles.emptyCartText}>Your cart is empty</Text>
+          <TouchableOpacity style={styles.continueShopping} onPress={() => navigation.navigate("Market")}>
+            <Text style={styles.continueShoppingText}>Continue Shopping</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          <FlatList
+            data={cart}
+            renderItem={renderCartItem}
+            keyExtractor={(item) => item.product.id}
+            contentContainerStyle={styles.cartList}
+          />
+          <View style={styles.footer}>
+            <View style={styles.totalContainer}>
+              <Text style={styles.totalText}>Total:</Text>
+              <Text style={styles.totalAmount}>₹{getTotalAmount()}</Text>
+            </View>
+            <TouchableOpacity style={styles.checkoutButton} onPress={() => navigation.navigate("Payment", { cart })}>
+              <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
     </SafeAreaView>
   )
 }
@@ -109,7 +124,7 @@ const styles = StyleSheet.create({
   cartItem: {
     flexDirection: "row",
     backgroundColor: "#fff",
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     shadowColor: "#000",
@@ -131,6 +146,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     marginBottom: 4,
+    color: "#333",
   },
   productPrice: {
     fontSize: 14,
@@ -148,36 +164,64 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     marginHorizontal: 8,
+    color: "#333",
+  },
+  footer: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+    borderTopWidth: 1,
+    borderTopColor: "#e0e0e0",
   },
   totalContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
+    marginBottom: 16,
   },
   totalText: {
     fontSize: 18,
     fontWeight: "bold",
+    color: "#333",
   },
   totalAmount: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: "bold",
-    color: "#8B5CF6",
+    color: "#69C779",
   },
   checkoutButton: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#69C779",
     padding: 16,
-    margin: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: "center",
   },
   checkoutButtonText: {
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  emptyCart: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  emptyCartText: {
+    fontSize: 18,
+    color: "#666",
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  continueShopping: {
+    backgroundColor: "#69C779",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  continueShoppingText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "500",
   },
 })
 
