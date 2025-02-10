@@ -38,6 +38,10 @@ const CartScreen = ({ route }) => {
     return cart.reduce((total, item) => total + item.product.price * item.quantity, 0)
   }
 
+  const clearCart = () => {
+    setCart([])
+  }
+
   const renderCartItem = ({ item }: { item: CartItem }) => (
     <View style={styles.cartItem}>
       <Image source={{ uri: item.product.imageUrl }} style={styles.productImage} />
@@ -70,8 +74,8 @@ const CartScreen = ({ route }) => {
         <View style={styles.emptyCart}>
           <Ionicons name="cart-outline" size={64} color="#ccc" />
           <Text style={styles.emptyCartText}>Your cart is empty</Text>
-          <TouchableOpacity style={styles.continueShopping} onPress={() => navigation.navigate("MarketplaceScreen",{ Market })}>
-           <Text style={styles.continueShoppingText}>Continue Shopping</Text>
+          <TouchableOpacity style={styles.continueShopping} onPress={() => navigation.navigate("MarketplaceScreen")}>
+            <Text style={styles.continueShoppingText}>Continue Shopping</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -89,6 +93,9 @@ const CartScreen = ({ route }) => {
             </View>
             <TouchableOpacity style={styles.checkoutButton} onPress={() => navigation.navigate("Payment", { cart })}>
               <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.clearCartButton} onPress={clearCart}>
+              <Text style={styles.clearCartText}>Clear Cart</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -200,6 +207,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
+  clearCartButton: {
+    backgroundColor: "#f44336",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 16,
+  },
+  clearCartText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
   emptyCart: {
     flex: 1,
     justifyContent: "center",
@@ -226,4 +245,3 @@ const styles = StyleSheet.create({
 })
 
 export default CartScreen
-
