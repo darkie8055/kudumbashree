@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "847352295464",
+    "project_id": "kudumbashree-0",
+    "storage_bucket": "kudumbashree-0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:847352295464:android:6ca651e9fef7d71b41c51d",
+        "android_client_info": {
+          "package_name": "com.coriolis.KudumbashreeApp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC9oJ0uLFOcpjC45FFYxvG-iu1_0OIDOiU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

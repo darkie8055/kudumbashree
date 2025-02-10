@@ -17,8 +17,17 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../types/navigation";
-import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins";
-import { getAuth, PhoneAuthProvider, signInWithCredential } from "firebase/auth";
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
+import {
+  getAuth,
+  PhoneAuthProvider,
+  signInWithCredential,
+} from "firebase/auth";
 import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
 import { LogBox } from "react-native";
 
@@ -27,13 +36,16 @@ LogBox.ignoreLogs([
   "Firebase: Error (auth/cancelled-popup-request).",
   "Firebase: Error (auth/popup-closed-by-user).",
   "Error: Cancelled by user.",
-  "Failed to initialize reCAPTCHA Enterprise config. Triggering the reCAPTCHA v2 verification."
+  "Failed to initialize reCAPTCHA Enterprise config. Triggering the reCAPTCHA v2 verification.",
 ]);
 
 // Import your Firebase configuration
 import { firebaseConfig } from "../firebase"; // Ensure you export this in firebase.js
 
-type VerificationScreenNavigationProp = StackNavigationProp<RootStackParamList, "Verification">;
+type VerificationScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  "Verification"
+>;
 
 interface Props {
   navigation: VerificationScreenNavigationProp;
@@ -43,16 +55,16 @@ interface Props {
 const recaptchaStyles = {
   container: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
   },
   webview: {
     width: 300,
     height: 400,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
-    overflow: 'hidden' as const,
+    overflow: "hidden" as const,
   },
 };
 
@@ -99,13 +111,21 @@ export default function VerificationScreen({ navigation }: Props) {
       Alert.alert("Success", "Verification code has been sent to your phone.");
     } catch (err: any) {
       // Don't log the error but show the alert
-      if (err?.message === 'Cancelled by user' || 
-          err?.code === 'auth/cancelled-popup-request' || 
-          err?.code === 'auth/popup-closed-by-user') {
-        Alert.alert("Cancelled", "Verification was cancelled. Please try again.");
+      if (
+        err?.message === "Cancelled by user" ||
+        err?.code === "auth/cancelled-popup-request" ||
+        err?.code === "auth/popup-closed-by-user"
+      ) {
+        Alert.alert(
+          "Cancelled",
+          "Verification was cancelled. Please try again."
+        );
       } else {
         console.error(err);
-        Alert.alert("Error", "Failed to send verification code. Please try again.");
+        Alert.alert(
+          "Error",
+          "Failed to send verification code. Please try again."
+        );
       }
     } finally {
       setLoading(false);
@@ -118,11 +138,12 @@ export default function VerificationScreen({ navigation }: Props) {
       setLoading(true);
       const auth = getAuth();
       const credential = PhoneAuthProvider.credential(verificationId, code);
-      await signInWithCredential(auth, credential); // Correct usage of signInWithCredential
+      await signInWithCredential(auth, credential);
       Alert.alert("Success", "Phone number verified successfully!", [
         {
           text: "Continue",
-          onPress: () => navigation.navigate("SignUp", { phoneNumber }), // Pass phoneNumber to SignUp screen
+          onPress: () =>
+            navigation.navigate("SignUp", { phoneNumber: phoneNumber }),
         },
       ]);
     } catch (err) {
@@ -159,8 +180,16 @@ export default function VerificationScreen({ navigation }: Props) {
       end={{ x: 1, y: 1 }}
     >
       <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
-          <Animated.View style={[styles.formContainer, { opacity: animation, transform: [{ translateY }] }]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.container}
+        >
+          <Animated.View
+            style={[
+              styles.formContainer,
+              { opacity: animation, transform: [{ translateY }] },
+            ]}
+          >
             <LinearGradient
               colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
               style={styles.gradientBorder}
@@ -182,7 +211,9 @@ export default function VerificationScreen({ navigation }: Props) {
                           placeholderTextColor="rgba(162,39,142,0.7)"
                           value={phoneNumber}
                           onChangeText={(text) => {
-                            const cleaned = text.replace(/\D/g, "").slice(0, 10);
+                            const cleaned = text
+                              .replace(/\D/g, "")
+                              .slice(0, 10);
                             setPhoneNumber(cleaned);
                           }}
                           keyboardType="phone-pad"
@@ -190,21 +221,35 @@ export default function VerificationScreen({ navigation }: Props) {
                         />
                       </View>
                       <View style={styles.buttonContainer}>
-                        <Animated.View style={{ transform: [{ scale: sendButtonScale }] }}>
+                        <Animated.View
+                          style={{ transform: [{ scale: sendButtonScale }] }}
+                        >
                           <Pressable
-                            style={[styles.button, loading && styles.buttonDisabled]}
+                            style={[
+                              styles.button,
+                              loading && styles.buttonDisabled,
+                            ]}
                             onPress={sendVerificationCode}
-                            onPressIn={() => animateScale(sendButtonScale, 0.95)}
+                            onPressIn={() =>
+                              animateScale(sendButtonScale, 0.95)
+                            }
                             onPressOut={() => animateScale(sendButtonScale, 1)}
                             disabled={loading || phoneNumber.length !== 10}
                           >
                             <LinearGradient
-                              colors={["rgba(139, 92, 246, 1)", "rgba(236, 72, 153, 1)"]}
+                              colors={[
+                                "rgba(139, 92, 246, 1)",
+                                "rgba(236, 72, 153, 1)",
+                              ]}
                               style={styles.buttonGradient}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 1 }}
                             >
-                              <Text style={styles.buttonText}>{loading ? "Sending..." : "Send Verification Code"}</Text>
+                              <Text style={styles.buttonText}>
+                                {loading
+                                  ? "Sending..."
+                                  : "Send Verification Code"}
+                              </Text>
                             </LinearGradient>
                           </Pressable>
                         </Animated.View>
@@ -224,28 +269,48 @@ export default function VerificationScreen({ navigation }: Props) {
                         />
                       </View>
                       <View style={styles.buttonContainer}>
-                        <Animated.View style={{ transform: [{ scale: verifyButtonScale }] }}>
+                        <Animated.View
+                          style={{ transform: [{ scale: verifyButtonScale }] }}
+                        >
                           <Pressable
-                            style={[styles.button, code.length !== 6 && styles.buttonDisabled]}
+                            style={[
+                              styles.button,
+                              code.length !== 6 && styles.buttonDisabled,
+                            ]}
                             onPress={confirmCode}
-                            onPressIn={() => code.length === 6 && animateScale(verifyButtonScale, 0.95)}
-                            onPressOut={() => code.length === 6 && animateScale(verifyButtonScale, 1)}
+                            onPressIn={() =>
+                              code.length === 6 &&
+                              animateScale(verifyButtonScale, 0.95)
+                            }
+                            onPressOut={() =>
+                              code.length === 6 &&
+                              animateScale(verifyButtonScale, 1)
+                            }
                             disabled={loading || code.length !== 6}
                           >
                             <LinearGradient
-                              colors={["rgba(139, 92, 246, 1)", "rgba(236, 72, 153, 1)"]}
+                              colors={[
+                                "rgba(139, 92, 246, 1)",
+                                "rgba(236, 72, 153, 1)",
+                              ]}
                               style={styles.buttonGradient}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 1 }}
                             >
                               <Text style={styles.buttonText}>
-                                {loading ? "Verifying..." : code.length === 6 ? "Verify Code" : `Enter ${6 - code.length} more digit${6 - code.length === 1 ? '' : 's'}`}
+                                {loading
+                                  ? "Verifying..."
+                                  : code.length === 6
+                                  ? "Verify Code"
+                                  : `Enter ${6 - code.length} more digit${
+                                      6 - code.length === 1 ? "" : "s"
+                                    }`}
                               </Text>
                             </LinearGradient>
                           </Pressable>
                         </Animated.View>
                       </View>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.resendButton}
                         onPress={() => {
                           setVerificationId("");
@@ -258,7 +323,9 @@ export default function VerificationScreen({ navigation }: Props) {
                   )}
                 </View>
                 <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-                  <Text style={styles.linkText}>Already have an account? Login</Text>
+                  <Text style={styles.linkText}>
+                    Already have an account? Login
+                  </Text>
                 </TouchableOpacity>
               </View>
             </LinearGradient>
@@ -297,7 +364,7 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   whiteBackground: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 15,
     padding: 20,
   },
@@ -343,7 +410,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     borderRadius: 25,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginVertical: 5,
   },
   button: {
@@ -363,7 +430,7 @@ const styles = StyleSheet.create({
   buttonGradient: {
     paddingVertical: 15,
     paddingHorizontal: 20,
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 25,
   },
   buttonText: {
@@ -386,5 +453,6 @@ const styles = StyleSheet.create({
     color: "rgb(162,39,142)",
     textAlign: "center",
     marginTop: 20,
+    textDecorationLine: "underline",
   },
 });
