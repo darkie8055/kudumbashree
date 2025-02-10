@@ -70,8 +70,8 @@ const CartScreen = ({ route }) => {
         <View style={styles.emptyCart}>
           <Ionicons name="cart-outline" size={64} color="#ccc" />
           <Text style={styles.emptyCartText}>Your cart is empty</Text>
-          <TouchableOpacity style={styles.continueShopping} onPress={() => navigation.navigate("Market")}>
-            <Text style={styles.continueShoppingText}>Continue Shopping</Text>
+          <TouchableOpacity style={styles.continueShopping} onPress={() => navigation.navigate("MarketplaceScreen",{ Market })}>
+           <Text style={styles.continueShoppingText}>Continue Shopping</Text>
           </TouchableOpacity>
         </View>
       ) : (

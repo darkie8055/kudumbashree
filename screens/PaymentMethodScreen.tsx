@@ -37,7 +37,7 @@ const samplePaymentMethods: PaymentMethod[] = [
     id: "3",
     type: "upi",
     upiApp: "BHIM",
-    upiIcon: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/upi-CdI8LUHVB7LdWuls6vIZDm9PREJasC.png",
+    upiIcon:  "https://drive.google.com/file/d/1wQnlHhK2lOhhkTyPHrBlvg-sgn2tnbjY/view?usp=sharing",
   },
   {
     id: "4",

@@ -14,7 +14,7 @@ const orderSteps = [
   {
     id: "2",
     title: "Order Confirmed",
-    description: "Seller has processed your order",
+    description: "Seller has processed your order ",
     icon: "checkmark-circle-outline",
   },
   {
@@ -46,7 +46,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
     // Simulate order progress
     const timer = setInterval(() => {
       setCurrentStep((prev) => {
-        if (prev < orderSteps.length - 1) {
+        if (prev < orderSteps.length - 4) {
           return prev + 1
         }
         clearInterval(timer)
@@ -59,7 +59,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
 
   useEffect(() => {
     Animated.timing(progressAnimation, {
-      toValue: (currentStep / (orderSteps.length - 1)) * 100,
+      toValue: (currentStep / (orderSteps.length - 4)) * 100,
       duration: 500,
       useNativeDriver: false,
     }).start()

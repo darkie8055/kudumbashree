@@ -8,12 +8,12 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
-  Modal,
   TextInput,
   RefreshControl,
   Animated,
   StatusBar,
   Dimensions,
+  Modal,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
@@ -159,6 +159,43 @@ export default function MarketplaceScreen() {
     setIsModalVisible(true)
   }, [])
 
+  const closeModal = useCallback(() => {
+    setIsModalVisible(false)
+    setSelectedProduct(null)
+  }, [])
+
+  const renderProductDetails = useCallback(() => {
+    if (!selectedProduct) return null
+
+    return (
+      <Modal animationType="slide" transparent={true} visible={isModalVisible} onRequestClose={closeModal}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+            <Image source={{ uri: selectedProduct.imageUrl }} style={styles.modalImage} />
+            <Text style={styles.modalProductName}>{selectedProduct.name}</Text>
+            <Text style={styles.modalProductPrice}>₹{selectedProduct.price}</Text>
+            <Text style={styles.modalProductUnit}>Unit: {selectedProduct.unit}</Text>
+            <Text style={styles.modalProductDescription}>{selectedProduct.description}</Text>
+            <Text style={styles.modalProductCategory}>Category: {selectedProduct.category}</Text>
+            <Text style={styles.modalProductLocation}>Location: {selectedProduct.location}</Text>
+            <TouchableOpacity
+              style={styles.modalAddToCartButton}
+              onPress={() => {
+                handleAddToCart(selectedProduct)
+                closeModal()
+              }}
+            >
+              <Text style={styles.modalAddToCartButtonText}>Add to Cart</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    )
+  }, [selectedProduct, isModalVisible, closeModal, handleAddToCart])
+
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
     await fetchProducts()
@@ -267,13 +304,11 @@ export default function MarketplaceScreen() {
           />
         </View>
 
-        <TouchableOpacity style={styles.cartIcon} onPress={() => navigation.navigate("Cart",{ cart })}>
+        <TouchableOpacity style={styles.cartIcon} onPress={() => navigation.navigate("Cart", { cart })}>
           <Ionicons name="cart" size={30} color="#fff" />
-          {cart.length > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{cart.reduce((acc, item) => acc + item.quantity, 0)}</Text>
-            </View>
-          )}
+          <View style={styles.cartBadge}>
+            <Text style={styles.cartBadgeText}>{cart.reduce((acc, item) => acc + item.quantity, 0)}</Text>
+          </View>
         </TouchableOpacity>
 
         <View style={styles.sectionContainer}>
@@ -319,6 +354,14 @@ export default function MarketplaceScreen() {
     )
   }, [selectedCategory, cart, debouncedSearch, scrollY, sortOption])
 
+  useEffect(() => {
+    filterAndSortProducts()
+    // Update the cart count
+    if (navigation.setParams) {
+      navigation.setParams({ cartCount: cart.reduce((total, item) => total + item.quantity, 0) })
+    }
+  }, [products, searchQuery, selectedCategory, sortOption, selectedLocation, cart])
+
   if (!fontsLoaded) {
     return null
   }
@@ -336,7 +379,7 @@ export default function MarketplaceScreen() {
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       />
-     
+      {renderProductDetails()}
     </SafeAreaView>
   )
 }
@@ -468,6 +511,71 @@ const styles = StyleSheet.create({
   },
   productListContainer: {
     paddingBottom: 70,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    width: "90%",
+    maxHeight: "80%",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    zIndex: 1,
+  },
+  modalImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  modalProductName: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  modalProductPrice: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#69C779",
+    marginBottom: 8,
+  },
+  modalProductUnit: {
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  modalProductDescription: {
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  modalProductCategory: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 4,
+  },
+  modalProductLocation: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 16,
+  },
+  modalAddToCartButton: {
+    backgroundColor: "#8B5CF6",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  modalAddToCartButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 })
 
