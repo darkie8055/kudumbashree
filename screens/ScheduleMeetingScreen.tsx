@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,13 +8,27 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Platform
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { firebase } from '../firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, getDocs, where } from 'firebase/firestore';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { useFonts, Poppins_400Regular, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
+  Platform,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { firebase } from "../firebase";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  orderBy,
+  getDocs,
+  where,
+  doc,
+  deleteDoc,
+} from "firebase/firestore";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_600SemiBold,
+} from "@expo-google-fonts/poppins";
 import { Ionicons } from "@expo/vector-icons";
 
 type Meeting = {
@@ -26,10 +40,21 @@ type Meeting = {
   createdAt?: any;
 };
 
+// Update the Notice type definition
+type Notice = {
+  id: string;
+  title: string;
+  description?: string;
+  date?: Date;
+  type?: "meeting" | "notice"; // Make type optional
+  createdAt?: any;
+  venue?: string;
+};
+
 export default function ScheduleMeetingScreen() {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [venue, setVenue] = useState('');
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [venue, setVenue] = useState("");
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -44,47 +69,55 @@ export default function ScheduleMeetingScreen() {
 
   const handleSchedule = async () => {
     if (!title.trim()) {
-      Alert.alert('Error', 'Please enter a meeting title');
+      Alert.alert("Error", "Please enter a meeting title");
       return;
     }
     if (!venue.trim()) {
-      Alert.alert('Error', 'Please enter a meeting venue');
+      Alert.alert("Error", "Please enter a meeting venue");
       return;
     }
 
     try {
       setLoading(true);
-      const noticesRef = collection(firebase, 'notices');
-      
+      const noticesRef = collection(firebase, "notices");
+
       await addDoc(noticesRef, {
         title: title,
         description: description,
         venue: venue,
         date: date,
         createdAt: serverTimestamp(),
-        type: 'meeting'
+        type: "meeting",
       });
 
-      Alert.alert(
-        'Success', 
-        'Meeting scheduled successfully',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setTitle('');
-              setDescription('');
-              setVenue('');
-              setDate(new Date());
-            }
-          }
-        ]
-      );
+      Alert.alert("Success", "Meeting scheduled successfully", [
+        {
+          text: "OK",
+          onPress: () => {
+            setTitle("");
+            setDescription("");
+            setVenue("");
+            setDate(new Date());
+          },
+        },
+      ]);
     } catch (error) {
-      console.error('Error scheduling meeting:', error);
-      Alert.alert('Error', 'Failed to schedule meeting');
+      console.error("Error scheduling meeting:", error);
+      Alert.alert("Error", "Failed to schedule meeting");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteMeeting = async (meetingId: string) => {
+    try {
+      const noticeRef = doc(firebase, "notices", meetingId);
+      await deleteDoc(noticeRef);
+      Alert.alert("Success", "Meeting deleted successfully");
+      fetchMeetings(); // Refresh the meetings list
+    } catch (error) {
+      console.error("Error deleting meeting:", error);
+      Alert.alert("Error", "Failed to delete meeting");
     }
   };
 
@@ -118,29 +151,26 @@ export default function ScheduleMeetingScreen() {
 
   const fetchMeetings = async () => {
     try {
-      const noticesRef = collection(firebase, 'notices');
-      const q = query(
-        noticesRef, 
-        where('type', '==', 'meeting')
-      );
+      const noticesRef = collection(firebase, "notices");
+      const q = query(noticesRef, where("type", "==", "meeting"));
       const querySnapshot = await getDocs(q);
-      
-      const meetingsList = querySnapshot.docs.map(doc => ({
+
+      const meetingsList = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         title: doc.data().title,
         description: doc.data().description,
         venue: doc.data().venue,
         date: doc.data().date?.toDate(),
-        createdAt: doc.data().createdAt
+        createdAt: doc.data().createdAt,
       })) as Meeting[];
-      
-      meetingsList.sort((a, b) => 
-        (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
+
+      meetingsList.sort(
+        (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
       );
-      
+
       setMeetings(meetingsList);
     } catch (error) {
-      console.error('Error fetching meetings:', error);
+      console.error("Error fetching meetings:", error);
     }
   };
 
@@ -150,30 +180,64 @@ export default function ScheduleMeetingScreen() {
 
   const renderMeeting = (meeting: Meeting) => (
     <View key={meeting.id} style={styles.meetingItem}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.meetingHeader}
-        onPress={() => setExpandedMeeting(expandedMeeting === meeting.id ? null : meeting.id)}
+        onPress={() =>
+          setExpandedMeeting(expandedMeeting === meeting.id ? null : meeting.id)
+        }
       >
-        <Ionicons name="calendar-outline" size={20} color="#8B5CF6" style={styles.meetingIcon} />
+        <Ionicons
+          name="calendar-outline"
+          size={20}
+          color="#8B5CF6"
+          style={styles.meetingIcon}
+        />
         <View style={styles.meetingHeaderContent}>
           <Text style={styles.meetingTitle}>{meeting.title}</Text>
           <Text style={styles.meetingDateTime}>
-            {meeting.date?.toLocaleDateString()} {meeting.date?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {meeting.date?.toLocaleDateString()}{" "}
+            {meeting.date?.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </Text>
         </View>
-        <Ionicons 
-          name={expandedMeeting === meeting.id ? "chevron-up" : "chevron-down"} 
-          size={20} 
-          color="#8B5CF6" 
+        <Ionicons
+          name={expandedMeeting === meeting.id ? "chevron-up" : "chevron-down"}
+          size={20}
+          color="#8B5CF6"
         />
       </TouchableOpacity>
-      
+
       {expandedMeeting === meeting.id && (
         <View style={styles.expandedContent}>
           <Text style={styles.venueText}>Venue: {meeting.venue}</Text>
           {meeting.description && (
             <Text style={styles.descriptionText}>{meeting.description}</Text>
           )}
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => {
+              Alert.alert(
+                "Delete Meeting",
+                "Are you sure you want to delete this meeting?",
+                [
+                  {
+                    text: "Cancel",
+                    style: "cancel",
+                  },
+                  {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => handleDeleteMeeting(meeting.id),
+                  },
+                ]
+              );
+            }}
+          >
+            <Ionicons name="trash-outline" size={18} color="white" />
+            <Text style={styles.deleteButtonText}>Delete Meeting</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -219,20 +283,30 @@ export default function ScheduleMeetingScreen() {
           />
 
           <View style={styles.dateTimeContainer}>
-            <TouchableOpacity style={styles.dateTimeButton} onPress={showDatepicker}>
+            <TouchableOpacity
+              style={styles.dateTimeButton}
+              onPress={showDatepicker}
+            >
               <Text style={styles.dateTimeButtonText}>
                 Select Date: {date.toLocaleDateString()}
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.dateTimeButton} onPress={showTimepicker}>
+            <TouchableOpacity
+              style={styles.dateTimeButton}
+              onPress={showTimepicker}
+            >
               <Text style={styles.dateTimeButtonText}>
-                Select Time: {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                Select Time:{" "}
+                {date.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </Text>
             </TouchableOpacity>
           </View>
 
-          {(showDatePicker && Platform.OS === 'android') && (
+          {showDatePicker && Platform.OS === "android" && (
             <DateTimePicker
               value={date}
               mode="date"
@@ -248,7 +322,7 @@ export default function ScheduleMeetingScreen() {
             />
           )}
 
-          {(showTimePicker && Platform.OS === 'android') && (
+          {showTimePicker && Platform.OS === "android" && (
             <DateTimePicker
               value={date}
               mode="time"
@@ -264,7 +338,7 @@ export default function ScheduleMeetingScreen() {
             />
           )}
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.scheduleButton, loading && styles.disabledButton]}
             onPress={handleSchedule}
             disabled={loading}
@@ -293,22 +367,22 @@ export default function ScheduleMeetingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
   },
   scrollContent: {
     padding: 20,
   },
   title: {
     fontSize: 24,
-    fontFamily: 'Poppins_600SemiBold',
-    color: '#1F2937',
+    fontFamily: "Poppins_600SemiBold",
+    color: "#1F2937",
     marginBottom: 20,
   },
   formContainer: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -316,63 +390,63 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontFamily: 'Poppins_600SemiBold',
-    color: '#4B5563',
+    fontFamily: "Poppins_600SemiBold",
+    color: "#4B5563",
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: "#F9FAFB",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    fontFamily: 'Poppins_400Regular',
+    fontFamily: "Poppins_400Regular",
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   textArea: {
     height: 100,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   dateTimeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 20,
   },
   dateTimeButton: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: "#F9FAFB",
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
     flex: 0.48,
   },
   dateTimeButtonText: {
     fontSize: 14,
-    fontFamily: 'Poppins_400Regular',
-    color: '#1F2937',
-    textAlign: 'center',
+    fontFamily: "Poppins_400Regular",
+    color: "#1F2937",
+    textAlign: "center",
   },
   scheduleButton: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: "#8B5CF6",
     borderRadius: 8,
     padding: 16,
-    alignItems: 'center',
+    alignItems: "center",
   },
   scheduleButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontFamily: 'Poppins_600SemiBold',
+    fontFamily: "Poppins_600SemiBold",
   },
   disabledButton: {
     opacity: 0.7,
   },
   meetingsContainer: {
     marginTop: 20,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -380,19 +454,19 @@ const styles = StyleSheet.create({
   },
   meetingsTitle: {
     fontSize: 20,
-    fontFamily: 'Poppins_600SemiBold',
-    color: '#1F2937',
+    fontFamily: "Poppins_600SemiBold",
+    color: "#1F2937",
     marginBottom: 16,
   },
   meetingItem: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: "#F9FAFB",
     borderRadius: 8,
     marginBottom: 8,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   meetingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 12,
   },
   meetingIcon: {
@@ -404,37 +478,52 @@ const styles = StyleSheet.create({
   },
   meetingTitle: {
     fontSize: 16,
-    fontFamily: 'Poppins_600SemiBold',
-    color: '#1F2937',
+    fontFamily: "Poppins_600SemiBold",
+    color: "#1F2937",
   },
   meetingDateTime: {
     fontSize: 14,
-    fontFamily: 'Poppins_400Regular',
-    color: '#6B7280',
+    fontFamily: "Poppins_400Regular",
+    color: "#6B7280",
     marginTop: 2,
   },
   expandedContent: {
     padding: 12,
     paddingTop: 0,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: "#E5E7EB",
   },
   venueText: {
     fontSize: 14,
-    fontFamily: 'Poppins_400Regular',
-    color: '#4B5563',
+    fontFamily: "Poppins_400Regular",
+    color: "#4B5563",
     marginBottom: 4,
   },
   descriptionText: {
     fontSize: 14,
-    fontFamily: 'Poppins_400Regular',
-    color: '#4B5563',
+    fontFamily: "Poppins_400Regular",
+    color: "#4B5563",
   },
   emptyText: {
     fontSize: 14,
-    fontFamily: 'Poppins_400Regular',
-    color: '#6B7280',
-    textAlign: 'center',
+    fontFamily: "Poppins_400Regular",
+    color: "#6B7280",
+    textAlign: "center",
     padding: 16,
   },
-}); 
+  deleteButton: {
+    backgroundColor: "#EF4444",
+    borderRadius: 8,
+    padding: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+  },
+  deleteButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontFamily: "Poppins_600SemiBold",
+    marginLeft: 4,
+  },
+});
