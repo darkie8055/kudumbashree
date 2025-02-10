@@ -78,7 +78,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
   }
 
   const handleSupport = () => {
-    Linking.openURL("tel:+1234567890")
+    Linking.openURL("tel:+918891115593")
   }
 
   const handleShare = () => {
