@@ -438,6 +438,7 @@ const styles = StyleSheet.create({
     color: "rgb(162,39,142)",
     textAlign: "center",
     marginTop: 20,
+    textDecorationLine: "underline",
   },
   forgotPasswordText: {
     fontFamily: "Poppins_400Regular",

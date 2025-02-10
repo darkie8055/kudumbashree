@@ -25,33 +25,50 @@ import {
   Poppins_600SemiBold,
   Poppins_700Bold,
 } from "@expo-google-fonts/poppins";
-import { initializeApp } from 'firebase/app';
+import { initializeApp } from "firebase/app";
 import { firebaseConfig } from "../firebase";
-import { getFirestore, collection, doc, setDoc, getDoc, query, where, getDocs } from "firebase/firestore";
-import { useRoute } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import axios from 'axios';
-import * as DocumentPicker from 'expo-document-picker';
-import { RouteProp } from '@react-navigation/native';
+import {
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
+import { useRoute } from "@react-navigation/native";
+import * as ImagePicker from "expo-image-picker";
+import {
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+} from "firebase/storage";
+import axios from "axios";
+import * as DocumentPicker from "expo-document-picker";
+import { RouteProp } from "@react-navigation/native";
 
-type SignUpScreenNavigationProp = StackNavigationProp<RootStackParamList, "SignUp">
+type SignUpScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  "SignUp"
+>;
 
 interface Props {
-  navigation: SignUpScreenNavigationProp
+  navigation: SignUpScreenNavigationProp;
 }
 
 type RouteParams = {
   phoneNumber: string;
-}
+};
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 export default function SignUpScreen({ navigation }: Props) {
-  const route = useRoute<RouteProp<{ params: RouteParams }, 'params'>>();
+  const route = useRoute<RouteProp<{ params: RouteParams }, "params">>();
   const { phoneNumber } = route.params;
-  
+
   const [formData, setFormData] = useState({
     userType: "normal",
     firstName: "",
@@ -108,14 +125,16 @@ export default function SignUpScreen({ navigation }: Props) {
 
   const fetchAddressFromPincode = async (pincode: string) => {
     try {
-      const response = await axios.get(`https://api.postalpincode.in/pincode/${pincode}`);
+      const response = await axios.get(
+        `https://api.postalpincode.in/pincode/${pincode}`
+      );
       if (response.data[0].Status === "Success") {
         const postOffice = response.data[0].PostOffice[0];
         setFormData({
           ...formData,
           pincode,
           state: postOffice.State,
-          district: postOffice.District
+          district: postOffice.District,
         });
       } else {
         Alert.alert("Error", "Please enter a valid pincode");
@@ -123,7 +142,7 @@ export default function SignUpScreen({ navigation }: Props) {
           ...formData,
           pincode,
           state: "",
-          district: ""
+          district: "",
         });
       }
     } catch (error) {
@@ -133,7 +152,7 @@ export default function SignUpScreen({ navigation }: Props) {
         ...formData,
         pincode,
         state: "",
-        district: ""
+        district: "",
       });
     }
   };
@@ -141,25 +160,32 @@ export default function SignUpScreen({ navigation }: Props) {
   const handleDocumentUpload = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-        copyToCacheDirectory: true
+        type: [
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ],
+        copyToCacheDirectory: true,
       });
 
       if (result.assets && result.assets[0]) {
         setIsLoading(true);
         const storage = getStorage(app);
-        const fileRef = storageRef(storage, `aadhar-documents/${formData.phone}-${Date.now()}.pdf`);
-        
+        const fileRef = storageRef(
+          storage,
+          `aadhar-documents/${formData.phone}-${Date.now()}.pdf`
+        );
+
         const response = await fetch(result.assets[0].uri);
         const blob = await response.blob();
-        
+
         const metadata = {
-          contentType: result.assets[0].mimeType || 'application/pdf',
+          contentType: result.assets[0].mimeType || "application/pdf",
         };
-        
+
         await uploadBytes(fileRef, blob, metadata);
         const downloadUrl = await getDownloadURL(fileRef);
-        
+
         setAadharDocumentUrl(downloadUrl);
         setFormData({ ...formData, documentUploaded: true });
         setIsLoading(false);
@@ -174,10 +200,14 @@ export default function SignUpScreen({ navigation }: Props) {
 
   const handleProfilePhotoUpload = async () => {
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
       if (!permissionResult.granted) {
-        Alert.alert("Permission Required", "Please allow access to your photo library");
+        Alert.alert(
+          "Permission Required",
+          "Please allow access to your photo library"
+        );
         return;
       }
 
@@ -191,14 +221,17 @@ export default function SignUpScreen({ navigation }: Props) {
       if (!result.canceled) {
         setIsPhotoUploading(true);
         const storage = getStorage(app);
-        const photoRef = storageRef(storage, `profile-photos/${formData.phone}-${Date.now()}.jpg`);
-        
+        const photoRef = storageRef(
+          storage,
+          `profile-photos/${formData.phone}-${Date.now()}.jpg`
+        );
+
         const response = await fetch(result.assets[0].uri);
         const blob = await response.blob();
-        
+
         await uploadBytes(photoRef, blob);
         const downloadUrl = await getDownloadURL(photoRef);
-        
+
         setFormData({ ...formData, profilePhotoUrl: downloadUrl });
         Alert.alert("Success", "Profile photo uploaded successfully");
       }
@@ -211,7 +244,10 @@ export default function SignUpScreen({ navigation }: Props) {
   };
 
   const renderCategoryPicker = () => {
-    if (formData.economicStatus === "APL" || formData.economicStatus === "BPL") {
+    if (
+      formData.economicStatus === "APL" ||
+      formData.economicStatus === "BPL"
+    ) {
       return (
         <LinearGradient
           colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
@@ -223,7 +259,9 @@ export default function SignUpScreen({ navigation }: Props) {
             <Text style={styles.label}>Category</Text>
             <Picker
               selectedValue={formData.category}
-              onValueChange={(itemValue) => setFormData({ ...formData, category: itemValue })}
+              onValueChange={(itemValue) =>
+                setFormData({ ...formData, category: itemValue })
+              }
               style={[styles.picker, { color: "rgb(162,39,142)" }]}
             >
               <Picker.Item label="Select Category" value="" />
@@ -279,7 +317,10 @@ export default function SignUpScreen({ navigation }: Props) {
       }
 
       if (formData.password !== formData.confirmPassword) {
-        Alert.alert("Password Mismatch", "Password and Confirm Password do not match");
+        Alert.alert(
+          "Password Mismatch",
+          "Password and Confirm Password do not match"
+        );
         return;
       }
 
@@ -289,7 +330,10 @@ export default function SignUpScreen({ navigation }: Props) {
           return;
         }
         if (formData.rationCard.length !== 10) {
-          Alert.alert("Invalid Ration Card", "Ration Card number must be 10 digits");
+          Alert.alert(
+            "Invalid Ration Card",
+            "Ration Card number must be 10 digits"
+          );
           return;
         }
       }
@@ -305,18 +349,27 @@ export default function SignUpScreen({ navigation }: Props) {
       const userDocSnapshot = await getDoc(userDocRef);
 
       if (userDocSnapshot.exists()) {
-        Alert.alert("Phone Number Exists", "A user with this phone number already exists.");
+        Alert.alert(
+          "Phone Number Exists",
+          "A user with this phone number already exists."
+        );
         return;
       }
 
       if (formData.userType === "K-member") {
         try {
           const presidentsRef = collection(db, "president");
-          const q = query(presidentsRef, where("unitNumber", "==", formData.unitNumber));
+          const q = query(
+            presidentsRef,
+            where("unitNumber", "==", formData.unitNumber)
+          );
           const presidentSnapshot = await getDocs(q);
 
           if (presidentSnapshot.empty) {
-            Alert.alert("Error", "No president found for this unit. Please check your unit number.");
+            Alert.alert(
+              "Error",
+              "No president found for this unit. Please check your unit number."
+            );
             return;
           }
 
@@ -324,7 +377,10 @@ export default function SignUpScreen({ navigation }: Props) {
           const presidentData = presidentSnapshot.docs[0].data();
           if (!presidentData.unitName) {
             console.error("President data:", presidentData); // Debug log
-            Alert.alert("Error", "Unit name not found. Please contact administrator.");
+            Alert.alert(
+              "Error",
+              "Unit name not found. Please contact administrator."
+            );
             return;
           }
 
@@ -336,7 +392,7 @@ export default function SignUpScreen({ navigation }: Props) {
             profilePhotoUrl: formData.profilePhotoUrl,
             status: "pending",
             presidentId: presidentSnapshot.docs[0].id,
-            unitName: presidentData.unitName
+            unitName: presidentData.unitName,
           };
 
           console.log("User data being stored:", userData); // Debug log
@@ -344,18 +400,24 @@ export default function SignUpScreen({ navigation }: Props) {
           await setDoc(userDocRef, userData);
 
           Alert.alert(
-            "Registration Complete", 
-            "Your K-Member registration is complete. Please wait for approval from your unit president.", 
+            "Registration Complete",
+            "Your K-Member registration is complete. Please wait for approval from your unit president.",
             [
-              { 
-                text: "OK", 
-                onPress: () => navigation.navigate("WaitingApproval", { phoneNumber: formData.phone }) 
+              {
+                text: "OK",
+                onPress: () =>
+                  navigation.navigate("WaitingApproval", {
+                    phone: formData.phone,
+                  }),
               },
             ]
           );
         } catch (error) {
           console.error("Error in K-member registration:", error);
-          Alert.alert("Error", "Failed to complete registration. Please try again.");
+          Alert.alert(
+            "Error",
+            "Failed to complete registration. Please try again."
+          );
         }
       } else {
         // For normal users, just store the data
@@ -365,20 +427,19 @@ export default function SignUpScreen({ navigation }: Props) {
           profilePhotoUrl: formData.profilePhotoUrl,
         });
 
-        Alert.alert(
-          "Registration Complete", 
-          "Your registration is complete.", 
-          [
-            { 
-              text: "OK", 
-              onPress: () => navigation.navigate("Login") 
-            },
-          ]
-        );
+        Alert.alert("Registration Complete", "Your registration is complete.", [
+          {
+            text: "OK",
+            onPress: () => navigation.navigate("Login"),
+          },
+        ]);
       }
     } catch (e) {
       console.error("Error adding document: ", e);
-      Alert.alert("Error", "An error occurred during registration. Please try again later.");
+      Alert.alert(
+        "Error",
+        "An error occurred during registration. Please try again later."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -396,8 +457,8 @@ export default function SignUpScreen({ navigation }: Props) {
   return (
     <LinearGradient
       colors={[
-        isPressed ? "rgba(162,39,142,0.03)" : "rgba(162,39,142,0.01)", 
-        isPressed ? "rgba(162,39,142,0.08)" : "rgba(162,39,142,0.03)"
+        isPressed ? "rgba(162,39,142,0.03)" : "rgba(162,39,142,0.01)",
+        isPressed ? "rgba(162,39,142,0.08)" : "rgba(162,39,142,0.03)",
       ]}
       style={styles.container}
       start={{ x: 0, y: 0 }}
@@ -405,7 +466,12 @@ export default function SignUpScreen({ navigation }: Props) {
     >
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <Animated.View style={[styles.formContainer, { opacity: animation, transform: [{ translateY }] }]}>
+          <Animated.View
+            style={[
+              styles.formContainer,
+              { opacity: animation, transform: [{ translateY }] },
+            ]}
+          >
             <LinearGradient
               colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
               style={styles.gradientBorder}
@@ -416,7 +482,10 @@ export default function SignUpScreen({ navigation }: Props) {
                 <Text style={styles.title}>Create Account</Text>
                 <View style={styles.form}>
                   <LinearGradient
-                    colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                    colors={[
+                      "rgba(139, 92, 246, 0.8)",
+                      "rgba(236, 72, 153, 0.8)",
+                    ]}
                     style={styles.pickerGradientBorder}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
@@ -425,7 +494,9 @@ export default function SignUpScreen({ navigation }: Props) {
                       <Text style={styles.label}>User Type</Text>
                       <Picker
                         selectedValue={formData.userType}
-                        onValueChange={(itemValue) => setFormData({ ...formData, userType: itemValue })}
+                        onValueChange={(itemValue) =>
+                          setFormData({ ...formData, userType: itemValue })
+                        }
                         style={[styles.picker, { color: "rgb(162,39,142)" }]}
                       >
                         <Picker.Item label="User" value="normal" />
@@ -434,102 +505,164 @@ export default function SignUpScreen({ navigation }: Props) {
                     </View>
                   </LinearGradient>
                   <LinearGradient
-                    colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                    colors={[
+                      "rgba(139, 92, 246, 0.8)",
+                      "rgba(236, 72, 153, 0.8)",
+                    ]}
                     style={styles.inputGradientBorder}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
                     <View style={styles.inputContainer}>
-                      <Ionicons name="person-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
+                      <Ionicons
+                        name="person-outline"
+                        size={24}
+                        color="rgb(162,39,142)"
+                        style={styles.inputIcon}
+                      />
                       <TextInput
                         style={styles.input}
                         placeholder="First Name"
                         placeholderTextColor="rgba(162,39,142,0.7)"
                         value={formData.firstName}
-                        onChangeText={(text) => setFormData({ ...formData, firstName: text })}
+                        onChangeText={(text) =>
+                          setFormData({ ...formData, firstName: text })
+                        }
                       />
                     </View>
                   </LinearGradient>
                   <LinearGradient
-                    colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                    colors={[
+                      "rgba(139, 92, 246, 0.8)",
+                      "rgba(236, 72, 153, 0.8)",
+                    ]}
                     style={styles.inputGradientBorder}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
                     <View style={styles.inputContainer}>
-                      <Ionicons name="person-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
+                      <Ionicons
+                        name="person-outline"
+                        size={24}
+                        color="rgb(162,39,142)"
+                        style={styles.inputIcon}
+                      />
                       <TextInput
                         style={styles.input}
                         placeholder="Last Name"
                         placeholderTextColor="rgba(162,39,142,0.7)"
                         value={formData.lastName}
-                        onChangeText={(text) => setFormData({ ...formData, lastName: text })}
+                        onChangeText={(text) =>
+                          setFormData({ ...formData, lastName: text })
+                        }
                       />
                     </View>
                   </LinearGradient>
                   <LinearGradient
-                    colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                    colors={[
+                      "rgba(139, 92, 246, 0.8)",
+                      "rgba(236, 72, 153, 0.8)",
+                    ]}
                     style={styles.inputGradientBorder}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
                     <View style={[styles.inputContainer, { height: 50 }]}>
-                      <Ionicons name="call-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
-                      <View style={[styles.phoneInputContainer, { height: 50 }]}>
-                        <Text style={styles.phonePrefix}>+91 {phoneNumber}</Text>
+                      <Ionicons
+                        name="call-outline"
+                        size={24}
+                        color="rgb(162,39,142)"
+                        style={styles.inputIcon}
+                      />
+                      <View
+                        style={[styles.phoneInputContainer, { height: 50 }]}
+                      >
+                        <Text style={styles.phonePrefix}>
+                          +91 {phoneNumber}
+                        </Text>
                       </View>
                     </View>
                   </LinearGradient>
                   <LinearGradient
-                    colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                    colors={[
+                      "rgba(139, 92, 246, 0.8)",
+                      "rgba(236, 72, 153, 0.8)",
+                    ]}
                     style={styles.inputGradientBorder}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
                     <View style={styles.inputContainer}>
-                      <Ionicons name="lock-closed-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
+                      <Ionicons
+                        name="lock-closed-outline"
+                        size={24}
+                        color="rgb(162,39,142)"
+                        style={styles.inputIcon}
+                      />
                       <TextInput
                         style={styles.input}
                         placeholder="Password"
                         placeholderTextColor="rgba(162,39,142,0.7)"
                         value={formData.password}
-                        onChangeText={(text) => setFormData({ ...formData, password: text })}
+                        onChangeText={(text) =>
+                          setFormData({ ...formData, password: text })
+                        }
                         secureTextEntry
                       />
                     </View>
                   </LinearGradient>
                   <LinearGradient
-                    colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                    colors={[
+                      "rgba(139, 92, 246, 0.8)",
+                      "rgba(236, 72, 153, 0.8)",
+                    ]}
                     style={styles.inputGradientBorder}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
                     <View style={styles.inputContainer}>
-                      <Ionicons name="lock-closed-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
+                      <Ionicons
+                        name="lock-closed-outline"
+                        size={24}
+                        color="rgb(162,39,142)"
+                        style={styles.inputIcon}
+                      />
                       <TextInput
                         style={styles.input}
                         placeholder="Confirm Password"
                         placeholderTextColor="rgba(162,39,142,0.7)"
                         value={formData.confirmPassword}
-                        onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+                        onChangeText={(text) =>
+                          setFormData({ ...formData, confirmPassword: text })
+                        }
                         secureTextEntry
                       />
                     </View>
                   </LinearGradient>
                   <LinearGradient
-                    colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                    colors={[
+                      "rgba(139, 92, 246, 0.8)",
+                      "rgba(236, 72, 153, 0.8)",
+                    ]}
                     style={styles.inputGradientBorder}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
                     <View style={styles.inputContainer}>
-                      <Ionicons name="home-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
+                      <Ionicons
+                        name="home-outline"
+                        size={24}
+                        color="rgb(162,39,142)"
+                        style={styles.inputIcon}
+                      />
                       <TextInput
                         style={[styles.input, styles.multilineInput]}
                         placeholder="Address"
                         placeholderTextColor="rgba(162,39,142,0.7)"
                         value={formData.address}
-                        onChangeText={(text) => setFormData({ ...formData, address: text })}
+                        onChangeText={(text) =>
+                          setFormData({ ...formData, address: text })
+                        }
                         multiline
                         numberOfLines={3}
                       />
@@ -538,7 +671,10 @@ export default function SignUpScreen({ navigation }: Props) {
                   {formData.userType === "normal" && (
                     <>
                       <LinearGradient
-                        colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                        colors={[
+                          "rgba(139, 92, 246, 0.8)",
+                          "rgba(236, 72, 153, 0.8)",
+                        ]}
                         style={styles.pickerGradientBorder}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
@@ -547,8 +683,13 @@ export default function SignUpScreen({ navigation }: Props) {
                           <Text style={styles.label}>Gender</Text>
                           <Picker
                             selectedValue={formData.gender}
-                            onValueChange={(itemValue) => setFormData({ ...formData, gender: itemValue })}
-                            style={[styles.picker, { color: "rgb(162,39,142)" }]}
+                            onValueChange={(itemValue) =>
+                              setFormData({ ...formData, gender: itemValue })
+                            }
+                            style={[
+                              styles.picker,
+                              { color: "rgb(162,39,142)" },
+                            ]}
                           >
                             <Picker.Item label="Select Gender" value="" />
                             <Picker.Item label="Male" value="male" />
@@ -558,20 +699,30 @@ export default function SignUpScreen({ navigation }: Props) {
                         </View>
                       </LinearGradient>
                       <LinearGradient
-                        colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                        colors={[
+                          "rgba(139, 92, 246, 0.8)",
+                          "rgba(236, 72, 153, 0.8)",
+                        ]}
                         style={styles.inputGradientBorder}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                       >
                         <View style={styles.inputContainer}>
-                          <Ionicons name="map-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
+                          <Ionicons
+                            name="map-outline"
+                            size={24}
+                            color="rgb(162,39,142)"
+                            style={styles.inputIcon}
+                          />
                           <TextInput
                             style={styles.input}
                             placeholder="Pincode"
                             placeholderTextColor="rgba(162,39,142,0.7)"
                             value={formData.pincode}
                             onChangeText={(text) => {
-                              const cleaned = text.replace(/\D/g, "").slice(0, 6);
+                              const cleaned = text
+                                .replace(/\D/g, "")
+                                .slice(0, 6);
                               setFormData({ ...formData, pincode: cleaned });
                               if (cleaned.length === 6) {
                                 fetchAddressFromPincode(cleaned);
@@ -585,7 +736,10 @@ export default function SignUpScreen({ navigation }: Props) {
                       {formData.district && formData.state && (
                         <>
                           <LinearGradient
-                            colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                            colors={[
+                              "rgba(139, 92, 246, 0.8)",
+                              "rgba(236, 72, 153, 0.8)",
+                            ]}
                             style={styles.inputGradientBorder}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
@@ -607,17 +761,20 @@ export default function SignUpScreen({ navigation }: Props) {
                             </View>
                           </LinearGradient>
                           <LinearGradient
-                            colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                            colors={[
+                              "rgba(139, 92, 246, 0.8)",
+                              "rgba(236, 72, 153, 0.8)",
+                            ]}
                             style={styles.inputGradientBorder}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                           >
                             <View style={styles.inputContainer}>
-                              <Ionicons 
-                                name="flag-outline" 
-                                size={24} 
-                                color="rgb(162,39,142)" 
-                                style={styles.inputIcon} 
+                              <Ionicons
+                                name="flag-outline"
+                                size={24}
+                                color="rgb(162,39,142)"
+                                style={styles.inputIcon}
                               />
                               <TextInput
                                 style={styles.input}
@@ -635,21 +792,31 @@ export default function SignUpScreen({ navigation }: Props) {
                   {formData.userType === "K-member" && (
                     <>
                       <LinearGradient
-                        colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                        colors={[
+                          "rgba(139, 92, 246, 0.8)",
+                          "rgba(236, 72, 153, 0.8)",
+                        ]}
                         style={styles.inputGradientBorder}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                       >
                         <View style={styles.inputContainer}>
-                          <Ionicons name="card-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
+                          <Ionicons
+                            name="card-outline"
+                            size={24}
+                            color="rgb(162,39,142)"
+                            style={styles.inputIcon}
+                          />
                           <TextInput
                             style={styles.input}
                             placeholder="Aadhar Number (12 digits)"
                             placeholderTextColor="rgba(162,39,142,0.7)"
                             value={formData.aadhar}
                             onChangeText={(text) => {
-                              const cleaned = text.replace(/\D/g, "").slice(0, 12)
-                              setFormData({ ...formData, aadhar: cleaned })
+                              const cleaned = text
+                                .replace(/\D/g, "")
+                                .slice(0, 12);
+                              setFormData({ ...formData, aadhar: cleaned });
                             }}
                             keyboardType="numeric"
                             maxLength={12}
@@ -657,43 +824,67 @@ export default function SignUpScreen({ navigation }: Props) {
                         </View>
                       </LinearGradient>
                       <LinearGradient
-                        colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                        colors={[
+                          "rgba(139, 92, 246, 0.8)",
+                          "rgba(236, 72, 153, 0.8)",
+                        ]}
                         style={styles.uploadGradientBorder}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                       >
-                        <TouchableOpacity 
-                          style={styles.uploadButton} 
+                        <TouchableOpacity
+                          style={styles.uploadButton}
                           onPress={handleDocumentUpload}
                           disabled={isLoading}
                         >
-                          <Ionicons 
-                            name={isLoading ? "reload-outline" : "cloud-upload-outline"} 
-                            size={24} 
-                            color="rgb(162,39,142)" 
-                            style={[styles.uploadIcon, isLoading && styles.rotating]} 
+                          <Ionicons
+                            name={
+                              isLoading
+                                ? "reload-outline"
+                                : "cloud-upload-outline"
+                            }
+                            size={24}
+                            color="rgb(162,39,142)"
+                            style={[
+                              styles.uploadIcon,
+                              isLoading && styles.rotating,
+                            ]}
                           />
                           <Text style={styles.uploadButtonText}>
-                            {isLoading ? "Uploading..." : formData.documentUploaded ? "Document Uploaded" : "Upload Document"}
+                            {isLoading
+                              ? "Uploading..."
+                              : formData.documentUploaded
+                              ? "Document Uploaded"
+                              : "Upload Document"}
                           </Text>
                         </TouchableOpacity>
                       </LinearGradient>
                       <LinearGradient
-                        colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                        colors={[
+                          "rgba(139, 92, 246, 0.8)",
+                          "rgba(236, 72, 153, 0.8)",
+                        ]}
                         style={styles.inputGradientBorder}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                       >
                         <View style={styles.inputContainer}>
-                          <Ionicons name="card-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
+                          <Ionicons
+                            name="card-outline"
+                            size={24}
+                            color="rgb(162,39,142)"
+                            style={styles.inputIcon}
+                          />
                           <TextInput
                             style={styles.input}
                             placeholder="Ration Card Number (10 digits)"
                             placeholderTextColor="rgba(162,39,142,0.7)"
                             value={formData.rationCard}
                             onChangeText={(text) => {
-                              const cleaned = text.replace(/\D/g, "").slice(0, 10)
-                              setFormData({ ...formData, rationCard: cleaned })
+                              const cleaned = text
+                                .replace(/\D/g, "")
+                                .slice(0, 10);
+                              setFormData({ ...formData, rationCard: cleaned });
                             }}
                             keyboardType="numeric"
                             maxLength={10}
@@ -701,7 +892,10 @@ export default function SignUpScreen({ navigation }: Props) {
                         </View>
                       </LinearGradient>
                       <LinearGradient
-                        colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                        colors={[
+                          "rgba(139, 92, 246, 0.8)",
+                          "rgba(236, 72, 153, 0.8)",
+                        ]}
                         style={styles.pickerGradientBorder}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
@@ -711,11 +905,21 @@ export default function SignUpScreen({ navigation }: Props) {
                           <Picker
                             selectedValue={formData.economicStatus}
                             onValueChange={(itemValue) =>
-                              setFormData({ ...formData, economicStatus: itemValue, category: "" })
+                              setFormData({
+                                ...formData,
+                                economicStatus: itemValue,
+                                category: "",
+                              })
                             }
-                            style={[styles.picker, { color: "rgb(162,39,142)" }]}
+                            style={[
+                              styles.picker,
+                              { color: "rgb(162,39,142)" },
+                            ]}
                           >
-                            <Picker.Item label="Select Economic Status" value="" />
+                            <Picker.Item
+                              label="Select Economic Status"
+                              value=""
+                            />
                             <Picker.Item label="APL" value="APL" />
                             <Picker.Item label="BPL" value="BPL" />
                           </Picker>
@@ -723,7 +927,10 @@ export default function SignUpScreen({ navigation }: Props) {
                       </LinearGradient>
                       {renderCategoryPicker()}
                       <LinearGradient
-                        colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                        colors={[
+                          "rgba(139, 92, 246, 0.8)",
+                          "rgba(236, 72, 153, 0.8)",
+                        ]}
                         style={styles.inputGradientBorder}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
@@ -740,7 +947,9 @@ export default function SignUpScreen({ navigation }: Props) {
                             placeholder="Unit Number"
                             placeholderTextColor="rgba(162,39,142,0.7)"
                             value={formData.unitNumber}
-                            onChangeText={(text) => setFormData({ ...formData, unitNumber: text })}
+                            onChangeText={(text) =>
+                              setFormData({ ...formData, unitNumber: text })
+                            }
                           />
                         </View>
                       </LinearGradient>
@@ -748,31 +957,43 @@ export default function SignUpScreen({ navigation }: Props) {
                   )}
                   <View style={styles.photoUploadContainer}>
                     <LinearGradient
-                      colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                      colors={[
+                        "rgba(139, 92, 246, 0.8)",
+                        "rgba(236, 72, 153, 0.8)",
+                      ]}
                       style={styles.photoGradientBorder}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                     >
-                      <TouchableOpacity 
-                        style={styles.photoUploadButton} 
+                      <TouchableOpacity
+                        style={styles.photoUploadButton}
                         onPress={handleProfilePhotoUpload}
                         disabled={isPhotoUploading}
                       >
                         {formData.profilePhotoUrl ? (
-                          <Image 
-                            source={{ uri: formData.profilePhotoUrl }} 
+                          <Image
+                            source={{ uri: formData.profilePhotoUrl }}
                             style={styles.profilePhoto}
                           />
                         ) : (
                           <>
-                            <Ionicons 
-                              name={isPhotoUploading ? "reload-outline" : "camera-outline"} 
-                              size={24} 
-                              color="rgb(162,39,142)" 
-                              style={[styles.uploadIcon, isPhotoUploading && styles.rotating]} 
+                            <Ionicons
+                              name={
+                                isPhotoUploading
+                                  ? "reload-outline"
+                                  : "camera-outline"
+                              }
+                              size={24}
+                              color="rgb(162,39,142)"
+                              style={[
+                                styles.uploadIcon,
+                                isPhotoUploading && styles.rotating,
+                              ]}
                             />
                             <Text style={styles.photoUploadText}>
-                              {isPhotoUploading ? "Uploading..." : "Add Profile Photo"}
+                              {isPhotoUploading
+                                ? "Uploading..."
+                                : "Add Profile Photo"}
                             </Text>
                           </>
                         )}
@@ -785,20 +1006,27 @@ export default function SignUpScreen({ navigation }: Props) {
                     disabled={isSubmitting}
                   >
                     <LinearGradient
-                      colors={["rgba(139, 92, 246, 1)", "rgba(236, 72, 153, 1)"]}
+                      colors={[
+                        "rgba(139, 92, 246, 1)",
+                        "rgba(236, 72, 153, 1)",
+                      ]}
                       style={[
-                        styles.buttonGradient, 
-                        isSubmitting && styles.buttonDisabled
+                        styles.buttonGradient,
+                        isSubmitting && styles.buttonDisabled,
                       ]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                     >
-                      <Text style={styles.buttonText}>{isSubmitting ? "Signing up..." : "Sign Up"}</Text>
+                      <Text style={styles.buttonText}>
+                        {isSubmitting ? "Signing up..." : "Sign Up"}
+                      </Text>
                     </LinearGradient>
                   </Pressable>
                 </View>
                 <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-                  <Text style={styles.linkText}>Already have an account? Login</Text>
+                  <Text style={styles.linkText}>
+                    Already have an account? Login
+                  </Text>
                 </TouchableOpacity>
               </View>
             </LinearGradient>
@@ -836,7 +1064,7 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   whiteBackground: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 15,
     padding: 20,
   },
@@ -956,7 +1184,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   photoUploadContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 20,
   },
   photoGradientBorder: {
@@ -967,14 +1195,14 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: 'white',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
+    backgroundColor: "white",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
   },
   profilePhoto: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 70,
   },
   photoUploadText: {
@@ -986,10 +1214,10 @@ const styles = StyleSheet.create({
   buttonGradient: {
     paddingVertical: 15,
     paddingHorizontal: 20,
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 25,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
-})
+});
