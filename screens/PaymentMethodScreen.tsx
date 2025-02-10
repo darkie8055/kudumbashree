@@ -67,7 +67,7 @@ export default function PaymentMethodScreen({ navigation, route }) {
 
             <View style={styles.cardInfo}>
               <Image
-                source={method.type === "visa" ? require("../assets/icon.png") : require("../assets/icon.png")}
+                source={method.type === "visa" ? require("../assets/visa.png") : require("../assets/mastercard.png")}
                 style={styles.cardTypeImage}
               />
               <Text style={styles.cardNumber}>{method.number}</Text>

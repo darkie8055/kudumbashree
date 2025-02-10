@@ -734,6 +734,7 @@ const styles = StyleSheet.create({
     padding: 10,
     elevation: 2,
     marginBottom: 15,
+    zIndex: 1,
   },
   textStyle: {
     color: "white",

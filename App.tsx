@@ -63,8 +63,7 @@ function KMemberTabs({ route }) {
               </View>
             )
           },
-        })}
-      >
+        })}>
         <Tab.Screen name="Home" component={HomeScreen} />
         <Tab.Screen name="Details" component={KudumbashreeDetailsScreen} />
         <Tab.Screen name="Market" component={MarketplaceScreen} />
@@ -99,8 +98,7 @@ function NormalUserTabs({ route }) {
               </View>
             )
           },
-        })}
-      >
+        })}>
         <Tab.Screen name="Market" component={MarketplaceScreen} />
         <Tab.Screen name="Profile" component={NormalUserProfileScreen} initialParams={{ phoneNumber }} />
       </Tab.Navigator>
@@ -158,18 +156,6 @@ function PresidentStack() {
   )
 }
 
-function CheckoutStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Cart" component={CartScreen} />
-      <Stack.Screen name="Payment" component={PaymentMethodScreen} />
-      <Stack.Screen name="Address" component={AddressScreen} />
-      <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
-      <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
-    </Stack.Navigator>
-  )
-}
-
 export default function App() {
   return (
     <NavigationContainer>
@@ -216,7 +202,11 @@ export default function App() {
         />
         <Stack.Screen name="KMemberApproval" component={KMemberApprovalScreen} />
         <Stack.Screen name="PresidentStack" component={PresidentStack} options={{ headerShown: false }} />
-        <Stack.Screen name="CheckoutStack" component={CheckoutStack} options={{ headerShown: false }} />
+        <Stack.Screen name="Cart" component={CartScreen} />
+        <Stack.Screen name="Payment" component={PaymentMethodScreen} />
+        <Stack.Screen name="Address" component={AddressScreen} />
+        <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
+        <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   )
@@ -253,4 +243,3 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
 })
-
