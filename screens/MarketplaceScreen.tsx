@@ -195,6 +195,18 @@ const ITEM_WIDTH = width * 0.44;
 
 const AnimatedFlatList = Animated.createAnimatedComponent<any>(FlatList);
 
+// Add Claude AI client
+const claudeClient = {
+  getRecommendations: async (products: Product[], userPreferences: any) => {
+    // Placeholder for Claude AI integration
+    return products.slice(0, 5); // Return top 5 recommended products
+  },
+  
+  enhanceSearch: async (query: string) => {
+    // Placeholder for AI-enhanced search
+    return query;
+  }
+};
 
 export default function MarketplaceScreen({ navigation, route }: Props) {
   // Get cart from route params if available
@@ -486,7 +498,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
           colors={["#8B5CF6", "#EC4899"]}
           style={styles.gradientHeader}
         >
-          <Text style={styles.pageHeading}>Haritha Vipani</Text>
+          <Text style={styles.pageHeading}>Marketplace</Text>
         </LinearGradient>
 
         <View style={styles.searchContainer}>
