@@ -486,7 +486,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
           colors={["#8B5CF6", "#EC4899"]}
           style={styles.gradientHeader}
         >
-          <Text style={styles.pageHeading}>Marketplace</Text>
+          <Text style={styles.pageHeading}>Haritha Vipani</Text>
         </LinearGradient>
 
         <View style={styles.searchContainer}>

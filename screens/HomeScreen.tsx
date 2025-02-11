@@ -654,12 +654,12 @@ export default function HomeScreen({ navigation }: Props) {
             <View style={styles.modalView}>
               {selectedNews && (
                 <>
-                  <Pressable
-                    style={[styles.closeButton]}
-                    onPress={() => setModalVisible(!modalVisible)}
+                  <TouchableOpacity
+                    style={styles.closeIconButton}
+                    onPress={() => setModalVisible(false)}
                   >
-                    <Text style={styles.textStyle}>Close</Text>
-                  </Pressable>
+                    <Ionicons name="close" size={24} color="#fff" />
+                  </TouchableOpacity>
                   <Image
                     source={{ uri: selectedNews.image }}
                     style={styles.modalImage}
@@ -785,7 +785,8 @@ const styles = StyleSheet.create({
     margin: 20,
     backgroundColor: "white",
     borderRadius: 20,
-    padding: 35,
+    padding: 20,
+    paddingTop: 60, // Add more padding at top to accommodate close button
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: {
@@ -795,6 +796,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+    width: "90%",
+    maxHeight: "80%",
   },
   modalImage: {
     width: 200,
@@ -814,19 +817,25 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     textAlign: "center",
   },
-  closeButton: {
-    top: 0,
-    backgroundColor: "#8B5CF6",
+  closeIconButton: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    backgroundColor: '#8B5CF6',
     borderRadius: 20,
-    padding: 10,
-    elevation: 2,
-    marginBottom: 15,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
     zIndex: 1,
-  },
-  textStyle: {
-    color: "white",
-    fontWeight: "bold",
-    textAlign: "center",
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   noticeHeader: {
     flexDirection: "row",
