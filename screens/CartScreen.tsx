@@ -75,11 +75,11 @@ const CartScreen = ({ route, navigation }) => {
     return unsubscribe;
   }, [navigation, cart, onCartUpdate]);
 
-  // Add AI-powered cart recommendations
+  
   useEffect(() => {
     const getCartRecommendations = async () => {
       if (cart.length > 0) {
-        // Placeholder for Claude AI recommendation logic
+        
         const recommended = cart.slice(0, 3).map(item => ({
           ...item.product,
           id: `rec_${item.product.id}`
@@ -93,7 +93,7 @@ const CartScreen = ({ route, navigation }) => {
   // Add dynamic price optimization
   useEffect(() => {
     const optimizePrices = async () => {
-      // Placeholder for Claude AI price optimization
+      // Simulate price optimization API call
       const optimized = cart.reduce((acc, item) => ({
         ...acc,
         [item.product.id]: item.product.price * 0.9 // 10% discount example
