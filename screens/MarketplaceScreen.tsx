@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -14,30 +14,41 @@ import {
   StatusBar,
   Dimensions,
   Modal,
-} from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
-import { useNavigation } from "@react-navigation/native"
-import { debounce } from "lodash"
-import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useNavigation } from "@react-navigation/native";
+import { debounce } from "lodash";
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { RootStackParamList } from "../types/navigation";
 
 interface Product {
-  id: string
-  name: string
-  imageUrl: string
-  price: number
-  description: string
-  unit: string
-  phone: string
-  category: string
-  location: string
+  id: string;
+  name: string;
+  imageUrl: string;
+  price: number;
+  description: string;
+  unit: string;
+  phone: string;
+  category: string;
+  location: string;
 }
 
 interface CartItem {
-  product: Product
-  quantity: number
+  product: Product;
+  quantity: number;
 }
+
+type Props = {
+  navigation: StackNavigationProp<RootStackParamList>;
+};
 
 const sampleProducts: Product[] = [
   {
@@ -48,7 +59,8 @@ const sampleProducts: Product[] = [
       "https://www.quickpantry.in/cdn/shop/products/dabur-honey-bottle-quick-pantry-1.jpg?v=1710538000&width=750",
     unit: "Ernakulam Kudumbashree",
     phone: "9876543210",
-    description: "A calming lavender-scented handmade soap enriched with natural oils.",
+    description:
+      "A calming lavender-scented handmade soap enriched with natural oils.",
     category: "Beauty",
     location: "Ernakulam",
   },
@@ -60,7 +72,8 @@ const sampleProducts: Product[] = [
       "https://www.quickpantry.in/cdn/shop/products/dabur-honey-bottle-quick-pantry-1.jpg?v=1710538000&width=750",
     unit: "Kozhikode Kudumbashree",
     phone: "9876543211",
-    description: "Fresh, organic honey sourced directly from Kerala's local beekeepers.",
+    description:
+      "Fresh, organic honey sourced directly from Kerala's local beekeepers.",
     category: "Food",
     location: "Kozhikode",
   },
@@ -82,7 +95,8 @@ const sampleProducts: Product[] = [
     imageUrl: "https://picsum.photos/400/400?random=4",
     unit: "Kochi Kudumbashree",
     phone: "9876543213",
-    description: "Spicy and flavorful fish curry powder for authentic Kerala-style curries.",
+    description:
+      "Spicy and flavorful fish curry powder for authentic Kerala-style curries.",
     category: "Food",
     location: "Kochi",
   },
@@ -93,7 +107,8 @@ const sampleProducts: Product[] = [
     imageUrl: "https://picsum.photos/400/400?random=5",
     unit: "Kottayam Kudumbashree",
     phone: "9876543214",
-    description: "Crunchy and tasty homemade banana chips made with local Kerala bananas.",
+    description:
+      "Crunchy and tasty homemade banana chips made with local Kerala bananas.",
     category: "Food",
     location: "Kottayam",
   },
@@ -115,7 +130,8 @@ const sampleProducts: Product[] = [
     imageUrl: "https://picsum.photos/400/400?random=7",
     unit: "Malappuram Kudumbashree",
     phone: "9876543216",
-    description: "A tangy and spicy chili-tamarind sauce for your snacks and meals.",
+    description:
+      "A tangy and spicy chili-tamarind sauce for your snacks and meals.",
     category: "Food",
     location: "Malappuram",
   },
@@ -126,7 +142,8 @@ const sampleProducts: Product[] = [
     imageUrl: "https://picsum.photos/400/400?random=8",
     unit: "Kochi Kudumbashree",
     phone: "9876543217",
-    description: "Authentic handwoven Kerala saree made from premium cotton fabric.",
+    description:
+      "Authentic handwoven Kerala saree made from premium cotton fabric.",
     category: "Fashion",
     location: "Kochi",
   },
@@ -137,7 +154,8 @@ const sampleProducts: Product[] = [
     imageUrl: "https://picsum.photos/400/400?random=9",
     unit: "Pathanamthitta Kudumbashree",
     phone: "9876543218",
-    description: "Handcrafted traditional clay pot used for cooking Kerala-style curries.",
+    description:
+      "Handcrafted traditional clay pot used for cooking Kerala-style curries.",
     category: "Home",
     location: "Pathanamthitta",
   },
@@ -148,7 +166,8 @@ const sampleProducts: Product[] = [
     imageUrl: "https://picsum.photos/400/400?random=10",
     unit: "Idukki Kudumbashree",
     phone: "9876543219",
-    description: "Tangy and spicy Kerala-style pickled mango to spice up your meals.",
+    description:
+      "Tangy and spicy Kerala-style pickled mango to spice up your meals.",
     category: "Food",
     location: "Idukki",
   },
@@ -163,117 +182,143 @@ const sampleProducts: Product[] = [
       phone: "9876543200",
       description: "Sample product description.",
       category: ["Beauty", "Food", "Home"][Math.floor(Math.random() * 3)],
-      location: ["Ernakulam", "Kozhikode", "Thrissur", "Kannur"][Math.floor(Math.random() * 4)],
+      location: ["Ernakulam", "Kozhikode", "Thrissur", "Kannur"][
+        Math.floor(Math.random() * 4)
+      ],
     })),
-]
+];
 
-const { width } = Dimensions.get("window")
-const ITEM_WIDTH = width * 0.44
+const { width } = Dimensions.get("window");
+const ITEM_WIDTH = width * 0.44;
 
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList)
+const AnimatedFlatList = Animated.createAnimatedComponent<any>(FlatList);
 
-export default function MarketplaceScreen() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
-  const [cart, setCart] = useState<CartItem[]>([])
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [isModalVisible, setIsModalVisible] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("All")
-  const [sortOption, setSortOption] = useState("name")
-  const [isLoading, setIsLoading] = useState(true)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isLocationDropdownVisible, setIsLocationDropdownVisible] = useState(false)
-  const [selectedLocation, setSelectedLocation] = useState("")
-  const scrollY = useRef(new Animated.Value(0)).current
-  const headerHeight = useRef(new Animated.Value(200)).current
-
-  const navigation = useNavigation()
+export default function MarketplaceScreen({ navigation }: Props) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [sortOption, setSortOption] = useState("name");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLocationDropdownVisible, setIsLocationDropdownVisible] =
+    useState(false);
+  const [selectedLocation, setSelectedLocation] = useState("");
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerHeight = useRef(new Animated.Value(200)).current;
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
     Poppins_700Bold,
-  })
+  });
 
   const fetchProducts = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
+    setIsLoading(true);
+    setError(null);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setProducts(sampleProducts)
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setProducts(sampleProducts);
     } catch (error) {
-      setError("Failed to fetch products")
+      setError("Failed to fetch products");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    fetchProducts()
-  }, [fetchProducts])
+    fetchProducts();
+  }, [fetchProducts]);
 
   useEffect(() => {
-    filterAndSortProducts()
-  }, [products, searchQuery, selectedCategory, sortOption, selectedLocation]) //Corrected dependency array
+    filterAndSortProducts();
+  }, [searchQuery, selectedCategory, sortOption, selectedLocation, products]);
 
   const filterAndSortProducts = useCallback(() => {
-    const filtered = products.filter((product) => {
-      const nameMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
-      const categoryMatch = selectedCategory === "All" || product.category === selectedCategory
-      const locationMatch =
-        selectedLocation === "" || selectedLocation === "All" || product.location === selectedLocation
-      return nameMatch && categoryMatch && locationMatch
-    })
+    if (!products) return;
 
-    const sortedProducts = [...filtered]
+    const filtered = products.filter((product) => {
+      const nameMatch = product.name
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+      const categoryMatch =
+        selectedCategory === "All" || product.category === selectedCategory;
+      const locationMatch =
+        selectedLocation === "" ||
+        selectedLocation === "All" ||
+        product.location === selectedLocation;
+      return nameMatch && categoryMatch && locationMatch;
+    });
+
+    const sortedProducts = [...filtered];
 
     if (sortOption === "priceLow") {
-      sortedProducts.sort((a, b) => a.price - b.price)
+      sortedProducts.sort((a, b) => a.price - b.price);
     } else if (sortOption === "priceHigh") {
-      sortedProducts.sort((a, b) => b.price - a.price)
+      sortedProducts.sort((a, b) => b.price - a.price);
     } else if (sortOption === "location") {
-      sortedProducts.sort((a, b) => a.location.localeCompare(b.location))
+      sortedProducts.sort((a, b) => a.location.localeCompare(b.location));
     } else {
-      sortedProducts.sort((a, b) => a.name.localeCompare(b.name))
+      sortedProducts.sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    setFilteredProducts(sortedProducts)
-  }, [products, searchQuery, selectedCategory, sortOption, selectedLocation])
+    setFilteredProducts(sortedProducts);
+  }, [products, searchQuery, selectedCategory, sortOption, selectedLocation]);
 
   const handleProductPress = useCallback((product: Product) => {
-    setSelectedProduct(product)
-    setIsModalVisible(true)
-  }, [])
+    setSelectedProduct(product);
+    setIsModalVisible(true);
+  }, []);
 
   const closeModal = useCallback(() => {
-    setIsModalVisible(false)
-    setSelectedProduct(null)
-  }, [])
+    setIsModalVisible(false);
+    setSelectedProduct(null);
+  }, []);
 
   const renderProductDetails = useCallback(() => {
-    if (!selectedProduct) return null
+    if (!selectedProduct) return null;
 
     return (
-      <Modal animationType="slide" transparent={true} visible={isModalVisible} onRequestClose={closeModal}>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isModalVisible}
+        onRequestClose={closeModal}
+      >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
               <Ionicons name="close" size={24} color="#333" />
             </TouchableOpacity>
-            <Image source={{ uri: selectedProduct.imageUrl }} style={styles.modalImage} />
+            <Image
+              source={{ uri: selectedProduct.imageUrl }}
+              style={styles.modalImage}
+            />
             <Text style={styles.modalProductName}>{selectedProduct.name}</Text>
-            <Text style={styles.modalProductPrice}>₹{selectedProduct.price}</Text>
-            <Text style={styles.modalProductUnit}>Unit: {selectedProduct.unit}</Text>
-            <Text style={styles.modalProductDescription}>{selectedProduct.description}</Text>
-            <Text style={styles.modalProductCategory}>Category: {selectedProduct.category}</Text>
-            <Text style={styles.modalProductLocation}>Location: {selectedProduct.location}</Text>
+            <Text style={styles.modalProductPrice}>
+              ₹{selectedProduct.price}
+            </Text>
+            <Text style={styles.modalProductUnit}>
+              Unit: {selectedProduct.unit}
+            </Text>
+            <Text style={styles.modalProductDescription}>
+              {selectedProduct.description}
+            </Text>
+            <Text style={styles.modalProductCategory}>
+              Category: {selectedProduct.category}
+            </Text>
+            <Text style={styles.modalProductLocation}>
+              Location: {selectedProduct.location}
+            </Text>
             <TouchableOpacity
               style={styles.modalAddToCartButton}
               onPress={() => {
-                handleAddToCart(selectedProduct)
-                closeModal()
+                handleAddToCart(selectedProduct);
+                closeModal();
               }}
             >
               <Text style={styles.modalAddToCartButtonText}>Add to Cart</Text>
@@ -281,75 +326,85 @@ export default function MarketplaceScreen() {
           </View>
         </View>
       </Modal>
-    )
-  }, [selectedProduct, isModalVisible, closeModal, handleAddToCart])
+    );
+  }, [selectedProduct, isModalVisible, closeModal, handleAddToCart]);
 
   const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true)
-    await fetchProducts()
-    setIsRefreshing(false)
-  }, [fetchProducts])
+    setIsRefreshing(true);
+    await fetchProducts();
+    setIsRefreshing(false);
+  }, [fetchProducts]);
 
   const debouncedSearch = useCallback(
     debounce((text: string) => {
-      setSearchQuery(text)
+      setSearchQuery(text);
     }, 300),
-    [],
-  )
+    []
+  );
 
   const handleAddToCart = useCallback(
     (product: Product) => {
-      const existingItemIndex = cart.findIndex((item) => item.product.id === product.id)
+      const existingItemIndex = cart.findIndex(
+        (item) => item.product.id === product.id
+      );
       if (existingItemIndex !== -1) {
-        const updatedCart = [...cart]
-        updatedCart[existingItemIndex].quantity += 1
-        setCart(updatedCart)
+        const updatedCart = [...cart];
+        updatedCart[existingItemIndex].quantity += 1;
+        setCart(updatedCart);
       } else {
-        setCart([...cart, { product, quantity: 1 }])
+        setCart([...cart, { product, quantity: 1 }]);
       }
     },
-    [cart],
-  )
+    [cart]
+  );
 
   const handleRemoveFromCart = useCallback(
     (product: Product) => {
-      const updatedCart = cart.filter((item) => item.product.id !== product.id)
-      setCart(updatedCart)
+      const updatedCart = cart.filter((item) => item.product.id !== product.id);
+      setCart(updatedCart);
     },
-    [cart],
-  )
+    [cart]
+  );
 
   const handleQuantityChange = useCallback(
     (product: Product, quantity: number) => {
       if (quantity <= 0) {
-        handleRemoveFromCart(product)
+        handleRemoveFromCart(product);
       } else {
-        const updatedCart = cart.map((item) => (item.product.id === product.id ? { ...item, quantity } : item))
-        setCart(updatedCart)
+        const updatedCart = cart.map((item) =>
+          item.product.id === product.id ? { ...item, quantity } : item
+        );
+        setCart(updatedCart);
       }
     },
-    [cart, handleRemoveFromCart],
-  )
+    [cart, handleRemoveFromCart]
+  );
 
   const renderProduct = useCallback(
     ({ item }: { item: Product }) => {
       return (
         <View style={styles.productCard}>
           <TouchableOpacity onPress={() => handleProductPress(item)}>
-            <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.productImage}
+            />
             <Text style={styles.productName}>{item.name}</Text>
             <Text style={styles.productPrice}>₹{item.price}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.addToCartButton} onPress={() => handleAddToCart(item)}>
+          <TouchableOpacity
+            style={styles.addToCartButton}
+            onPress={() => handleAddToCart(item)}
+          >
             <Text style={styles.addToCartButtonText}>Add to Cart</Text>
           </TouchableOpacity>
         </View>
-      )
+      );
     },
-    [handleProductPress, handleAddToCart],
-  )
+    [handleProductPress, handleAddToCart]
+  );
 
-  const categories = ["All", "Beauty", "Food", "Home"]
+  const categories = ["All", "Beauty", "Food", "Home"];
   const locations = [
     "All",
     "Ernakulam",
@@ -366,24 +421,46 @@ export default function MarketplaceScreen() {
     "Idukki",
     "Wayanad",
     "Kasaragod",
-  ]
-  const sortOptions = ["name", "priceLow", "priceHigh", "location"]
+  ];
+  const sortOptions = ["name", "priceLow", "priceHigh", "location"];
+
+  const goToCart = useCallback(() => {
+    navigation.navigate("Cart", {
+      cart,
+      onCartUpdate: (updatedCart: CartItem[]) => {
+        setCart(updatedCart);
+      },
+    });
+  }, [cart, navigation]);
 
   const renderHeader = useCallback(() => {
     const headerTranslate = scrollY.interpolate({
       inputRange: [0, 100],
       outputRange: [0, -50],
       extrapolate: "clamp",
-    })
+    });
 
     return (
-      <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslate }] }]}>
-        <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.gradientHeader}>
+      <Animated.View
+        style={[
+          styles.header,
+          { transform: [{ translateY: headerTranslate }] },
+        ]}
+      >
+        <LinearGradient
+          colors={["#8B5CF6", "#EC4899"]}
+          style={styles.gradientHeader}
+        >
           <Text style={styles.pageHeading}>Marketplace</Text>
         </LinearGradient>
 
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+          <Ionicons
+            name="search"
+            size={20}
+            color="#666"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search products..."
@@ -392,10 +469,12 @@ export default function MarketplaceScreen() {
           />
         </View>
 
-        <TouchableOpacity style={styles.cartIcon} onPress={() => navigation.navigate("Cart", { cart })}>
+        <TouchableOpacity style={styles.cartIcon} onPress={goToCart}>
           <Ionicons name="cart" size={30} color="#fff" />
           <View style={styles.cartBadge}>
-            <Text style={styles.cartBadgeText}>{cart.reduce((acc, item) => acc + item.quantity, 0)}</Text>
+            <Text style={styles.cartBadgeText}>
+              {cart.reduce((acc, item) => acc + item.quantity, 0)}
+            </Text>
           </View>
         </TouchableOpacity>
 
@@ -408,10 +487,18 @@ export default function MarketplaceScreen() {
             keyExtractor={(item) => item}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.categoryButton, selectedCategory === item && styles.selectedCategoryButton]}
+                style={[
+                  styles.categoryButton,
+                  selectedCategory === item && styles.selectedCategoryButton,
+                ]}
                 onPress={() => setSelectedCategory(item)}
               >
-                <Text style={[styles.categoryText, selectedCategory === item && styles.selectedCategoryText]}>
+                <Text
+                  style={[
+                    styles.categoryText,
+                    selectedCategory === item && styles.selectedCategoryText,
+                  ]}
+                >
                   {item}
                 </Text>
               </TouchableOpacity>
@@ -428,31 +515,55 @@ export default function MarketplaceScreen() {
             keyExtractor={(item) => item}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.categoryButton, sortOption === item && styles.selectedCategoryButton]}
+                style={[
+                  styles.categoryButton,
+                  sortOption === item && styles.selectedCategoryButton,
+                ]}
                 onPress={() => setSortOption(item)}
               >
-                <Text style={[styles.categoryText, sortOption === item && styles.selectedCategoryText]}>
-                  {item.charAt(0).toUpperCase() + item.slice(1).replace(/([A-Z])/g, " $1")}
+                <Text
+                  style={[
+                    styles.categoryText,
+                    sortOption === item && styles.selectedCategoryText,
+                  ]}
+                >
+                  {`${item.charAt(0).toUpperCase()}${item
+                    .slice(1)
+                    .replace(/([A-Z])/g, " $1")}`}
                 </Text>
               </TouchableOpacity>
             )}
           />
         </View>
       </Animated.View>
-    )
-  }, [selectedCategory, cart, debouncedSearch, scrollY, sortOption])
+    );
+  }, [selectedCategory, cart, debouncedSearch, scrollY, sortOption, goToCart]);
 
   useEffect(() => {
-    filterAndSortProducts()
+    filterAndSortProducts();
     // Update the cart count
     if (navigation.setParams) {
-      navigation.setParams({ cartCount: cart.reduce((total, item) => total + item.quantity, 0) })
+      navigation.setParams({
+        cartCount: cart.reduce((total, item) => total + item.quantity, 0),
+      });
     }
-  }, [products, searchQuery, selectedCategory, sortOption, selectedLocation, cart])
+  }, [
+    products,
+    searchQuery,
+    selectedCategory,
+    sortOption,
+    selectedLocation,
+    cart,
+  ]);
 
   if (!fontsLoaded) {
-    return null
+    return null;
   }
+
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: true }
+  ) as any;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -460,16 +571,19 @@ export default function MarketplaceScreen() {
       <AnimatedFlatList
         data={filteredProducts}
         renderItem={renderProduct}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: Product) => item.id}
         numColumns={2}
         contentContainerStyle={styles.productListContainer}
         ListHeaderComponent={renderHeader}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       />
       {renderProductDetails()}
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -665,5 +779,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-})
-
+});

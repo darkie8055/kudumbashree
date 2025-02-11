@@ -1,70 +1,110 @@
-import { useState } from "react"
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
-import { useNavigation } from "@react-navigation/native"
+import { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Image,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 
 interface Product {
-  id: string
-  name: string
-  imageUrl: string
-  price: number
+  id: string;
+  name: string;
+  imageUrl: string;
+  price: number;
 }
 
 interface CartItem {
-  product: Product
-  quantity: number
+  product: Product;
+  quantity: number;
 }
 
-const CartScreen = ({ route }) => {
-  const [cart, setCart] = useState<CartItem[]>(route.params?.cart || [])
-  const navigation = useNavigation()
+const CartScreen = ({ route, navigation }) => {
+  const [cart, setCart] = useState<CartItem[]>(route.params?.cart || []);
+  const onCartUpdate = route.params?.onCartUpdate;
 
   const handleQuantityChange = (item: CartItem, change: number) => {
     const updatedCart = cart
       .map((cartItem) => {
         if (cartItem.product.id === item.product.id) {
-          const newQuantity = Math.max(0, cartItem.quantity + change)
-          return newQuantity === 0 ? null : { ...cartItem, quantity: newQuantity }
+          const newQuantity = Math.max(0, cartItem.quantity + change);
+          return newQuantity === 0
+            ? null
+            : { ...cartItem, quantity: newQuantity };
         }
-        return cartItem
+        return cartItem;
       })
-      .filter(Boolean) as CartItem[]
+      .filter(Boolean) as CartItem[];
 
-    setCart(updatedCart)
-  }
+    setCart(updatedCart);
+    if (onCartUpdate) {
+      onCartUpdate(updatedCart);
+    }
+  };
 
   const getTotalAmount = () => {
-    return cart.reduce((total, item) => total + item.product.price * item.quantity, 0)
-  }
+    return cart.reduce(
+      (total, item) => total + item.product.price * item.quantity,
+      0
+    );
+  };
 
   const clearCart = () => {
-    setCart([])
-  }
+    setCart([]);
+    if (onCartUpdate) {
+      onCartUpdate([]);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", () => {
+      if (onCartUpdate) {
+        onCartUpdate(cart);
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, cart, onCartUpdate]);
 
   const renderCartItem = ({ item }: { item: CartItem }) => (
     <View style={styles.cartItem}>
-      <Image source={{ uri: item.product.imageUrl }} style={styles.productImage} />
+      <Image
+        source={{ uri: item.product.imageUrl }}
+        style={styles.productImage}
+      />
       <View style={styles.productInfo}>
         <Text style={styles.productName}>{item.product.name}</Text>
         <Text style={styles.productPrice}>₹{item.product.price}</Text>
         <View style={styles.quantityContainer}>
-          <TouchableOpacity onPress={() => handleQuantityChange(item, -1)} style={styles.quantityButton}>
+          <TouchableOpacity
+            onPress={() => handleQuantityChange(item, -1)}
+            style={styles.quantityButton}
+          >
             <Ionicons name="remove" size={24} color="#8B5CF6" />
           </TouchableOpacity>
           <Text style={styles.quantityText}>{item.quantity}</Text>
-          <TouchableOpacity onPress={() => handleQuantityChange(item, 1)} style={styles.quantityButton}>
+          <TouchableOpacity
+            onPress={() => handleQuantityChange(item, 1)}
+            style={styles.quantityButton}
+          >
             <Ionicons name="add" size={24} color="#8B5CF6" />
           </TouchableOpacity>
         </View>
       </View>
     </View>
-  )
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Your Cart</Text>
@@ -74,7 +114,10 @@ const CartScreen = ({ route }) => {
         <View style={styles.emptyCart}>
           <Ionicons name="cart-outline" size={64} color="#ccc" />
           <Text style={styles.emptyCartText}>Your cart is empty</Text>
-          <TouchableOpacity style={styles.continueShopping} onPress={() => navigation.navigate("MarketplaceScreen")}>
+          <TouchableOpacity
+            style={styles.continueShopping}
+            onPress={() => navigation.navigate("MarketplaceScreen")}
+          >
             <Text style={styles.continueShoppingText}>Continue Shopping</Text>
           </TouchableOpacity>
         </View>
@@ -91,18 +134,24 @@ const CartScreen = ({ route }) => {
               <Text style={styles.totalText}>Total:</Text>
               <Text style={styles.totalAmount}>₹{getTotalAmount()}</Text>
             </View>
-            <TouchableOpacity style={styles.checkoutButton} onPress={() => navigation.navigate("Payment", { cart })}>
+            <TouchableOpacity
+              style={styles.checkoutButton}
+              onPress={() => navigation.navigate("Payment", { cart })}
+            >
               <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.clearCartButton} onPress={clearCart}>
+            <TouchableOpacity
+              style={styles.clearCartButton}
+              onPress={clearCart}
+            >
               <Text style={styles.clearCartText}>Clear Cart</Text>
             </TouchableOpacity>
           </View>
         </>
       )}
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -242,6 +291,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
   },
-})
+});
 
-export default CartScreen
+export default CartScreen;
