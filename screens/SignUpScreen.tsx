@@ -499,7 +499,7 @@ export default function SignUpScreen({ navigation }: Props) {
                         }
                         style={[styles.picker, { color: "rgb(162,39,142)" }]}
                       >
-                        <Picker.Item label="User" value="normal" />
+                        <Picker.Item label="Normal User" value="normal" />
                         <Picker.Item label="K-Member" value="K-member" />
                       </Picker>
                     </View>
