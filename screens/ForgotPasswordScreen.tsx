@@ -1,5 +1,5 @@
-import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import type React from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -14,23 +14,47 @@ import {
   LogBox,
   KeyboardAvoidingView,
   Platform,
-} from "react-native"
-import { LinearGradient } from "expo-linear-gradient"
-import type { StackNavigationProp } from "@react-navigation/stack"
-import type { RouteProp } from "@react-navigation/native"
-import type { RootStackParamList } from "../types/navigation"
-import { Ionicons } from "@expo/vector-icons"
-import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
-import { getAuth, PhoneAuthProvider, signInWithCredential } from "firebase/auth"
-import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha"
-import { firebaseConfig } from "../firebase"
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import type { RouteProp } from "@react-navigation/native";
+import type { RootStackParamList } from "../types/navigation";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
+import {
+  getAuth,
+  PhoneAuthProvider,
+  signInWithCredential,
+} from "firebase/auth";
+import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
+import { firebaseConfig } from "../firebase";
+import {
+  doc,
+  updateDoc,
+  getFirestore,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 
-type ForgotPasswordScreenNavigationProp = StackNavigationProp<RootStackParamList, "ForgotPassword">
-type ForgotPasswordScreenRouteProp = RouteProp<RootStackParamList, "ForgotPassword">
+type ForgotPasswordScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  "ForgotPassword"
+>;
+type ForgotPasswordScreenRouteProp = RouteProp<
+  RootStackParamList,
+  "ForgotPassword"
+>;
 
 interface Props {
-  navigation: ForgotPasswordScreenNavigationProp
-  route: ForgotPasswordScreenRouteProp
+  navigation: ForgotPasswordScreenNavigationProp;
+  route: ForgotPasswordScreenRouteProp;
 }
 
 LogBox.ignoreLogs([
@@ -38,31 +62,31 @@ LogBox.ignoreLogs([
   "Firebase: Error (auth/cancelled-popup-request).",
   "Firebase: Error (auth/popup-closed-by-user).",
   "Error: Cancelled by user.",
-  "Failed to initialize reCAPTCHA Enterprise config. Triggering the reCAPTCHA v2 verification."
-])
+  "Failed to initialize reCAPTCHA Enterprise config. Triggering the reCAPTCHA v2 verification.",
+]);
 
 export default function ForgotPasswordScreen({ navigation, route }: Props) {
-  const { phoneNumber } = route.params
-  const [phone, setPhone] = useState(phoneNumber || "")
-  const [otp, setOtp] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [step, setStep] = useState(1)
-  const [animation] = useState(new Animated.Value(0))
-  const [passwordError, setPasswordError] = useState("")
-  const [showSuccessPopup, setShowSuccessPopup] = useState(false)
-  const [newPasswordVisible, setNewPasswordVisible] = useState(false)
-  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false)
-  const [verificationId, setVerificationId] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [isPressed, setIsPressed] = useState(false)
-  const recaptchaVerifier = useRef(null)
+  const { phoneNumber } = route.params;
+  const [phone, setPhone] = useState(phoneNumber || "");
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [step, setStep] = useState(1);
+  const [animation] = useState(new Animated.Value(0));
+  const [passwordError, setPasswordError] = useState("");
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [newPasswordVisible, setNewPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
+  const [verificationId, setVerificationId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [isPressed, setIsPressed] = useState(false);
+  const recaptchaVerifier = useRef(null);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
     Poppins_700Bold,
-  })
+  });
 
   useEffect(() => {
     Animated.timing(animation, {
@@ -70,87 +94,130 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
       duration: 1000,
       easing: Easing.out(Easing.ease),
       useNativeDriver: true,
-    }).start()
-  }, [animation])
+    }).start();
+  }, [animation]);
 
   const handleSendOTP = async () => {
     try {
-      setLoading(true)
-      const auth = getAuth()
-      const phoneProvider = new PhoneAuthProvider(auth)
-      const formattedPhoneNumber = "+91" + phone
+      setLoading(true);
+      const auth = getAuth();
+      const phoneProvider = new PhoneAuthProvider(auth);
+      const formattedPhoneNumber = "+91" + phone;
 
       const verificationId = await phoneProvider.verifyPhoneNumber(
         formattedPhoneNumber,
         recaptchaVerifier.current
-      )
-      setVerificationId(verificationId)
-      Alert.alert("Success", "Verification code has been sent to your phone.")
-      setStep(2)
+      );
+      setVerificationId(verificationId);
+      Alert.alert("Success", "Verification code has been sent to your phone.");
+      setStep(2);
     } catch (err: any) {
       if (
         err?.message === "Cancelled by user" ||
         err?.code === "auth/cancelled-popup-request" ||
         err?.code === "auth/popup-closed-by-user"
       ) {
-        Alert.alert("Cancelled", "Verification was cancelled. Please try again.")
+        Alert.alert(
+          "Cancelled",
+          "Verification was cancelled. Please try again."
+        );
       } else {
-        console.error(err)
-        Alert.alert("Error", "Failed to send verification code. Please try again.")
+        console.error(err);
+        Alert.alert(
+          "Error",
+          "Failed to send verification code. Please try again."
+        );
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleVerifyOTP = async () => {
     try {
-      setLoading(true)
-      const auth = getAuth()
-      const credential = PhoneAuthProvider.credential(verificationId, otp)
-      await signInWithCredential(auth, credential)
-      setStep(3)
+      setLoading(true);
+      const auth = getAuth();
+      const credential = PhoneAuthProvider.credential(verificationId, otp);
+      await signInWithCredential(auth, credential);
+      setStep(3);
     } catch (err) {
-      console.error(err)
-      Alert.alert("Error", "Invalid verification code. Please try again.")
+      console.error(err);
+      Alert.alert("Error", "Invalid verification code. Please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const handleResetPassword = () => {
+  const handleResetPassword = async () => {
     if (newPassword !== confirmPassword) {
-      setPasswordError("Passwords don't match")
-      return
+      setPasswordError("Passwords don't match");
+      return;
     }
-    setPasswordError("")
-    // Here you would typically make an API call to reset the password
-    console.log("Resetting password")
-    setShowSuccessPopup(true)
-  }
+
+    try {
+      setLoading(true);
+      const db = getFirestore();
+      const collections = ["K-member", "normal", "president"];
+      const phoneNumberToFind = phone.replace("+91", "").trim();
+
+      // Search for user in all collections
+      for (const collectionName of collections) {
+        const userRef = doc(db, collectionName, phoneNumberToFind);
+        try {
+          await updateDoc(userRef, {
+            password: newPassword,
+            confirmPassword: confirmPassword, // Also store confirmPassword
+          });
+
+          setPasswordError("");
+          setShowSuccessPopup(true);
+          return;
+        } catch (error) {
+          // Document doesn't exist in this collection, try next one
+          continue;
+        }
+      }
+
+      // If we get here, user wasn't found in any collection
+      Alert.alert("Error", "User not found");
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      Alert.alert("Error", "Failed to reset password. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const translateY = animation.interpolate({
     inputRange: [0, 1],
     outputRange: [50, 0],
-  })
+  });
 
   if (!fontsLoaded) {
-    return null
+    return null;
   }
 
   return (
     <LinearGradient
       colors={[
-        isPressed ? "rgba(162,39,142,0.03)" : "rgba(162,39,142,0.01)", 
-        isPressed ? "rgba(162,39,142,0.08)" : "rgba(162,39,142,0.03)"
+        isPressed ? "rgba(162,39,142,0.03)" : "rgba(162,39,142,0.01)",
+        isPressed ? "rgba(162,39,142,0.08)" : "rgba(162,39,142,0.03)",
       ]}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
       <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
-          <Animated.View style={[styles.formContainer, { opacity: animation, transform: [{ translateY }] }]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.container}
+        >
+          <Animated.View
+            style={[
+              styles.formContainer,
+              { opacity: animation, transform: [{ translateY }] },
+            ]}
+          >
             <LinearGradient
               colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
               style={styles.gradientBorder}
@@ -163,34 +230,55 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
                   {step === 1 && (
                     <>
                       <View style={styles.inputContainer}>
-                        <Ionicons name="call-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
-                        <Text style={[styles.phonePrefix, { color: "rgb(162,39,142)" }]}>+91</Text>
+                        <Ionicons
+                          name="call-outline"
+                          size={24}
+                          color="rgb(162,39,142)"
+                          style={styles.inputIcon}
+                        />
+                        <Text
+                          style={[
+                            styles.phonePrefix,
+                            { color: "rgb(162,39,142)" },
+                          ]}
+                        >
+                          +91
+                        </Text>
                         <TextInput
                           style={styles.input}
                           placeholder="Phone Number"
                           placeholderTextColor="rgba(162,39,142,0.7)"
                           value={phone}
                           onChangeText={(text) => {
-                            const cleaned = text.replace(/\D/g, "").slice(0, 10)
-                            setPhone(cleaned)
+                            const cleaned = text
+                              .replace(/\D/g, "")
+                              .slice(0, 10);
+                            setPhone(cleaned);
                           }}
                           keyboardType="phone-pad"
-                          maxLength={10}
                         />
                       </View>
                       <View style={styles.buttonContainer}>
                         <LinearGradient
-                          colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                          colors={[
+                            "rgba(139, 92, 246, 0.8)",
+                            "rgba(236, 72, 153, 0.8)",
+                          ]}
                           style={styles.buttonGradientBorder}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                         >
-                          <TouchableOpacity 
-                            style={[styles.button, loading && styles.buttonDisabled]}
+                          <TouchableOpacity
+                            style={[
+                              styles.button,
+                              loading && styles.buttonDisabled,
+                            ]}
                             onPress={handleSendOTP}
                             disabled={loading || phone.length !== 10}
                           >
-                            <Text style={styles.buttonText}>{loading ? "Sending..." : "Send OTP"}</Text>
+                            <Text style={styles.buttonText}>
+                              {loading ? "Sending..." : "Send OTP"}
+                            </Text>
                           </TouchableOpacity>
                         </LinearGradient>
                       </View>
@@ -200,7 +288,12 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
                   {step === 2 && (
                     <>
                       <View style={styles.inputContainer}>
-                        <Ionicons name="key-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
+                        <Ionicons
+                          name="key-outline"
+                          size={24}
+                          color="rgb(162,39,142)"
+                          style={styles.inputIcon}
+                        />
                         <TextInput
                           style={styles.input}
                           placeholder="Enter OTP"
@@ -208,30 +301,41 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
                           value={otp}
                           onChangeText={setOtp}
                           keyboardType="numeric"
-                          maxLength={6}
                         />
                       </View>
                       <View style={styles.buttonContainer}>
                         <LinearGradient
-                          colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                          colors={[
+                            "rgba(139, 92, 246, 0.8)",
+                            "rgba(236, 72, 153, 0.8)",
+                          ]}
                           style={styles.buttonGradientBorder}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                         >
-                          <TouchableOpacity 
-                            style={[styles.button, loading && styles.buttonDisabled]}
+                          <TouchableOpacity
+                            style={[
+                              styles.button,
+                              loading && styles.buttonDisabled,
+                            ]}
                             onPress={handleVerifyOTP}
                             disabled={loading || otp.length !== 6}
                           >
-                            <Text style={styles.buttonText}>{loading ? "Verifying..." : "Verify OTP"}</Text>
+                            <Text style={styles.buttonText}>
+                              {loading ? "Verifying..." : "Verify OTP"}
+                            </Text>
                           </TouchableOpacity>
                         </LinearGradient>
                       </View>
-                      <TouchableOpacity onPress={() => {
-                        setOtp("")
-                        setStep(1)
-                      }}>
-                        <Text style={styles.forgotPasswordText}>Resend Code</Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setOtp("");
+                          setStep(1);
+                        }}
+                      >
+                        <Text style={styles.forgotPasswordText}>
+                          Resend Code
+                        </Text>
                       </TouchableOpacity>
                     </>
                   )}
@@ -239,61 +343,101 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
                   {step === 3 && (
                     <>
                       <View style={styles.inputContainer}>
-                        <Ionicons name="lock-closed-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
+                        <Ionicons
+                          name="lock-closed-outline"
+                          size={24}
+                          color="rgb(162,39,142)"
+                          style={styles.inputIcon}
+                        />
                         <TextInput
                           style={styles.input}
                           placeholder="New Password"
                           placeholderTextColor="rgba(162,39,142,0.7)"
                           value={newPassword}
                           onChangeText={(text) => {
-                            setNewPassword(text)
-                            setPasswordError("")
+                            setNewPassword(text);
+                            setPasswordError("");
                           }}
                           secureTextEntry={!newPasswordVisible}
                         />
-                        <TouchableOpacity onPress={() => setNewPasswordVisible(!newPasswordVisible)} style={styles.eyeIcon}>
+                        <TouchableOpacity
+                          onPress={() =>
+                            setNewPasswordVisible(!newPasswordVisible)
+                          }
+                          style={styles.eyeIcon}
+                        >
                           <Ionicons
-                            name={newPasswordVisible ? "eye-outline" : "eye-off-outline"}
+                            name={
+                              newPasswordVisible
+                                ? "eye-outline"
+                                : "eye-off-outline"
+                            }
                             size={24}
                             color="rgb(162,39,142)"
                           />
                         </TouchableOpacity>
                       </View>
                       <View style={styles.inputContainer}>
-                        <Ionicons name="lock-closed-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
+                        <Ionicons
+                          name="lock-closed-outline"
+                          size={24}
+                          color="rgb(162,39,142)"
+                          style={styles.inputIcon}
+                        />
                         <TextInput
                           style={styles.input}
                           placeholder="Confirm New Password"
                           placeholderTextColor="rgba(162,39,142,0.7)"
                           value={confirmPassword}
                           onChangeText={(text) => {
-                            setConfirmPassword(text)
-                            setPasswordError("")
+                            setConfirmPassword(text);
+                            setPasswordError("");
                           }}
                           secureTextEntry={!confirmPasswordVisible}
                         />
-                        <TouchableOpacity onPress={() => setConfirmPasswordVisible(!confirmPasswordVisible)} style={styles.eyeIcon}>
+                        <TouchableOpacity
+                          onPress={() =>
+                            setConfirmPasswordVisible(!confirmPasswordVisible)
+                          }
+                          style={styles.eyeIcon}
+                        >
                           <Ionicons
-                            name={confirmPasswordVisible ? "eye-outline" : "eye-off-outline"}
+                            name={
+                              confirmPasswordVisible
+                                ? "eye-outline"
+                                : "eye-off-outline"
+                            }
                             size={24}
                             color="rgb(162,39,142)"
                           />
                         </TouchableOpacity>
                       </View>
-                      {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+                      {passwordError ? (
+                        <Text style={styles.errorText}>{passwordError}</Text>
+                      ) : null}
                       <View style={styles.buttonContainer}>
                         <LinearGradient
-                          colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                          colors={[
+                            "rgba(139, 92, 246, 0.8)",
+                            "rgba(236, 72, 153, 0.8)",
+                          ]}
                           style={styles.buttonGradientBorder}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                         >
-                          <TouchableOpacity 
-                            style={[styles.button, loading && styles.buttonDisabled]}
+                          <TouchableOpacity
+                            style={[
+                              styles.button,
+                              loading && styles.buttonDisabled,
+                            ]}
                             onPress={handleResetPassword}
-                            disabled={loading}
+                            disabled={
+                              loading || !newPassword || !confirmPassword
+                            }
                           >
-                            <Text style={styles.buttonText}>Reset Password</Text>
+                            <Text style={styles.buttonText}>
+                              {loading ? "Resetting..." : "Reset Password"}
+                            </Text>
                           </TouchableOpacity>
                         </LinearGradient>
                       </View>
@@ -323,7 +467,11 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
       >
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
-            <Ionicons name="checkmark-circle" size={60} color="rgb(162,39,142)" />
+            <Ionicons
+              name="checkmark-circle"
+              size={60}
+              color="rgb(162,39,142)"
+            />
             <Text style={styles.modalText}>Password Reset Successful</Text>
             <View style={styles.buttonContainer}>
               <LinearGradient
@@ -335,8 +483,8 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   style={[styles.button, styles.modalButton]}
                   onPress={() => {
-                    setShowSuccessPopup(false)
-                    navigation.navigate("Login")
+                    setShowSuccessPopup(false);
+                    navigation.navigate("Login");
                   }}
                 >
                   <Text style={styles.buttonText}>Login</Text>
@@ -347,7 +495,7 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
         </View>
       </Modal>
     </LinearGradient>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -373,7 +521,7 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   whiteBackground: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 15,
     padding: 20,
   },
@@ -486,7 +634,6 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     width: "100%",
-    marginTop: 16,
+    marginTop: 0,
   },
-})
-
+});
