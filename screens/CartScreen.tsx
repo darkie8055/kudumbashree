@@ -6,10 +6,13 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import Toast from 'react-native-toast-message';
+import { toastConfig, TOAST_DURATION } from '../components/SonnerToast';
 
 interface Product {
   id: string;
@@ -26,19 +29,21 @@ interface CartItem {
 const CartScreen = ({ route, navigation }) => {
   const [cart, setCart] = useState<CartItem[]>(route.params?.cart || []);
   const onCartUpdate = route.params?.onCartUpdate;
+  const [recommendations, setRecommendations] = useState<Product[]>([]);
+  const [optimizedPrices, setOptimizedPrices] = useState<{[key: string]: number}>({});
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [showRecommendations, setShowRecommendations] = useState(true);
 
   const handleQuantityChange = (item: CartItem, change: number) => {
-    const updatedCart = cart
-      .map((cartItem) => {
-        if (cartItem.product.id === item.product.id) {
-          const newQuantity = Math.max(0, cartItem.quantity + change);
-          return newQuantity === 0
-            ? null
-            : { ...cartItem, quantity: newQuantity };
-        }
-        return cartItem;
-      })
-      .filter(Boolean) as CartItem[];
+    const updatedCart = cart.map((cartItem) => {
+      if (cartItem.product.id === item.product.id) {
+        const newQuantity = Math.max(0, cartItem.quantity + change);
+        if (newQuantity === 0) return null;
+        return { ...cartItem, quantity: newQuantity };
+      }
+      return cartItem;
+    }).filter(Boolean) as CartItem[];
 
     setCart(updatedCart);
     if (onCartUpdate) {
@@ -70,6 +75,83 @@ const CartScreen = ({ route, navigation }) => {
     return unsubscribe;
   }, [navigation, cart, onCartUpdate]);
 
+  // Add AI-powered cart recommendations
+  useEffect(() => {
+    const getCartRecommendations = async () => {
+      if (cart.length > 0) {
+        // Placeholder for Claude AI recommendation logic
+        const recommended = cart.slice(0, 3).map(item => ({
+          ...item.product,
+          id: `rec_${item.product.id}`
+        }));
+        setRecommendations(recommended);
+      }
+    };
+    getCartRecommendations();
+  }, [cart]);
+
+  // Add dynamic price optimization
+  useEffect(() => {
+    const optimizePrices = async () => {
+      // Placeholder for Claude AI price optimization
+      const optimized = cart.reduce((acc, item) => ({
+        ...acc,
+        [item.product.id]: item.product.price * 0.9 // 10% discount example
+      }), {});
+      setOptimizedPrices(optimized);
+    };
+    optimizePrices();
+  }, [cart]);
+
+  const handleProductPress = (product: Product) => {
+    setSelectedProduct(product);
+    setIsModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setIsModalVisible(false);
+    setSelectedProduct(null);
+  };
+
+  const renderProductDetails = () => {
+    if (!selectedProduct) return null;
+
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isModalVisible}
+        onRequestClose={closeModal}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+            <Image
+              source={{ uri: selectedProduct.imageUrl }}
+              style={styles.modalImage}
+            />
+            <Text style={styles.modalProductName}>{selectedProduct.name}</Text>
+            <Text style={styles.modalProductPrice}>₹{selectedProduct.price}</Text>
+            <Text style={styles.modalProductDescription}>
+              {selectedProduct.description || 'No description available'}
+            </Text>
+            <TouchableOpacity
+              style={styles.modalAddToCartButton}
+              onPress={() => {
+                handleAddToCart(selectedProduct);
+                closeModal();
+              }}
+            >
+              <Text style={styles.modalAddToCartButtonText}>Add to Cart</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   const renderCartItem = ({ item }: { item: CartItem }) => (
     <View style={styles.cartItem}>
       <Image
@@ -98,6 +180,86 @@ const CartScreen = ({ route, navigation }) => {
     </View>
   );
 
+  const handleAddToCart = (product: Product) => {
+    const existingItemIndex = cart.findIndex(
+      (item) => item.product.id === product.id
+    );
+    if (existingItemIndex !== -1) {
+      const updatedCart = [...cart];
+      const updatedItem = { 
+        ...updatedCart[existingItemIndex],
+        quantity: updatedCart[existingItemIndex].quantity + 1
+      };
+      updatedCart[existingItemIndex] = updatedItem;
+      setCart(updatedCart);
+      if (onCartUpdate) {
+        onCartUpdate(updatedCart);
+      }
+    } else {
+      const updatedCart = [...cart, { product, quantity: 1 }];
+      setCart(updatedCart);
+      if (onCartUpdate) {
+        onCartUpdate(updatedCart);
+      }
+    }
+    
+    // Show toast message
+    Toast.show({
+      type: 'success',
+      text1: 'Added to Cart',
+      text2: `${product.name} has been added`,
+      visibilityTime: TOAST_DURATION,
+      autoHide: true,
+      topOffset: 40,
+      bottomOffset: 100,
+      position: 'bottom',
+      onPress: () => Toast.hide(),
+    });
+  };
+
+  const renderRecommendations = () => {
+    if (!showRecommendations || recommendations.length === 0) return null;
+
+    return (
+      <View style={styles.recommendationsSection}>
+        <View style={styles.recommendationsHeader}>
+          <Text style={styles.recommendationsTitle}>You May Also Like</Text>
+          <TouchableOpacity 
+            onPress={() => setShowRecommendations(false)}
+            style={styles.closeRecommendationsButton}
+          >
+            <Ionicons name="close" size={20} color="#333" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.recommendationsContainer}>
+          <FlatList
+            horizontal
+            data={recommendations}
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.recommendedItem}
+                onPress={() => handleProductPress(item)}
+                activeOpacity={0.7}
+              >
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={styles.recommendedImage}
+                  resizeMode="cover"
+                />
+                <Text style={styles.recommendedName} numberOfLines={2}>
+                  {item.name}
+                </Text>
+                <Text style={styles.recommendedPrice}>₹{item.price}</Text>
+              </TouchableOpacity>
+            )}
+            keyExtractor={(item) => item.id}
+          />
+        </View>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -116,7 +278,7 @@ const CartScreen = ({ route, navigation }) => {
           <Text style={styles.emptyCartText}>Your cart is empty</Text>
           <TouchableOpacity
             style={styles.continueShopping}
-            onPress={() => navigation.navigate("MarketplaceScreen")}
+            onPress={() => navigation.navigate("Marketplace")}
           >
             <Text style={styles.continueShoppingText}>Continue Shopping</Text>
           </TouchableOpacity>
@@ -129,6 +291,7 @@ const CartScreen = ({ route, navigation }) => {
             keyExtractor={(item) => item.product.id}
             contentContainerStyle={styles.cartList}
           />
+          {cart.length > 0 && renderRecommendations()}
           <View style={styles.footer}>
             <View style={styles.totalContainer}>
               <Text style={styles.totalText}>Total:</Text>
@@ -149,6 +312,8 @@ const CartScreen = ({ route, navigation }) => {
           </View>
         </>
       )}
+      {renderProductDetails()}
+      <Toast config={toastConfig} />
     </SafeAreaView>
   );
 };
@@ -290,6 +455,104 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "500",
+  },
+  recommendationsSection: {
+    padding: 12,
+    backgroundColor: '#f8f8f8',
+    maxHeight: 180, // Reduced height
+  },
+  recommendationsContainer: {
+    height: 140, // Fixed height for recommendations container
+  },
+  recommendedItem: {
+    width: 100,
+    height: 140, // Fixed height for item
+    marginRight: 8,
+  },
+  recommendedImage: {
+    width: 100,
+    height: 80, // Adjusted image height
+    borderRadius: 8,
+  },
+  recommendedName: {
+    fontSize: 12,
+    marginTop: 4,
+    height: 32, // Fixed height for text
+    numberOfLines: 2,
+    ellipsizeMode: 'tail',
+  },
+  recommendedPrice: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#69C779',
+    marginTop: 2,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 1,
+  },
+  modalImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  modalProductName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  modalProductPrice: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#69C779',
+    marginBottom: 8,
+  },
+  modalProductDescription: {
+    fontSize: 16,
+    marginBottom: 16,
+    color: '#666',
+  },
+  modalAddToCartButton: {
+    backgroundColor: '#8B5CF6',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalAddToCartButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700', // Changed to bold
+  },
+  recommendationsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#333',
+  },
+  recommendationsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  closeRecommendationsButton: {
+    padding: 4,
   },
 });
 

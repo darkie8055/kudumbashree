@@ -65,6 +65,26 @@ export default function OrderSummaryScreen({ navigation, route }) {
     )
   }
 
+  const renderOrderItems = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Order Items</Text>
+      {cart.map((item) => (
+        <View key={item.product.id} style={styles.orderItem}>
+          <Image 
+            source={{ uri: item.product.imageUrl }} // Fix: change 'image' to 'imageUrl'
+            style={styles.productImage}
+            resizeMode="cover" // Add resizeMode for better image display
+          />
+          <View style={styles.itemDetails}>
+            <Text style={styles.itemName}>{item.product.name}</Text>
+            <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
+          </View>
+          <Text style={styles.itemPrice}>₹{(item.product.price * item.quantity).toFixed(2)}</Text>
+        </View>
+      ))}
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -92,19 +112,7 @@ export default function OrderSummaryScreen({ navigation, route }) {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Order Items</Text>
-          {cart.map((item) => (
-            <View key={item.product.id} style={styles.orderItem}>
-              <Image source={{ uri: item.product.image }} style={styles.productImage} />
-              <View style={styles.itemDetails}>
-                <Text style={styles.itemName}>{item.product.name}</Text>
-                <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
-              </View>
-              <Text style={styles.itemPrice}>₹{(item.product.price * item.quantity).toFixed(2)}</Text>
-            </View>
-          ))}
-        </View>
+        {renderOrderItems()}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Promo Code</Text>
@@ -290,6 +298,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 8,
     marginRight: 12,
+    backgroundColor: '#f0f0f0', // Add fallback background color
   },
   itemDetails: {
     flex: 1,

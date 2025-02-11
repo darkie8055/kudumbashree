@@ -28,6 +28,8 @@ import {
 } from "@expo-google-fonts/poppins";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../types/navigation";
+import Toast from 'react-native-toast-message';
+import { toastConfig, TOAST_DURATION } from '../components/SonnerToast';
 
 interface Product {
   id: string;
@@ -193,11 +195,29 @@ const ITEM_WIDTH = width * 0.44;
 
 const AnimatedFlatList = Animated.createAnimatedComponent<any>(FlatList);
 
-export default function MarketplaceScreen({ navigation }: Props) {
+// Add Claude AI client
+const claudeClient = {
+  getRecommendations: async (products: Product[], userPreferences: any) => {
+    // Placeholder for Claude AI integration
+    return products.slice(0, 5); // Return top 5 recommended products
+  },
+  
+  enhanceSearch: async (query: string) => {
+    // Placeholder for AI-enhanced search
+    return query;
+  }
+};
+
+export default function MarketplaceScreen({ navigation, route }: Props) {
+  // Get cart from route params if available
+  const routeParams = route?.params;
+  const initialCart = routeParams?.cartItems || [];
+  const initialSelectedProduct = routeParams?.selectedProduct;
+
+  const [cart, setCart] = useState<CartItem[]>(initialCart);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(initialSelectedProduct || null);
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -205,11 +225,9 @@ export default function MarketplaceScreen({ navigation }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isLocationDropdownVisible, setIsLocationDropdownVisible] =
-    useState(false);
-  const [selectedLocation, setSelectedLocation] = useState("");
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerHeight = useRef(new Animated.Value(200)).current;
+  const [recommendations, setRecommendations] = useState<Product[]>([]);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -236,7 +254,7 @@ export default function MarketplaceScreen({ navigation }: Props) {
 
   useEffect(() => {
     filterAndSortProducts();
-  }, [searchQuery, selectedCategory, sortOption, selectedLocation, products]);
+  }, [searchQuery, selectedCategory, sortOption, products]);
 
   const filterAndSortProducts = useCallback(() => {
     if (!products) return;
@@ -247,11 +265,7 @@ export default function MarketplaceScreen({ navigation }: Props) {
         .includes(searchQuery.toLowerCase());
       const categoryMatch =
         selectedCategory === "All" || product.category === selectedCategory;
-      const locationMatch =
-        selectedLocation === "" ||
-        selectedLocation === "All" ||
-        product.location === selectedLocation;
-      return nameMatch && categoryMatch && locationMatch;
+      return nameMatch && categoryMatch;
     });
 
     const sortedProducts = [...filtered];
@@ -267,7 +281,7 @@ export default function MarketplaceScreen({ navigation }: Props) {
     }
 
     setFilteredProducts(sortedProducts);
-  }, [products, searchQuery, selectedCategory, sortOption, selectedLocation]);
+  }, [products, searchQuery, selectedCategory, sortOption]);
 
   const handleProductPress = useCallback((product: Product) => {
     setSelectedProduct(product);
@@ -335,9 +349,10 @@ export default function MarketplaceScreen({ navigation }: Props) {
     setIsRefreshing(false);
   }, [fetchProducts]);
 
+  // Enhance search with AI
   const debouncedSearch = useCallback(
     debounce((text: string) => {
-      setSearchQuery(text);
+            setSearchQuery(text);
     }, 300),
     []
   );
@@ -349,11 +364,27 @@ export default function MarketplaceScreen({ navigation }: Props) {
       );
       if (existingItemIndex !== -1) {
         const updatedCart = [...cart];
-        updatedCart[existingItemIndex].quantity += 1;
+        const updatedItem = {
+          ...updatedCart[existingItemIndex],
+          quantity: updatedCart[existingItemIndex].quantity + 1
+        };
+        updatedCart[existingItemIndex] = updatedItem;
         setCart(updatedCart);
       } else {
         setCart([...cart, { product, quantity: 1 }]);
       }
+
+      Toast.show({
+        type: 'success',
+        text1: 'Added to Cart',
+        text2: `${product.name} has been added`,
+        visibilityTime: TOAST_DURATION,
+        autoHide: true,
+        topOffset: 40,
+        bottomOffset: 100,
+        position: 'bottom',
+        onPress: () => Toast.hide(),
+      });
     },
     [cart]
   );
@@ -405,23 +436,6 @@ export default function MarketplaceScreen({ navigation }: Props) {
   );
 
   const categories = ["All", "Beauty", "Food", "Home"];
-  const locations = [
-    "All",
-    "Ernakulam",
-    "Kozhikode",
-    "Thrissur",
-    "Kannur",
-    "Kottayam",
-    "Palakkad",
-    "Malappuram",
-    "Thiruvananthapuram",
-    "Alappuzha",
-    "Kollam",
-    "Pathanamthitta",
-    "Idukki",
-    "Wayanad",
-    "Kasaragod",
-  ];
   const sortOptions = ["name", "priceLow", "priceHigh", "location"];
 
   const goToCart = useCallback(() => {
@@ -433,6 +447,39 @@ export default function MarketplaceScreen({ navigation }: Props) {
     });
   }, [cart, navigation]);
 
+  // Add AI-powered recommendations
+  useEffect(() => {
+    const getAIRecommendations = async () => {
+      if (products.length > 0) {
+        const userPreferences = {
+          recentViews: selectedProduct ? [selectedProduct] : [],
+          cartItems: cart
+        };
+        const recommended = await claudeClient.getRecommendations(products, userPreferences);
+        setRecommendations(recommended);
+      }
+    };
+    getAIRecommendations();
+  }, [products, selectedProduct, cart]);
+
+  const renderRecommendations = useCallback(() => {
+    if (recommendations.length === 0) return null;
+    
+    return (
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionHeader}>Recommended for You</Text>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={recommendations}
+          keyExtractor={(item) => item.id}
+          renderItem={renderProduct}
+        />
+      </View>
+    );
+  }, [recommendations, renderProduct]);
+
+  // Update renderHeader to include recommendations
   const renderHeader = useCallback(() => {
     const headerTranslate = scrollY.interpolate({
       inputRange: [0, 100],
@@ -535,9 +582,11 @@ export default function MarketplaceScreen({ navigation }: Props) {
             )}
           />
         </View>
+
+        {renderRecommendations()}
       </Animated.View>
     );
-  }, [selectedCategory, cart, debouncedSearch, scrollY, sortOption, goToCart]);
+  }, [selectedCategory, cart, debouncedSearch, scrollY, sortOption, goToCart, recommendations]);
 
   useEffect(() => {
     filterAndSortProducts();
@@ -552,7 +601,6 @@ export default function MarketplaceScreen({ navigation }: Props) {
     searchQuery,
     selectedCategory,
     sortOption,
-    selectedLocation,
     cart,
   ]);
 
@@ -582,6 +630,7 @@ export default function MarketplaceScreen({ navigation }: Props) {
         scrollEventThrottle={16}
       />
       {renderProductDetails()}
+      <Toast config={toastConfig} />
     </SafeAreaView>
   );
 }
@@ -703,13 +752,12 @@ const styles = StyleSheet.create({
   addToCartButton: {
     backgroundColor: "#8B5CF6",
     paddingVertical: 8,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
     alignItems: "center",
   },
   addToCartButtonText: {
     color: "#fff",
-    fontWeight: "bold",
+    fontWeight: "700", // Changed to bold
+    fontSize: 14,     // Added explicit font size
   },
   productListContainer: {
     paddingBottom: 70,
@@ -778,5 +826,30 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  recommendationsSection: {
+    padding: 12,
+    backgroundColor: '#f8f8f8',
+    maxHeight: 200,
+  },
+  recommendedItem: {
+    width: 100,
+    marginRight: 8,
+  },
+  recommendedImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+  },
+  recommendedName: {
+    fontSize: 12,
+    marginTop: 4,
+    numberOfLines: 2,
+    ellipsizeMode: 'tail',
+  },
+  recommendedPrice: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#69C779',
   },
 });

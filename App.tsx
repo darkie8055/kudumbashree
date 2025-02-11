@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import * as Notifications from "expo-notifications";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { firebase } from "./firebase";
+import Toast from 'react-native-toast-message';
 
 // Import screens
 import OnboardingScreen from "./screens/OnboardingScreen";
@@ -226,71 +227,74 @@ export default function App() {
   }, []);
 
   return (
-    <NavigationContainer>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="transparent"
-        translucent
-      />
-      <Stack.Navigator
-        initialRouteName="Onboarding"
-        screenOptions={{
-          headerShown: false,
-          cardStyle: { backgroundColor: "transparent" },
-        }}
-      >
-        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-          options={{
-            gestureEnabled: false,
+    <>
+      <NavigationContainer>
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor="transparent"
+          translucent
+        />
+        <Stack.Navigator
+          initialRouteName="Onboarding"
+          screenOptions={{
+            headerShown: false,
+            cardStyle: { backgroundColor: "transparent" },
           }}
-        />
-        <Stack.Screen name="Verification" component={VerificationScreen} />
-        <Stack.Screen name="SignUp" component={SignUpScreen} />
-        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-        <Stack.Screen
-          name="WaitingApproval"
-          component={WaitingApprovalScreen}
-        />
-        <Stack.Screen
-          name="PresidentDashboard"
-          component={PresidentDashboardScreen}
-          options={{
-            gestureEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name="KMemberTabs"
-          component={KMemberTabs}
-          options={{
-            gestureEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name="NormalUserTabs"
-          component={NormalUserTabs}
-          options={{
-            gestureEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name="KMemberApproval"
-          component={KMemberApprovalScreen}
-        />
-        <Stack.Screen
-          name="PresidentStack"
-          component={PresidentStack}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen name="Cart" component={CartScreen} />
-        <Stack.Screen name="Payment" component={PaymentMethodScreen} />
-        <Stack.Screen name="Address" component={AddressScreen} />
-        <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
-        <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+        >
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{
+              gestureEnabled: false,
+            }}
+          />
+          <Stack.Screen name="Verification" component={VerificationScreen} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen
+            name="WaitingApproval"
+            component={WaitingApprovalScreen}
+          />
+          <Stack.Screen
+            name="PresidentDashboard"
+            component={PresidentDashboardScreen}
+            options={{
+              gestureEnabled: false,
+            }}
+          />
+          <Stack.Screen
+            name="KMemberTabs"
+            component={KMemberTabs}
+            options={{
+              gestureEnabled: false,
+            }}
+          />
+          <Stack.Screen
+            name="NormalUserTabs"
+            component={NormalUserTabs}
+            options={{
+              gestureEnabled: false,
+            }}
+          />
+          <Stack.Screen
+            name="KMemberApproval"
+            component={KMemberApprovalScreen}
+          />
+          <Stack.Screen
+            name="PresidentStack"
+            component={PresidentStack}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen name="Cart" component={CartScreen} />
+          <Stack.Screen name="Payment" component={PaymentMethodScreen} />
+          <Stack.Screen name="Address" component={AddressScreen} />
+          <Stack.Screen name="OrderSummary" component={OrderSummaryScreen} />
+          <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+      <Toast />
+    </>
   );
 }
 

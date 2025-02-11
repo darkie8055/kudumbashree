@@ -1,6 +1,5 @@
 import { StackNavigationProp } from "@react-navigation/stack";
 import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
-import { CartItem } from "./types";
 
 // Root stack navigator
 export type RootStackParamList = {
@@ -17,11 +16,13 @@ export type RootStackParamList = {
   PresidentStack: undefined;
   CheckoutStack: undefined;
   Home: undefined;
+  Marketplace: undefined | { selectedProduct?: Product };
   Cart: {
     cart: CartItem[];
     onCartUpdate: (cart: CartItem[]) => void;
   };
   Market: undefined;
+  Payment: { cart: CartItem[] };
 };
 
 // President stack
@@ -64,3 +65,20 @@ export type NormalUserTabsNavigationProp =
   BottomTabNavigationProp<NormalUserTabsParamList>;
 export type CheckoutStackNavigationProp =
   StackNavigationProp<CheckoutStackParamList>;
+
+export type Product = {
+  id: string;
+  name: string;
+  imageUrl: string;
+  price: number;
+  description?: string;
+  unit?: string;
+  phone?: string;
+  category?: string;
+  location?: string;
+};
+
+export type CartItem = {
+  product: Product;
+  quantity: number;
+};
