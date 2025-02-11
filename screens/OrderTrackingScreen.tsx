@@ -46,7 +46,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
     // Simulate order progress
     const timer = setInterval(() => {
       setCurrentStep((prev) => {
-        if (prev < orderSteps.length - 4) {
+        if (prev < orderSteps.length - 1) {
           return prev + 1
         }
         clearInterval(timer)
@@ -59,7 +59,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
 
   useEffect(() => {
     Animated.timing(progressAnimation, {
-      toValue: (currentStep / (orderSteps.length - 4)) * 100,
+      toValue: (currentStep / (orderSteps.length - 1)) * 100,
       duration: 500,
       useNativeDriver: false,
     }).start()
@@ -175,6 +175,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
   },
   header: {
+    marginTop: 20,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

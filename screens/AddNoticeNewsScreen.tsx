@@ -34,6 +34,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Ionicons } from "@expo/vector-icons";
+import { showLocalNotification } from "../utils/notifications";
 
 type Notice = {
   id: string;
@@ -96,6 +97,14 @@ export default function AddNoticeNewsScreen() {
         type: "notice",
       });
 
+      // Send notification
+      await showLocalNotification(
+        "New Notice Posted",
+        `${noticeTitle}\n${
+          venue ? `Venue: ${venue}` : ""
+        }\n${date.toLocaleDateString()}`
+      );
+
       Alert.alert("Success", "Notice added successfully", [
         {
           text: "OK",
@@ -132,6 +141,14 @@ export default function AddNoticeNewsScreen() {
         createdAt: serverTimestamp(),
         type: "news",
       });
+
+      // Send notification
+      await showLocalNotification(
+        "New News Update",
+        `${newsHeadline}\n${newsContent.substring(0, 100)}${
+          newsContent.length > 100 ? "..." : ""
+        }`
+      );
 
       Alert.alert("Success", "News added successfully", [
         {

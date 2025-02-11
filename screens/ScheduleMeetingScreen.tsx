@@ -30,6 +30,12 @@ import {
   Poppins_600SemiBold,
 } from "@expo-google-fonts/poppins";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  requestPermissions,
+  showLocalNotification,
+  showNotificationInDevMode,
+  sendNotificationToAll,
+} from "../utils/notifications";
 
 type Meeting = {
   id: string;
@@ -67,6 +73,13 @@ export default function ScheduleMeetingScreen() {
     Poppins_600SemiBold,
   });
 
+  useEffect(() => {
+    const setupNotifications = async () => {
+      await requestPermissions();
+    };
+    setupNotifications();
+  }, []);
+
   const handleSchedule = async () => {
     if (!title.trim()) {
       Alert.alert("Error", "Please enter a meeting title");
@@ -89,6 +102,18 @@ export default function ScheduleMeetingScreen() {
         createdAt: serverTimestamp(),
         type: "meeting",
       });
+
+      // Send notification to all connected devices
+      await sendNotificationToAll(
+        "New Meeting Scheduled",
+        `${title} at ${venue}\nDate: ${date.toLocaleDateString()}\nTime: ${date.toLocaleTimeString(
+          [],
+          {
+            hour: "2-digit",
+            minute: "2-digit",
+          }
+        )}`
+      );
 
       Alert.alert("Success", "Meeting scheduled successfully", [
         {

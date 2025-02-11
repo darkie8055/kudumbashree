@@ -330,7 +330,10 @@ export default function HomeScreen({ navigation }: Props) {
         setIsLoading(true);
         const auth = getAuth();
         const user = auth.currentUser;
-        if (!user) return;
+        if (!user) {
+          setFirstName("User");
+          return;
+        }
 
         const phoneNumber = user.phoneNumber?.replace("+91", "") || "";
         const db = getFirestore();
@@ -342,12 +345,15 @@ export default function HomeScreen({ navigation }: Props) {
 
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            setFirstName(userData.firstName || userData.FirstName || "User");
+            // Check both firstName and FirstName fields and provide a fallback
+            const name = userData.firstName || userData.FirstName || "User";
+            setFirstName(name);
             break;
           }
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
+        setFirstName("User"); // Fallback in case of error
       } finally {
         setIsLoading(false);
       }
