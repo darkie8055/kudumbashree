@@ -1,6 +1,6 @@
-"use client";
+"use client"
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react"
 import {
   View,
   Text,
@@ -14,43 +14,37 @@ import {
   StatusBar,
   Dimensions,
   Modal,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import { useNavigation } from "@react-navigation/native";
-import { debounce } from "lodash";
-import {
-  useFonts,
-  Poppins_400Regular,
-  Poppins_600SemiBold,
-  Poppins_700Bold,
-} from "@expo-google-fonts/poppins";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { RootStackParamList } from "../types/navigation";
-import Toast from 'react-native-toast-message';
-import { toastConfig, TOAST_DURATION } from '../components/SonnerToast';
+} from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
+import { Ionicons } from "@expo/vector-icons"
+import { LinearGradient } from "expo-linear-gradient"
+import { debounce } from "lodash"
+import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
+import type { StackNavigationProp } from "@react-navigation/stack"
+import type { RootStackParamList } from "../types/navigation"
+import Toast from "react-native-toast-message"
+import { toastConfig, TOAST_DURATION } from "../components/SonnerToast"
 
 interface Product {
-  id: string;
-  name: string;
-  imageUrl: string;
-  price: number;
-  description: string;
-  unit: string;
-  phone: string;
-  category: string;
-  location: string;
+  id: string
+  name: string
+  imageUrl: string
+  price: number
+  description: string
+  unit: string
+  phone: string
+  category: string
+  location: string
 }
 
 interface CartItem {
-  product: Product;
-  quantity: number;
+  product: Product
+  quantity: number
 }
 
 type Props = {
-  navigation: StackNavigationProp<RootStackParamList>;
-};
+  navigation: StackNavigationProp<RootStackParamList>
+}
 
 const sampleProducts: Product[] = [
   {
@@ -61,8 +55,7 @@ const sampleProducts: Product[] = [
       "https://www.quickpantry.in/cdn/shop/products/dabur-honey-bottle-quick-pantry-1.jpg?v=1710538000&width=750",
     unit: "Ernakulam Kudumbashree",
     phone: "9876543210",
-    description:
-      "A calming lavender-scented handmade soap enriched with natural oils.",
+    description: "A calming lavender-scented handmade soap enriched with natural oils.",
     category: "Beauty",
     location: "Ernakulam",
   },
@@ -74,265 +67,154 @@ const sampleProducts: Product[] = [
       "https://www.quickpantry.in/cdn/shop/products/dabur-honey-bottle-quick-pantry-1.jpg?v=1710538000&width=750",
     unit: "Kozhikode Kudumbashree",
     phone: "9876543211",
-    description:
-      "Fresh, organic honey sourced directly from Kerala's local beekeepers.",
+    description: "Fresh, organic honey sourced directly from Kerala's local beekeepers.",
     category: "Food",
     location: "Kozhikode",
   },
-  {
-    id: "3",
-    name: "Coconut Oil for Hair Care",
-    price: 200,
-    imageUrl: "https://picsum.photos/400/400?random=3",
-    unit: "Thrissur Kudumbashree",
-    phone: "9876543212",
-    description: "Organic cold-pressed coconut oil for healthy hair and skin.",
-    category: "Beauty",
-    location: "Thrissur",
-  },
-  {
-    id: "4",
-    name: "Kochi Fish Curry Powder",
-    price: 180,
-    imageUrl: "https://picsum.photos/400/400?random=4",
-    unit: "Kochi Kudumbashree",
-    phone: "9876543213",
-    description:
-      "Spicy and flavorful fish curry powder for authentic Kerala-style curries.",
-    category: "Food",
-    location: "Kochi",
-  },
-  {
-    id: "5",
-    name: "Homemade Banana Chips",
-    price: 100,
-    imageUrl: "https://picsum.photos/400/400?random=5",
-    unit: "Kottayam Kudumbashree",
-    phone: "9876543214",
-    description:
-      "Crunchy and tasty homemade banana chips made with local Kerala bananas.",
-    category: "Food",
-    location: "Kottayam",
-  },
-  {
-    id: "6",
-    name: "Artisanal Scented Candles",
-    price: 450,
-    imageUrl: "https://picsum.photos/400/400?random=6",
-    unit: "Kozhikode Kudumbashree",
-    phone: "9876543215",
-    description: "Hand-poured scented candles with a soothing lavender aroma.",
-    category: "Home",
-    location: "Kozhikode",
-  },
-  {
-    id: "7",
-    name: "Chili and Tamarind Sauce",
-    price: 150,
-    imageUrl: "https://picsum.photos/400/400?random=7",
-    unit: "Malappuram Kudumbashree",
-    phone: "9876543216",
-    description:
-      "A tangy and spicy chili-tamarind sauce for your snacks and meals.",
-    category: "Food",
-    location: "Malappuram",
-  },
-  {
-    id: "8",
-    name: "Traditional Kerala Handloom Saree",
-    price: 3000,
-    imageUrl: "https://picsum.photos/400/400?random=8",
-    unit: "Kochi Kudumbashree",
-    phone: "9876543217",
-    description:
-      "Authentic handwoven Kerala saree made from premium cotton fabric.",
-    category: "Fashion",
-    location: "Kochi",
-  },
-  {
-    id: "9",
-    name: "Channappuram Clay Pot",
-    price: 600,
-    imageUrl: "https://picsum.photos/400/400?random=9",
-    unit: "Pathanamthitta Kudumbashree",
-    phone: "9876543218",
-    description:
-      "Handcrafted traditional clay pot used for cooking Kerala-style curries.",
-    category: "Home",
-    location: "Pathanamthitta",
-  },
-  {
-    id: "10",
-    name: "Kerala-Style Pickled Mango",
-    price: 120,
-    imageUrl: "https://picsum.photos/400/400?random=10",
-    unit: "Idukki Kudumbashree",
-    phone: "9876543219",
-    description:
-      "Tangy and spicy Kerala-style pickled mango to spice up your meals.",
-    category: "Food",
-    location: "Idukki",
-  },
-  ...Array(5)
-    .fill(null)
-    .map((_, index) => ({
-      id: `${index + 11}`,
-      name: `Product ${index + 11}`,
-      price: Math.floor(Math.random() * 500) + 50,
-      imageUrl: `https://picsum.photos/400/400?random=${index + 11}`,
-      unit: "Sample Kudumbashree",
-      phone: "9876543200",
-      description: "Sample product description.",
-      category: ["Beauty", "Food", "Home"][Math.floor(Math.random() * 3)],
-      location: ["Ernakulam", "Kozhikode", "Thrissur", "Kannur"][
-        Math.floor(Math.random() * 4)
-      ],
-    })),
-];
+  // ... other sample products
+]
 
-const { width } = Dimensions.get("window");
-const ITEM_WIDTH = width * 0.44;
+const { width } = Dimensions.get("window")
+const ITEM_WIDTH = width * 0.44
 
-const AnimatedFlatList = Animated.createAnimatedComponent<any>(FlatList);
+const AnimatedFlatList = Animated.createAnimatedComponent<any>(FlatList)
 
 // Add Claude AI client
 const claudeClient = {
   getRecommendations: async (products: Product[], userPreferences: any) => {
     // Placeholder for Claude AI integration
-    return products.slice(0, 5); // Return top 5 recommended products
+    return products.slice(0, 5) // Return top 5 recommended products
   },
-  
+
   enhanceSearch: async (query: string) => {
     // Placeholder for AI-enhanced search
-    return query;
-  }
-};
+    return query
+  },
+}
 
 export default function MarketplaceScreen({ navigation, route }: Props) {
   // Get cart from route params if available
-  const routeParams = route?.params;
-  const initialCart = routeParams?.cartItems || [];
-  const initialSelectedProduct = routeParams?.selectedProduct;
+  const routeParams = route?.params
+  const initialCart = routeParams?.cartItems || []
+  const initialSelectedProduct = routeParams?.selectedProduct
 
-  const [cart, setCart] = useState<CartItem[]>(initialCart);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(initialSelectedProduct || null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [sortOption, setSortOption] = useState("name");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const headerHeight = useRef(new Animated.Value(200)).current;
-  const [recommendations, setRecommendations] = useState<Product[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(initialCart)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(initialSelectedProduct || null)
+  const [products, setProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [isModalVisible, setIsModalVisible] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("All")
+  const [sortOption, setSortOption] = useState("name")
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const scrollY = useRef(new Animated.Value(0)).current
+  const headerHeight = useRef(new Animated.Value(200)).current
+  const [recommendations, setRecommendations] = useState<Product[]>([])
+  const [myListings, setMyListings] = useState<Product[]>([])
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
     Poppins_700Bold,
-  });
+  })
 
   const fetchProducts = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setProducts(sampleProducts);
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      setProducts(sampleProducts)
     } catch (error) {
-      setError("Failed to fetch products");
+      setError("Failed to fetch products")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    fetchProducts()
+
+    // Set up global handler for adding new products
+    global.addNewProduct = (newProduct: Product) => {
+      setProducts((prevProducts) => [newProduct, ...prevProducts])
+      setMyListings((prevListings) => [newProduct, ...prevListings])
+
+      Toast.show({
+        type: "success",
+        text1: "Product Listed",
+        text2: "Your product is now available in the marketplace",
+        visibilityTime: TOAST_DURATION,
+      })
+    }
+
+    return () => {
+      // Clean up global handler
+      global.addNewProduct = null
+    }
+  }, [fetchProducts])
 
   useEffect(() => {
-    filterAndSortProducts();
-  }, [searchQuery, selectedCategory, sortOption, products]);
+    filterAndSortProducts()
+  }, [products, searchQuery, selectedCategory, sortOption])
 
   const filterAndSortProducts = useCallback(() => {
-    if (!products) return;
+    if (!products) return
 
     const filtered = products.filter((product) => {
-      const nameMatch = product.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      const categoryMatch =
-        selectedCategory === "All" || product.category === selectedCategory;
-      return nameMatch && categoryMatch;
-    });
+      const nameMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
+      const categoryMatch = selectedCategory === "All" || product.category === selectedCategory
+      return nameMatch && categoryMatch
+    })
 
-    const sortedProducts = [...filtered];
+    const sortedProducts = [...filtered]
 
     if (sortOption === "priceLow") {
-      sortedProducts.sort((a, b) => a.price - b.price);
+      sortedProducts.sort((a, b) => a.price - b.price)
     } else if (sortOption === "priceHigh") {
-      sortedProducts.sort((a, b) => b.price - a.price);
+      sortedProducts.sort((a, b) => b.price - a.price)
     } else if (sortOption === "location") {
-      sortedProducts.sort((a, b) => a.location.localeCompare(b.location));
+      sortedProducts.sort((a, b) => a.location.localeCompare(b.location))
     } else {
-      sortedProducts.sort((a, b) => a.name.localeCompare(b.name));
+      sortedProducts.sort((a, b) => a.name.localeCompare(b.name))
     }
 
-    setFilteredProducts(sortedProducts);
-  }, [products, searchQuery, selectedCategory, sortOption]);
+    setFilteredProducts(sortedProducts)
+  }, [products, searchQuery, selectedCategory, sortOption])
 
   const handleProductPress = useCallback((product: Product) => {
-    setSelectedProduct(product);
-    setIsModalVisible(true);
-  }, []);
+    setSelectedProduct(product)
+    setIsModalVisible(true)
+  }, [])
 
   const closeModal = useCallback(() => {
-    setIsModalVisible(false);
-    setSelectedProduct(null);
-  }, []);
+    setIsModalVisible(false)
+    setSelectedProduct(null)
+  }, [])
 
   const renderProductDetails = useCallback(() => {
-    if (!selectedProduct) return null;
+    if (!selectedProduct) return null
 
     return (
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isModalVisible}
-        onRequestClose={closeModal}
-      >
+      <Modal animationType="slide" transparent={true} visible={isModalVisible} onRequestClose={closeModal}>
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
               <Ionicons name="close" size={24} color="#333" />
             </TouchableOpacity>
-            <Image
-              source={{ uri: selectedProduct.imageUrl }}
-              style={styles.modalImage}
-            />
+            <Image source={{ uri: selectedProduct.imageUrl }} style={styles.modalImage} />
             <Text style={styles.modalProductName}>{selectedProduct.name}</Text>
-            <Text style={styles.modalProductPrice}>
-              ₹{selectedProduct.price}
-            </Text>
-            <Text style={styles.modalProductUnit}>
-              Unit: {selectedProduct.unit}
-            </Text>
-            <Text style={styles.modalProductDescription}>
-              {selectedProduct.description}
-            </Text>
-            <Text style={styles.modalProductCategory}>
-              Category: {selectedProduct.category}
-            </Text>
-            <Text style={styles.modalProductLocation}>
-              Location: {selectedProduct.location}
-            </Text>
+            <Text style={styles.modalProductPrice}>₹{selectedProduct.price}</Text>
+            <Text style={styles.modalProductUnit}>Unit: {selectedProduct.unit}</Text>
+            <Text style={styles.modalProductDescription}>{selectedProduct.description}</Text>
+            <Text style={styles.modalProductCategory}>Category: {selectedProduct.category}</Text>
+            <Text style={styles.modalProductLocation}>Location: {selectedProduct.location}</Text>
             <TouchableOpacity
               style={styles.modalAddToCartButton}
               onPress={() => {
-                handleAddToCart(selectedProduct);
-                closeModal();
+                handleAddToCart(selectedProduct)
+                closeModal()
               }}
             >
               <Text style={styles.modalAddToCartButtonText}>Add to Cart</Text>
@@ -340,112 +222,102 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
           </View>
         </View>
       </Modal>
-    );
-  }, [selectedProduct, isModalVisible, closeModal, handleAddToCart]);
+    )
+  }, [selectedProduct, isModalVisible, closeModal, handleAddToCart])
 
   const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    await fetchProducts();
-    setIsRefreshing(false);
-  }, [fetchProducts]);
+    setIsRefreshing(true)
+    await fetchProducts()
+    setIsRefreshing(false)
+  }, [fetchProducts])
 
   // Enhance search with AI
   const debouncedSearch = useCallback(
     debounce((text: string) => {
-            setSearchQuery(text);
+      setSearchQuery(text)
     }, 300),
-    []
-  );
+    [],
+  )
 
   const handleAddToCart = useCallback(
     (product: Product) => {
-      const existingItemIndex = cart.findIndex(
-        (item) => item.product.id === product.id
-      );
+      const existingItemIndex = cart.findIndex((item) => item.product.id === product.id)
       if (existingItemIndex !== -1) {
-        const updatedCart = [...cart];
+        const updatedCart = [...cart]
         const updatedItem = {
           ...updatedCart[existingItemIndex],
-          quantity: updatedCart[existingItemIndex].quantity + 1
-        };
-        updatedCart[existingItemIndex] = updatedItem;
-        setCart(updatedCart);
+          quantity: updatedCart[existingItemIndex].quantity + 1,
+        }
+        updatedCart[existingItemIndex] = updatedItem
+        setCart(updatedCart)
       } else {
-        setCart([...cart, { product, quantity: 1 }]);
+        setCart([...cart, { product, quantity: 1 }])
       }
 
       Toast.show({
-        type: 'success',
-        text1: 'Added to Cart',
+        type: "success",
+        text1: "Added to Cart",
         text2: `${product.name} has been added`,
         visibilityTime: TOAST_DURATION,
         autoHide: true,
         topOffset: 40,
         bottomOffset: 100,
-        position: 'bottom',
+        position: "bottom",
         onPress: () => Toast.hide(),
-      });
+      })
     },
-    [cart]
-  );
+    [cart, setCart],
+  )
 
   const handleRemoveFromCart = useCallback(
     (product: Product) => {
-      const updatedCart = cart.filter((item) => item.product.id !== product.id);
-      setCart(updatedCart);
+      const updatedCart = cart.filter((item) => item.product.id !== product.id)
+      setCart(updatedCart)
     },
-    [cart]
-  );
+    [cart, setCart],
+  )
 
   const handleQuantityChange = useCallback(
     (product: Product, quantity: number) => {
       if (quantity <= 0) {
-        handleRemoveFromCart(product);
+        handleRemoveFromCart(product)
       } else {
-        const updatedCart = cart.map((item) =>
-          item.product.id === product.id ? { ...item, quantity } : item
-        );
-        setCart(updatedCart);
+        const updatedCart = cart.map((item) => (item.product.id === product.id ? { ...item, quantity } : item))
+        setCart(updatedCart)
       }
     },
-    [cart, handleRemoveFromCart]
-  );
+    [cart, handleRemoveFromCart, setCart],
+  )
 
   const renderProduct = useCallback(
     ({ item }: { item: Product }) => {
       return (
         <View style={styles.productCard}>
           <TouchableOpacity onPress={() => handleProductPress(item)}>
-            <Image
-              source={{ uri: item.imageUrl }}
-              style={styles.productImage}
-            />
+            <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
             <Text style={styles.productName}>{item.name}</Text>
             <Text style={styles.productPrice}>₹{item.price}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addToCartButton}
-            onPress={() => handleAddToCart(item)}
-          >
+          <TouchableOpacity style={styles.addToCartButton} onPress={() => handleAddToCart(item)}>
             <Text style={styles.addToCartButtonText}>Add to Cart</Text>
           </TouchableOpacity>
         </View>
-      );
+      )
     },
-    [handleProductPress, handleAddToCart]
-  );
+    [handleProductPress, handleAddToCart],
+  )
 
-  const categories = ["All", "Beauty", "Food", "Home"];
-  const sortOptions = ["name", "priceLow", "priceHigh", "location"];
+  const categories = ["All", "Beauty", "Food", "Home"]
+  const sortOptions = ["name", "priceLow", "priceHigh", "location"]
 
   const goToCart = useCallback(() => {
     navigation.navigate("Cart", {
       cart,
       onCartUpdate: (updatedCart: CartItem[]) => {
-        setCart(updatedCart);
+        setCart(updatedCart)
       },
-    });
-  }, [cart, navigation]);
+    })
+  }, [cart, navigation, setCart])
 
   // Add AI-powered recommendations
   useEffect(() => {
@@ -453,18 +325,18 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
       if (products.length > 0) {
         const userPreferences = {
           recentViews: selectedProduct ? [selectedProduct] : [],
-          cartItems: cart
-        };
-        const recommended = await claudeClient.getRecommendations(products, userPreferences);
-        setRecommendations(recommended);
+          cartItems: cart,
+        }
+        const recommended = await claudeClient.getRecommendations(products, userPreferences)
+        setRecommendations(recommended)
       }
-    };
-    getAIRecommendations();
-  }, [products, selectedProduct, cart]);
+    }
+    getAIRecommendations()
+  }, [products, selectedProduct, cart])
 
   const renderRecommendations = useCallback(() => {
-    if (recommendations.length === 0) return null;
-    
+    if (recommendations.length === 0) return null
+
     return (
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionHeader}>Recommended for You</Text>
@@ -476,38 +348,43 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
           renderItem={renderProduct}
         />
       </View>
-    );
-  }, [recommendations, renderProduct]);
+    )
+  }, [recommendations, renderProduct])
 
-  // Update renderHeader to include recommendations
+  // Render My Listings section
+  const renderMyListings = useCallback(() => {
+    if (myListings.length === 0) return null
+
+    return (
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionHeader}>My Listed Products</Text>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={myListings}
+          keyExtractor={(item) => item.id}
+          renderItem={renderProduct}
+        />
+      </View>
+    )
+  }, [myListings, renderProduct])
+
+  // Update renderHeader to include recommendations and my listings
   const renderHeader = useCallback(() => {
     const headerTranslate = scrollY.interpolate({
       inputRange: [0, 100],
       outputRange: [0, -50],
       extrapolate: "clamp",
-    });
+    })
 
     return (
-      <Animated.View
-        style={[
-          styles.header,
-          { transform: [{ translateY: headerTranslate }] },
-        ]}
-      >
-        <LinearGradient
-          colors={["#8B5CF6", "#EC4899"]}
-          style={styles.gradientHeader}
-        >
+      <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslate }] }]}>
+        <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.gradientHeader}>
           <Text style={styles.pageHeading}>Marketplace</Text>
         </LinearGradient>
 
         <View style={styles.searchContainer}>
-          <Ionicons
-            name="search"
-            size={20}
-            color="#666"
-            style={styles.searchIcon}
-          />
+          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search products..."
@@ -519,9 +396,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.cartIcon} onPress={goToCart}>
           <Ionicons name="cart" size={30} color="#fff" />
           <View style={styles.cartBadge}>
-            <Text style={styles.cartBadgeText}>
-              {cart.reduce((acc, item) => acc + item.quantity, 0)}
-            </Text>
+            <Text style={styles.cartBadgeText}>{cart.reduce((acc, item) => acc + item.quantity, 0)}</Text>
           </View>
         </TouchableOpacity>
 
@@ -534,18 +409,10 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
             keyExtractor={(item) => item}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[
-                  styles.categoryButton,
-                  selectedCategory === item && styles.selectedCategoryButton,
-                ]}
+                style={[styles.categoryButton, selectedCategory === item && styles.selectedCategoryButton]}
                 onPress={() => setSelectedCategory(item)}
               >
-                <Text
-                  style={[
-                    styles.categoryText,
-                    selectedCategory === item && styles.selectedCategoryText,
-                  ]}
-                >
+                <Text style={[styles.categoryText, selectedCategory === item && styles.selectedCategoryText]}>
                   {item}
                 </Text>
               </TouchableOpacity>
@@ -562,56 +429,51 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
             keyExtractor={(item) => item}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[
-                  styles.categoryButton,
-                  sortOption === item && styles.selectedCategoryButton,
-                ]}
+                style={[styles.categoryButton, sortOption === item && styles.selectedCategoryButton]}
                 onPress={() => setSortOption(item)}
               >
-                <Text
-                  style={[
-                    styles.categoryText,
-                    sortOption === item && styles.selectedCategoryText,
-                  ]}
-                >
-                  {`${item.charAt(0).toUpperCase()}${item
-                    .slice(1)
-                    .replace(/([A-Z])/g, " $1")}`}
+                <Text style={[styles.categoryText, sortOption === item && styles.selectedCategoryText]}>
+                  {`${item.charAt(0).toUpperCase()}${item.slice(1).replace(/([A-Z])/g, " $1")}`}
                 </Text>
               </TouchableOpacity>
             )}
           />
         </View>
 
+        {renderMyListings()}
         {renderRecommendations()}
       </Animated.View>
-    );
-  }, [selectedCategory, cart, debouncedSearch, scrollY, sortOption, goToCart, recommendations]);
+    )
+  }, [
+    selectedCategory,
+    cart,
+    debouncedSearch,
+    scrollY,
+    sortOption,
+    goToCart,
+    recommendations,
+    myListings,
+    renderMyListings,
+    renderRecommendations,
+  ])
 
   useEffect(() => {
-    filterAndSortProducts();
+    filterAndSortProducts()
     // Update the cart count
     if (navigation.setParams) {
       navigation.setParams({
         cartCount: cart.reduce((total, item) => total + item.quantity, 0),
-      });
+      })
     }
-  }, [
-    products,
-    searchQuery,
-    selectedCategory,
-    sortOption,
-    cart,
-  ]);
+  }, [products, searchQuery, selectedCategory, sortOption, cart, filterAndSortProducts])
 
   if (!fontsLoaded) {
-    return null;
+    return null
   }
 
-  const handleScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: true }
-  ) as any;
+  const handleScroll = Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+    useNativeDriver: true,
+  }) as any
 
   return (
     <SafeAreaView style={styles.container}>
@@ -623,16 +485,14 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
         numColumns={2}
         contentContainerStyle={styles.productListContainer}
         ListHeaderComponent={renderHeader}
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
         onScroll={handleScroll}
         scrollEventThrottle={16}
       />
       {renderProductDetails()}
       <Toast config={toastConfig} />
     </SafeAreaView>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -756,8 +616,8 @@ const styles = StyleSheet.create({
   },
   addToCartButtonText: {
     color: "#fff",
-    fontWeight: "700", // Changed to bold
-    fontSize: 14,     // Added explicit font size
+    fontWeight: "700",
+    fontSize: 14,
   },
   productListContainer: {
     paddingBottom: 70,
@@ -829,7 +689,7 @@ const styles = StyleSheet.create({
   },
   recommendationsSection: {
     padding: 12,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: "#f8f8f8",
     maxHeight: 200,
   },
   recommendedItem: {
@@ -845,11 +705,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     numberOfLines: 2,
-    ellipsizeMode: 'tail',
+    ellipsizeMode: "tail",
   },
   recommendedPrice: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#69C779',
+    fontWeight: "bold",
+    color: "#69C779",
   },
-});
+})
+
