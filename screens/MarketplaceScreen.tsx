@@ -35,6 +35,7 @@ interface Product {
   phone: string
   category: string
   location: string
+  status?: string
 }
 
 interface CartItem {
@@ -92,33 +93,83 @@ const claudeClient = {
   },
 }
 
+// Add global type declaration
+declare global {
+  var addNewProduct: ((product: Product) => void) | null;
+}
+
 export default function MarketplaceScreen({ navigation, route }: Props) {
-  // Get cart from route params if available
-  const routeParams = route?.params
-  const initialCart = routeParams?.cartItems || []
-  const initialSelectedProduct = routeParams?.selectedProduct
-
-  const [cart, setCart] = useState<CartItem[]>(initialCart)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(initialSelectedProduct || null)
-  const [products, setProducts] = useState<Product[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
-  const [isModalVisible, setIsModalVisible] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("All")
-  const [sortOption, setSortOption] = useState("name")
-  const [isLoading, setIsLoading] = useState(true)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const scrollY = useRef(new Animated.Value(0)).current
-  const headerHeight = useRef(new Animated.Value(200)).current
-  const [recommendations, setRecommendations] = useState<Product[]>([])
-  const [myListings, setMyListings] = useState<Product[]>([])
-
+  // 1. Group all useState hooks at the top
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
     Poppins_700Bold,
-  })
+  });
+  const [cart, setCart] = useState<CartItem[]>(route?.params?.cart || []);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(route?.params?.selectedProduct || null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [sortOption, setSortOption] = useState("name");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [recommendations, setRecommendations] = useState<Product[]>([]);
+
+  // 2. Group refs
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerHeight = useRef(new Animated.Value(200)).current;
+
+  // 3. Define memoized callbacks before they're used
+  const handleAddToCart = useCallback((product: Product) => {
+    const existingItemIndex = cart.findIndex((item) => item.product.id === product.id)
+    if (existingItemIndex !== -1) {
+      const updatedCart = [...cart]
+      const updatedItem = {
+        ...updatedCart[existingItemIndex],
+        quantity: updatedCart[existingItemIndex].quantity + 1,
+      }
+      updatedCart[existingItemIndex] = updatedItem
+      setCart(updatedCart)
+    } else {
+      setCart([...cart, { product, quantity: 1 }])
+    }
+
+    Toast.show({
+      type: "success",
+      text1: "Added to Cart",
+      text2: `${product.name} has been added`,
+      visibilityTime: TOAST_DURATION,
+      autoHide: true,
+      topOffset: 40,
+      bottomOffset: 100,
+      position: "bottom",
+      onPress: () => Toast.hide(),
+    })
+  }, [cart]);
+
+  const handleProductPress = useCallback((product: Product) => {
+    setSelectedProduct(product)
+    setIsModalVisible(true)
+  }, []);
+
+  // 4. Define renderProduct before it's used in other callbacks
+  const renderProduct = useCallback(({ item }: { item: Product }) => {
+    return (
+      <View style={styles.productCard}>
+        <TouchableOpacity onPress={() => handleProductPress(item)}>
+          <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
+          <Text style={styles.productName}>{item.name}</Text>
+          <Text style={styles.productPrice}>₹{item.price}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.addToCartButton} onPress={() => handleAddToCart(item)}>
+          <Text style={styles.addToCartButtonText}>Add to Cart</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }, [handleProductPress, handleAddToCart]);
 
   const fetchProducts = useCallback(async () => {
     setIsLoading(true)
@@ -138,15 +189,17 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
 
     // Set up global handler for adding new products
     global.addNewProduct = (newProduct: Product) => {
-      setProducts((prevProducts) => [newProduct, ...prevProducts])
-      setMyListings((prevListings) => [newProduct, ...prevListings])
+      // Only add products with "approved" status to the marketplace
+      if (newProduct.status === "approved") {
+        setProducts((prevProducts) => [newProduct, ...prevProducts])
 
-      Toast.show({
-        type: "success",
-        text1: "Product Listed",
-        text2: "Your product is now available in the marketplace",
-        visibilityTime: TOAST_DURATION,
-      })
+        Toast.show({
+          type: "success",
+          text1: "Product Listed",
+          text2: "Your product is now available in the marketplace",
+          visibilityTime: TOAST_DURATION,
+        })
+      }
     }
 
     return () => {
@@ -182,11 +235,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
 
     setFilteredProducts(sortedProducts)
   }, [products, searchQuery, selectedCategory, sortOption])
-
-  const handleProductPress = useCallback((product: Product) => {
-    setSelectedProduct(product)
-    setIsModalVisible(true)
-  }, [])
 
   const closeModal = useCallback(() => {
     setIsModalVisible(false)
@@ -239,36 +287,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     [],
   )
 
-  const handleAddToCart = useCallback(
-    (product: Product) => {
-      const existingItemIndex = cart.findIndex((item) => item.product.id === product.id)
-      if (existingItemIndex !== -1) {
-        const updatedCart = [...cart]
-        const updatedItem = {
-          ...updatedCart[existingItemIndex],
-          quantity: updatedCart[existingItemIndex].quantity + 1,
-        }
-        updatedCart[existingItemIndex] = updatedItem
-        setCart(updatedCart)
-      } else {
-        setCart([...cart, { product, quantity: 1 }])
-      }
-
-      Toast.show({
-        type: "success",
-        text1: "Added to Cart",
-        text2: `${product.name} has been added`,
-        visibilityTime: TOAST_DURATION,
-        autoHide: true,
-        topOffset: 40,
-        bottomOffset: 100,
-        position: "bottom",
-        onPress: () => Toast.hide(),
-      })
-    },
-    [cart, setCart],
-  )
-
   const handleRemoveFromCart = useCallback(
     (product: Product) => {
       const updatedCart = cart.filter((item) => item.product.id !== product.id)
@@ -289,24 +307,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     [cart, handleRemoveFromCart, setCart],
   )
 
-  const renderProduct = useCallback(
-    ({ item }: { item: Product }) => {
-      return (
-        <View style={styles.productCard}>
-          <TouchableOpacity onPress={() => handleProductPress(item)}>
-            <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
-            <Text style={styles.productName}>{item.name}</Text>
-            <Text style={styles.productPrice}>₹{item.price}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.addToCartButton} onPress={() => handleAddToCart(item)}>
-            <Text style={styles.addToCartButtonText}>Add to Cart</Text>
-          </TouchableOpacity>
-        </View>
-      )
-    },
-    [handleProductPress, handleAddToCart],
-  )
-
   const categories = ["All", "Beauty", "Food", "Home"]
   const sortOptions = ["name", "priceLow", "priceHigh", "location"]
 
@@ -318,6 +318,10 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
       },
     })
   }, [cart, navigation, setCart])
+
+  const goToProductManagement = useCallback(() => {
+    navigation.navigate("ProductManagement")
+  }, [navigation])
 
   // Add AI-powered recommendations
   useEffect(() => {
@@ -351,25 +355,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     )
   }, [recommendations, renderProduct])
 
-  // Render My Listings section
-  const renderMyListings = useCallback(() => {
-    if (myListings.length === 0) return null
-
-    return (
-      <View style={styles.sectionContainer}>
-        <Text style={styles.sectionHeader}>My Listed Products</Text>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={myListings}
-          keyExtractor={(item) => item.id}
-          renderItem={renderProduct}
-        />
-      </View>
-    )
-  }, [myListings, renderProduct])
-
-  // Update renderHeader to include recommendations and my listings
+  // Update renderHeader to include recommendations
   const renderHeader = useCallback(() => {
     const headerTranslate = scrollY.interpolate({
       inputRange: [0, 100],
@@ -381,6 +367,13 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
       <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslate }] }]}>
         <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.gradientHeader}>
           <Text style={styles.pageHeading}>Marketplace</Text>
+
+          <TouchableOpacity style={styles.sellButton} onPress={goToProductManagement}>
+            <View style={styles.sellButtonContent}>
+              <Ionicons name="add-circle" size={16} color="#fff" />
+              <Text style={styles.sellButtonText}>Sell Product</Text>
+            </View>
+          </TouchableOpacity>
         </LinearGradient>
 
         <View style={styles.searchContainer}>
@@ -440,7 +433,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
           />
         </View>
 
-        {renderMyListings()}
         {renderRecommendations()}
       </Animated.View>
     )
@@ -452,9 +444,8 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     sortOption,
     goToCart,
     recommendations,
-    myListings,
-    renderMyListings,
     renderRecommendations,
+    goToProductManagement,
   ])
 
   useEffect(() => {
@@ -509,11 +500,31 @@ const styles = StyleSheet.create({
   gradientHeader: {
     padding: 16,
     borderRadius: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   pageHeading: {
     fontSize: 24,
     fontWeight: "bold",
     color: "#fff",
+  },
+  sellButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop:1,
+    borderRadius: 20,
+  },
+  sellButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  sellButtonText: {
+    color: "#fff",
+    marginLeft: 4,
+    fontWeight: "bold",
+    fontSize: 14,
   },
   searchContainer: {
     marginTop: 16,
