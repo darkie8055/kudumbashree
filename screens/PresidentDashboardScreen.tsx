@@ -1,28 +1,45 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Easing } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
-import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
-import { useNavigation } from "@react-navigation/native"
-import { useState, useEffect } from "react"
-import type { StackNavigationProp } from "@react-navigation/stack"
-import type { RootStackParamList } from "../types/navigation"
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Animated,
+  Easing,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
+import { useNavigation } from "@react-navigation/native";
+import { useState, useEffect } from "react";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import type { RootStackParamList } from "../types/navigation";
+import LoanApprovalScreen from "./LoanApprovalScreen";
 
-type PresidentDashboardScreenNavigationProp = StackNavigationProp<RootStackParamList, "PresidentDashboard">
+type PresidentDashboardScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  "PresidentDashboard"
+>;
 
 type Props = {
-  navigation: PresidentDashboardScreenNavigationProp
-}
+  navigation: PresidentDashboardScreenNavigationProp;
+};
 
 export default function PresidentDashboardScreen({ navigation }: Props) {
-  const [animation] = useState(new Animated.Value(0))
-  const [isPressed, setIsPressed] = useState(false)
+  const [animation] = useState(new Animated.Value(0));
+  const [isPressed, setIsPressed] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
     Poppins_700Bold,
-  })
+  });
 
   useEffect(() => {
     Animated.timing(animation, {
@@ -30,56 +47,71 @@ export default function PresidentDashboardScreen({ navigation }: Props) {
       duration: 1000,
       easing: Easing.out(Easing.ease),
       useNativeDriver: true,
-    }).start()
-  }, [animation])
+    }).start();
+  }, [animation]);
 
   const translateY = animation.interpolate({
     inputRange: [0, 1],
     outputRange: [50, 0],
-  })
+  });
 
   if (!fontsLoaded) {
-    return null
+    return null;
   }
 
   const dashboardItems = [
     {
       title: "Manage Members",
       icon: "people",
-      onPress: () => navigation.navigate('PresidentStack', { screen: 'ApprovedMembers' }),
-      color: "rgb(162,39,142)"
+      onPress: () =>
+        navigation.navigate("PresidentStack", { screen: "ApprovedMembers" }),
+      color: "rgb(162,39,142)",
     },
     {
       title: "Approve Requests",
       icon: "clipboard",
       onPress: () => navigation.navigate("KMemberApproval"),
-      color: "rgb(162,39,142)"
+      color: "rgb(162,39,142)",
     },
     {
       title: "Schedule Meetings",
       icon: "calendar",
-      onPress: () => navigation.navigate('PresidentStack', { screen: 'ScheduleMeeting' }),
-      color: "rgb(162,39,142)"
+      onPress: () =>
+        navigation.navigate("PresidentStack", { screen: "ScheduleMeeting" }),
+      color: "rgb(162,39,142)",
     },
     {
       title: "Add Notice/News",
       icon: "newspaper" as keyof typeof Ionicons.glyphMap,
-      onPress: () => navigation.navigate("PresidentStack", { screen: "AddNoticeNews" }),
-      color: "rgb(162,39,142)"
+      onPress: () =>
+        navigation.navigate("PresidentStack", { screen: "AddNoticeNews" }),
+      color: "rgb(162,39,142)",
     },
     {
       title: "View Reports",
       icon: "bar-chart",
       onPress: () => navigation.navigate("ViewReports"),
-      color: "rgb(162,39,142)"
+      color: "rgb(162,39,142)",
     },
-  ]
+    {
+      title: "Loan Approval",
+      icon: "cash",
+      onPress: () => navigation.navigate("LoanApproval"),
+      color: "rgb(162,39,142)",
+    },
+    {
+      title: "Set Weekly Dues",
+      icon: "calendar",
+      onPress: () => navigation.navigate("WeeklyDueSetup"),
+      color: "rgb(162,39,142)",
+    },
+  ];
 
   return (
     <LinearGradient
       colors={[
-        isPressed ? "rgba(162,39,142,0.03)" : "rgba(162,39,142,0.01)", 
-        isPressed ? "rgba(162,39,142,0.08)" : "rgba(162,39,142,0.03)"
+        isPressed ? "rgba(162,39,142,0.03)" : "rgba(162,39,142,0.01)",
+        isPressed ? "rgba(162,39,142,0.08)" : "rgba(162,39,142,0.03)",
       ]}
       style={styles.container}
       start={{ x: 0, y: 0 }}
@@ -87,7 +119,12 @@ export default function PresidentDashboardScreen({ navigation }: Props) {
     >
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <Animated.View style={[styles.formContainer, { opacity: animation, transform: [{ translateY }] }]}>
+          <Animated.View
+            style={[
+              styles.formContainer,
+              { opacity: animation, transform: [{ translateY }] },
+            ]}
+          >
             <LinearGradient
               colors={["rgba(255, 255, 255, 0.3)", "rgba(255, 255, 255, 0.2)"]}
               style={styles.borderGradient}
@@ -105,21 +142,27 @@ export default function PresidentDashboardScreen({ navigation }: Props) {
                   {dashboardItems.map((item, index) => (
                     <View key={index} style={styles.cardWrapper}>
                       <LinearGradient
-                        colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
+                        colors={[
+                          "rgba(139, 92, 246, 0.8)",
+                          "rgba(236, 72, 153, 0.8)",
+                        ]}
                         style={styles.cardGradientBorder}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                       >
-                        <TouchableOpacity 
-                          style={styles.card} 
+                        <TouchableOpacity
+                          style={styles.card}
                           onPress={item.onPress}
                           onPressIn={() => setIsPressed(true)}
                           onPressOut={() => setIsPressed(false)}
                         >
-                          <Ionicons 
-                            name={(item.icon + "-outline") as keyof typeof Ionicons.glyphMap} 
-                            size={40} 
-                            color={item.color} 
+                          <Ionicons
+                            name={
+                              (item.icon +
+                                "-outline") as keyof typeof Ionicons.glyphMap
+                            }
+                            size={40}
+                            color={item.color}
                           />
                           <Text style={styles.cardTitle}>{item.title}</Text>
                         </TouchableOpacity>
@@ -133,7 +176,7 @@ export default function PresidentDashboardScreen({ navigation }: Props) {
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -154,7 +197,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   borderGradient: {
     borderRadius: 20,
@@ -201,5 +244,4 @@ const styles = StyleSheet.create({
     marginTop: 10,
     textAlign: "center",
   },
-})
-
+});

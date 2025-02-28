@@ -23,6 +23,22 @@ export type RootStackParamList = {
   };
   Market: undefined;
   Payment: { cart: CartItem[] };
+  ApplyLoan: {
+    phoneNumber: string;
+  };
+  LoanApproval: undefined;
+  MainDetails: undefined;
+  Savings: undefined;
+  Loan: undefined;
+  Balance: undefined;
+  Pending: undefined;
+  LinkageLoan: undefined;
+  PayPendingLoan: undefined;
+  PayWeeklyDue: {
+    memberId: string;
+  };
+  WeeklyDueSetup: undefined;
+  ViewReports: undefined;
 };
 
 // President stack
@@ -30,6 +46,7 @@ export type PresidentStackParamList = {
   ApprovedMembers: undefined;
   ScheduleMeeting: undefined;
   AddNoticeNews: undefined;
+  LoanApproval: undefined;
 };
 
 // KMember tab navigator

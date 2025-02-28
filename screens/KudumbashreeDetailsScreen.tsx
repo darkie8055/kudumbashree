@@ -1,53 +1,99 @@
-import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, TouchableOpacity, Animated, ScrollView, Dimensions } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { createStackNavigator } from "@react-navigation/stack"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
-import type { StackNavigationProp } from "@react-navigation/stack"
-import type { RootStackParamList } from "../types/navigation"
-import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
+import { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+  ScrollView,
+  Dimensions,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { createStackNavigator } from "@react-navigation/stack";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import type { RootStackParamList } from "../types/navigation";
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
 
 // Importing screens (unchanged)
-import SavingsScreen from "./SavingsScreen"
-import LoanScreen from "./LoanScreen"
-import BalanceScreen from "./BalanceScreen"
-import PendingScreen from "./PendingScreen"
-import LinkageLoanScreen from "./LinkageLoanScreen"
-import ApplyLoanScreen from "./ApplyLoanScreen"
-import PayPendingLoanScreen from "./PayPendingLoanScreen"
-import PayWeeklyDueScreen from "./PayWeeklyDueScreen"
+import SavingsScreen from "./SavingsScreen";
+import LoanScreen from "./LoanScreen";
+import BalanceScreen from "./BalanceScreen";
+import PendingScreen from "./PendingScreen";
+import LinkageLoanScreen from "./LinkageLoanScreen";
+import ApplyLoanScreen from "./ApplyLoanScreen";
+import PayPendingLoanScreen from "./PayPendingLoanScreen";
+import PayWeeklyDueScreen from "./PayWeeklyDueScreen";
 
-const Stack = createStackNavigator<RootStackParamList>()
+const Stack = createStackNavigator<RootStackParamList>();
 
-type MainDetailsScreenNavigationProp = StackNavigationProp<RootStackParamList, "MainDetails">
+type MainDetailsScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  "MainDetails"
+>;
 
 interface MainDetailsScreenProps {
-  navigation: MainDetailsScreenNavigationProp
+  navigation: MainDetailsScreenNavigationProp;
 }
 
-const { width } = Dimensions.get("window")
-const ITEM_WIDTH = width * 0.44
+const { width } = Dimensions.get("window");
+const ITEM_WIDTH = width * 0.44;
 
 function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
-  const [animation] = useState(new Animated.Value(0))
+  const [animation] = useState(new Animated.Value(0));
+  const [unitData, setUnitData] = useState({
+    unitName: "",
+    unitNumber: "",
+    presidentName: "",
+    secretaryName: "",
+  });
+  const [loading, setLoading] = useState(true);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
     Poppins_700Bold,
-  })
+  });
 
   useEffect(() => {
+    const fetchUnitData = async () => {
+      try {
+        const db = getFirestore();
+        const memberDoc = await getDoc(doc(db, "K-member", "9747424242"));
+        if (memberDoc.exists()) {
+          const data = memberDoc.data();
+          setUnitData({
+            unitName: data.unitName || "Unit Name",
+            unitNumber: data.unitNumber || "",
+            presidentName: data.presidentName || "President",
+            secretaryName: data.secretaryName || "Secretary",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching unit data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUnitData();
+
     Animated.timing(animation, {
       toValue: 1,
       duration: 1000,
       useNativeDriver: true,
-    }).start()
-  }, [animation])
+    }).start();
+  }, []);
 
   if (!fontsLoaded) {
-    return null
+    return null;
   }
 
   const fadeIn = {
@@ -60,13 +106,14 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
         }),
       },
     ],
-  }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.header}>
-          <Text style={styles.pageHeading}>UNIT NAME</Text>
+          <Text style={styles.pageHeading}>{unitData.unitName}</Text>
+          <Text style={styles.unitNumber}>Unit {unitData.unitNumber}</Text>
         </LinearGradient>
 
         <Animated.View style={fadeIn}>
@@ -74,19 +121,31 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionHeader}>Quick Actions</Text>
             <View style={styles.quickActionsContainer}>
-              <TouchableOpacity style={styles.quickActionItem} onPress={() => navigation.navigate("Savings")}>
+              <TouchableOpacity
+                style={styles.quickActionItem}
+                onPress={() => navigation.navigate("Savings")}
+              >
                 <Ionicons name="wallet-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.quickActionText}>Savings</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.quickActionItem} onPress={() => navigation.navigate("Loan")}>
+              <TouchableOpacity
+                style={styles.quickActionItem}
+                onPress={() => navigation.navigate("Loan")}
+              >
                 <Ionicons name="cash-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.quickActionText}>Loan</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.quickActionItem} onPress={() => navigation.navigate("Balance")}>
+              <TouchableOpacity
+                style={styles.quickActionItem}
+                onPress={() => navigation.navigate("Balance")}
+              >
                 <Ionicons name="bar-chart-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.quickActionText}>Balance</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.quickActionItem} onPress={() => navigation.navigate("Pending")}>
+              <TouchableOpacity
+                style={styles.quickActionItem}
+                onPress={() => navigation.navigate("Pending")}
+              >
                 <Ionicons name="hourglass-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.quickActionText}>Pending</Text>
               </TouchableOpacity>
@@ -101,27 +160,57 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
               style={styles.detailsContainer}
             >
               <View style={styles.detailItem}>
-                <Ionicons name="person-outline" size={20} color="#8B5CF6" style={styles.detailIcon} />
+                <Ionicons
+                  name="person-outline"
+                  size={20}
+                  color="#8B5CF6"
+                  style={styles.detailIcon}
+                />
                 <Text style={styles.detailText}>President</Text>
               </View>
               <View style={styles.detailItem}>
-                <Ionicons name="people-outline" size={20} color="#8B5CF6" style={styles.detailIcon} />
+                <Ionicons
+                  name="people-outline"
+                  size={20}
+                  color="#8B5CF6"
+                  style={styles.detailIcon}
+                />
                 <Text style={styles.detailText}>Secretary</Text>
               </View>
               <View style={styles.detailItem}>
-                <Ionicons name="book-outline" size={20} color="#8B5CF6" style={styles.detailIcon} />
+                <Ionicons
+                  name="book-outline"
+                  size={20}
+                  color="#8B5CF6"
+                  style={styles.detailIcon}
+                />
                 <Text style={styles.detailText}>Samatheeka</Text>
               </View>
               <View style={styles.detailItem}>
-                <Ionicons name="business-outline" size={20} color="#8B5CF6" style={styles.detailIcon} />
+                <Ionicons
+                  name="business-outline"
+                  size={20}
+                  color="#8B5CF6"
+                  style={styles.detailIcon}
+                />
                 <Text style={styles.detailText}>Adisthana</Text>
               </View>
               <View style={styles.detailItem}>
-                <Ionicons name="school-outline" size={20} color="#8B5CF6" style={styles.detailIcon} />
+                <Ionicons
+                  name="school-outline"
+                  size={20}
+                  color="#8B5CF6"
+                  style={styles.detailIcon}
+                />
                 <Text style={styles.detailText}>Vidyabhyasa</Text>
               </View>
               <View style={styles.detailItem}>
-                <Ionicons name="leaf-outline" size={20} color="#8B5CF6" style={styles.detailIcon} />
+                <Ionicons
+                  name="leaf-outline"
+                  size={20}
+                  color="#8B5CF6"
+                  style={styles.detailIcon}
+                />
                 <Text style={styles.detailText}>Upjeevana</Text>
               </View>
             </LinearGradient>
@@ -130,9 +219,14 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
           {/* Linkage Loan Section */}
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionHeader}>Linkage Loan</Text>
-            <TouchableOpacity style={styles.linkageLoanButton} onPress={() => navigation.navigate("LinkageLoan")}>
+            <TouchableOpacity
+              style={styles.linkageLoanButton}
+              onPress={() => navigation.navigate("LinkageLoan")}
+            >
               <Ionicons name="link-outline" size={24} color="#8B5CF6" />
-              <Text style={styles.linkageLoanText}>View Linkage Loan Details</Text>
+              <Text style={styles.linkageLoanText}>
+                View Linkage Loan Details
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -140,15 +234,32 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionHeader}>Loan Actions</Text>
             <View style={styles.loanActionsContainer}>
-              <TouchableOpacity style={styles.loanActionItem} onPress={() => navigation.navigate("ApplyLoan")}>
+              <TouchableOpacity
+                style={styles.loanActionItem}
+                onPress={() =>
+                  navigation.navigate("ApplyLoan", {
+                    phoneNumber: "9747424242",
+                  })
+                }
+              >
                 <Ionicons name="add-circle-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.loanActionText}>Apply for New Loan</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.loanActionItem} onPress={() => navigation.navigate("PayPendingLoan")}>
+              <TouchableOpacity
+                style={styles.loanActionItem}
+                onPress={() => navigation.navigate("PayPendingLoan")}
+              >
                 <Ionicons name="card-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.loanActionText}>Pay Pending Loans</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.loanActionItem} onPress={() => navigation.navigate("PayWeeklyDue")}>
+              <TouchableOpacity
+                style={styles.loanActionItem}
+                onPress={() =>
+                  navigation.navigate("PayWeeklyDue", {
+                    memberId: "actual-member-id",
+                  })
+                }
+              >
                 <Ionicons name="calendar-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.loanActionText}>Pay Weekly Due</Text>
               </TouchableOpacity>
@@ -157,24 +268,60 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
         </Animated.View>
       </ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 // Main Navigator for all screens (unchanged)
 export default function KudumbashreeDetailsScreen() {
   return (
     <Stack.Navigator>
-      <Stack.Screen name="MainDetails" component={MainDetailsScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Savings" component={SavingsScreen} />
-      <Stack.Screen name="Loan" component={LoanScreen} />
-      <Stack.Screen name="Balance" component={BalanceScreen} />
-      <Stack.Screen name="Pending" component={PendingScreen} />
-      <Stack.Screen name="LinkageLoan" component={LinkageLoanScreen} />
-      <Stack.Screen name="ApplyLoan" component={ApplyLoanScreen} />
-      <Stack.Screen name="PayPendingLoan" component={PayPendingLoanScreen} />
-      <Stack.Screen name="PayWeeklyDue" component={PayWeeklyDueScreen} />
+      <Stack.Screen
+        name="MainDetails"
+        component={MainDetailsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Savings"
+        component={SavingsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Loan"
+        component={LoanScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Balance"
+        component={BalanceScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Pending"
+        component={PendingScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="LinkageLoan"
+        component={LinkageLoanScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ApplyLoan"
+        component={ApplyLoanScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="PayPendingLoan"
+        component={PayPendingLoanScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="PayWeeklyDue"
+        component={PayWeeklyDueScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -187,16 +334,23 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   header: {
-    paddingTop: 20,
+    paddingTop: 10,
     paddingBottom: 10,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
+    alignItems: "center",
   },
   pageHeading: {
     fontFamily: "Poppins_700Bold",
     fontSize: 28,
     color: "#fff",
+    textAlign: "center",
+  },
+  unitNumber: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.9)",
     textAlign: "center",
   },
   sectionContainer: {
@@ -287,5 +441,4 @@ const styles = StyleSheet.create({
     color: "#4B5563",
     marginLeft: 10,
   },
-})
-
+});
