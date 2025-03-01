@@ -6,6 +6,9 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
+  Modal,
+  Platform,
+  Alert, // Add this import
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -23,6 +26,11 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
+import { format } from "date-fns";
+import * as FileSystem from "expo-file-system";
+import { StorageAccessFramework } from "expo-file-system";
 
 interface LoanApplication {
   id: string;
@@ -34,6 +42,11 @@ interface LoanApplication {
   createdAt: Date;
 }
 
+interface FilterOptions {
+  sortBy: "date" | "amount" | "status";
+  order: "asc" | "desc";
+}
+
 export default function LoanScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [loans, setLoans] = useState<LoanApplication[]>([]);
@@ -42,10 +55,22 @@ export default function LoanScreen({ navigation }) {
     Poppins_600SemiBold,
     Poppins_700Bold,
   });
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+    sortBy: "date",
+    order: "desc",
+  });
+  const [sortedLoans, setSortedLoans] = useState<LoanApplication[]>([]);
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
 
   useEffect(() => {
     fetchLoans();
   }, []);
+
+  useEffect(() => {
+    const sorted = sortLoans(loans);
+    setSortedLoans(sorted);
+  }, [loans, filterOptions]);
 
   const fetchLoans = async () => {
     try {
@@ -83,6 +108,116 @@ export default function LoanScreen({ navigation }) {
     }
   };
 
+  const sortLoans = (loansToSort: LoanApplication[]) => {
+    return [...loansToSort].sort((a, b) => {
+      switch (filterOptions.sortBy) {
+        case "date":
+          return filterOptions.order === "desc"
+            ? b.createdAt.getTime() - a.createdAt.getTime()
+            : a.createdAt.getTime() - b.createdAt.getTime();
+        case "amount":
+          return filterOptions.order === "desc"
+            ? b.amount - a.amount
+            : a.amount - b.amount;
+        case "status":
+          const statusOrder = { approved: 3, pending: 2, rejected: 1 };
+          const statusA = statusOrder[a.status] || 0;
+          const statusB = statusOrder[b.status] || 0;
+          return filterOptions.order === "desc"
+            ? statusB - statusA
+            : statusA - statusB;
+        default:
+          return 0;
+      }
+    });
+  };
+
+  const generatePDF = async () => {
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+            th { background-color: #8B5CF6; color: white; }
+            .status-approved { color: #10B981; }
+            .status-rejected { color: #EF4444; }
+            .status-pending { color: #F59E0B; }
+            h1 { color: #8B5CF6; }
+          </style>
+        </head>
+        <body>
+          <h1>Loan Applications History</h1>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Purpose</th>
+                <th>Period</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sortLoans(loans)
+                .map(
+                  (loan) => `
+                <tr>
+                  <td>${format(loan.createdAt, "dd/MM/yyyy")}</td>
+                  <td>${loan.loanType}</td>
+                  <td>₹${loan.amount}</td>
+                  <td>${loan.purpose}</td>
+                  <td>${loan.repaymentPeriod} months</td>
+                  <td class="status-${loan.status}">${loan.status}</td>
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    try {
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+
+      if (Platform.OS === "ios") {
+        // Show preview on iOS
+        await Print.printAsync({ uri });
+      } else {
+        // On Android, save to downloads
+        const permissions =
+          await StorageAccessFramework.requestDirectoryPermissionsAsync();
+
+        if (permissions.granted) {
+          const base64 = await FileSystem.readAsStringAsync(uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+
+          await StorageAccessFramework.createFileAsync(
+            permissions.directoryUri,
+            "loan-history.pdf",
+            "application/pdf"
+          ).then(async (fileUri) => {
+            await FileSystem.writeAsStringAsync(fileUri, base64, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            Alert.alert("Success", "PDF saved to your downloads folder", [
+              { text: "OK" },
+            ]);
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      Alert.alert("Error", "Failed to generate PDF");
+    }
+  };
+
   if (!fontsLoaded) {
     return null;
   }
@@ -102,6 +237,21 @@ export default function LoanScreen({ navigation }) {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Your Loan Applications</Text>
         </LinearGradient>
+
+        {/* Add this new section below the header */}
+        <View style={styles.actionBar}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => setFilterModalVisible(true)}
+          >
+            <Ionicons name="filter" size={24} color="#8B5CF6" />
+            <Text style={styles.actionButtonText}>Sort</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton} onPress={generatePDF}>
+            <Ionicons name="download-outline" size={24} color="#8B5CF6" />
+            <Text style={styles.actionButtonText}>Export PDF</Text>
+          </TouchableOpacity>
+        </View>
 
         {loading ? (
           <ActivityIndicator
@@ -124,7 +274,7 @@ export default function LoanScreen({ navigation }) {
           </View>
         ) : (
           <View style={styles.loansContainer}>
-            {loans.map((loan) => (
+            {sortedLoans.map((loan) => (
               <View key={loan.id} style={styles.loanCard}>
                 <View style={styles.loanHeader}>
                   <Text style={styles.loanType}>
@@ -166,6 +316,132 @@ export default function LoanScreen({ navigation }) {
             ))}
           </View>
         )}
+        <Modal
+          visible={filterModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setFilterModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Sort Loans</Text>
+
+              <TouchableOpacity
+                style={[
+                  styles.filterOption,
+                  filterOptions.sortBy === "date" &&
+                    styles.filterOptionSelected,
+                ]}
+                onPress={() => {
+                  setFilterOptions({
+                    sortBy: "date",
+                    order: filterOptions.order,
+                  });
+                  setSortedLoans(sortLoans(loans));
+                }}
+              >
+                <Text
+                  style={[
+                    styles.filterOptionText,
+                    filterOptions.sortBy === "date" && { color: "#fff" },
+                  ]}
+                >
+                  Date
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.filterOption,
+                  filterOptions.sortBy === "amount" &&
+                    styles.filterOptionSelected,
+                ]}
+                onPress={() => {
+                  setFilterOptions({
+                    sortBy: "amount",
+                    order: filterOptions.order,
+                  });
+                  setSortedLoans(sortLoans(loans));
+                }}
+              >
+                <Text
+                  style={[
+                    styles.filterOptionText,
+                    filterOptions.sortBy === "amount" && { color: "#fff" },
+                  ]}
+                >
+                  Amount
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.filterOption,
+                  filterOptions.sortBy === "status" &&
+                    styles.filterOptionSelected,
+                ]}
+                onPress={() => {
+                  setFilterOptions({
+                    sortBy: "status",
+                    order: filterOptions.order,
+                  });
+                  setSortedLoans(sortLoans(loans));
+                }}
+              >
+                <Text
+                  style={[
+                    styles.filterOptionText,
+                    filterOptions.sortBy === "status" && { color: "#fff" },
+                  ]}
+                >
+                  Status
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.orderContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.orderOption,
+                    filterOptions.order === "asc" && styles.orderOptionSelected,
+                  ]}
+                  onPress={() =>
+                    setFilterOptions({ ...filterOptions, order: "asc" })
+                  }
+                >
+                  <Ionicons
+                    name="arrow-up"
+                    size={20}
+                    color={filterOptions.order === "asc" ? "#fff" : "#1F2937"}
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.orderOption,
+                    filterOptions.order === "desc" &&
+                      styles.orderOptionSelected,
+                  ]}
+                  onPress={() =>
+                    setFilterOptions({ ...filterOptions, order: "desc" })
+                  }
+                >
+                  <Ionicons
+                    name="arrow-down"
+                    size={20}
+                    color={filterOptions.order === "desc" ? "#fff" : "#1F2937"}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={styles.applyButton}
+                onPress={() => setFilterModalVisible(false)}
+              >
+                <Text style={styles.applyButtonText}>Apply</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -282,5 +558,84 @@ const styles = StyleSheet.create({
     color: "#1F2937",
     flex: 1,
     textAlign: "right",
+  },
+  headerButtons: {
+    flexDirection: "row",
+    position: "absolute",
+    right: 16,
+    top: 50,
+  },
+  headerButton: {
+    marginLeft: 16,
+    padding: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  modalTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 18,
+    color: "#1F2937",
+    marginBottom: 16,
+  },
+  filterOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: "#F3F4F6",
+  },
+  filterOptionSelected: {
+    backgroundColor: "#8B5CF6",
+  },
+  filterOptionText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 16,
+    color: "#1F2937",
+  },
+  orderContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 16,
+  },
+  orderOption: {
+    padding: 8,
+    marginHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
+  },
+  orderOptionSelected: {
+    backgroundColor: "#8B5CF6",
+  },
+  actionBar: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+    backgroundColor: "#fff",
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginLeft: 12,
+    backgroundColor: "#F3F4F6",
+  },
+  actionButtonText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: "#8B5CF6",
+    marginLeft: 4,
   },
 });

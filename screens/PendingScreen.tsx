@@ -6,6 +6,7 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,29 +23,44 @@ import {
   query,
   where,
   getDocs,
+  doc,
+  getDoc,
 } from "firebase/firestore";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { RootStackParamList } from "../types/navigation";
+import { useIsFocused } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface PendingLoan {
   id: string;
   amount: number;
   purpose: string;
   loanType: string;
-  dueDate: Date;
+  startDate: Date;
+  repaymentPeriod: number; // in months
+  monthlyDue: number;
   pendingAmount: number;
-  weeklyDue: number;
+  paidMonths: number[];
+  totalMonths: number;
+  progress: number; // Add this line
+  memberName: string;
+  unitId: string;
 }
 
-interface WeeklyDue {
+interface MemberData {
   id: string;
-  dueDate: Date;
-  amount: number;
-  status: "pending" | "paid";
+  phoneNumber: string;
 }
 
-export default function PendingScreen({ navigation }) {
+type PendingScreenProps = {
+  navigation: StackNavigationProp<RootStackParamList, "Pending">;
+};
+
+export default function PendingScreen({ navigation }: PendingScreenProps) {
   const [loading, setLoading] = useState(true);
   const [pendingLoans, setPendingLoans] = useState<PendingLoan[]>([]);
-  const [weeklyDues, setWeeklyDues] = useState<WeeklyDue[]>([]);
+  const [memberData, setMemberData] = useState<MemberData | null>(null);
+  const isFocused = useIsFocused();
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -52,44 +68,67 @@ export default function PendingScreen({ navigation }) {
     Poppins_700Bold,
   });
 
-  useEffect(() => {
-    fetchPendingData();
-  }, []);
+  // First, add state for member details
+  const [memberDetails, setMemberDetails] = useState<{
+    name: string;
+    unitId: string;
+  } | null>(null);
 
-  const fetchPendingData = async () => {
+  useEffect(() => {
+    if (isFocused) {
+      setLoading(true);
+      fetchPendingData("9747424242"); // Directly pass the memberId
+    }
+  }, [isFocused]);
+
+  // Update fetchPendingData to also fetch member details
+  const fetchPendingData = async (memberId: string) => {
     try {
       const db = getFirestore();
 
-      // Fetch pending loans
+      // Fetch member details
+      const memberDoc = await getDoc(doc(db, "K-member", memberId));
+      if (memberDoc.exists()) {
+        const data = memberDoc.data();
+        setMemberDetails({
+          name: data.name,
+          unitId: `${data.unitName}-${data.unitNumber}`,
+        });
+      }
+
+      // Fetch loans directly using memberId
       const loansQuery = query(
         collection(db, "loanApplications"),
-        where("memberId", "==", "9747424242"),
+        where("memberId", "==", memberId),
         where("status", "==", "approved")
       );
 
       const loansSnapshot = await getDocs(loansQuery);
-      const loans = loansSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        dueDate: doc.data().dueDate?.toDate() || new Date(),
-      })) as PendingLoan[];
-
-      // Fetch weekly dues
-      const duesQuery = query(
-        collection(db, "weeklyDues"),
-        where("memberId", "==", "9747424242"),
-        where("status", "==", "pending")
-      );
-
-      const duesSnapshot = await getDocs(duesQuery);
-      const dues = duesSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        dueDate: doc.data().dueDate?.toDate() || new Date(),
-      })) as WeeklyDue[];
+      const loans = loansSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          amount: data.amount,
+          purpose: data.purpose,
+          loanType: data.loanType,
+          startDate: data.createdAt?.toDate() || new Date(),
+          repaymentPeriod: data.repaymentPeriod || 12,
+          monthlyDue: Math.ceil(data.amount / (data.repaymentPeriod || 12)),
+          paidMonths: data.paidMonths || [],
+          totalMonths: data.repaymentPeriod || 12,
+          memberName: data.memberName,
+          unitId: data.unitId,
+          pendingAmount:
+            data.amount -
+            Math.ceil(data.amount / (data.repaymentPeriod || 12)) *
+              (data.paidMonths?.length || 0),
+          progress:
+            ((data.paidMonths?.length || 0) / (data.repaymentPeriod || 12)) *
+            100,
+        };
+      }) as PendingLoan[];
 
       setPendingLoans(loans);
-      setWeeklyDues(dues);
     } catch (error) {
       console.error("Error fetching pending data:", error);
     } finally {
@@ -124,75 +163,75 @@ export default function PendingScreen({ navigation }) {
             style={styles.loader}
           />
         ) : (
-          <>
-            {/* Pending Loans Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Pending Loans</Text>
-              {pendingLoans.length === 0 ? (
-                <Text style={styles.emptyText}>No pending loans</Text>
-              ) : (
-                pendingLoans.map((loan) => (
-                  <View key={loan.id} style={styles.card}>
-                    <View style={styles.cardHeader}>
-                      <Text style={styles.loanType}>
-                        {loan.loanType.toUpperCase()} LOAN
-                      </Text>
-                      <Text style={styles.amount}>₹{loan.pendingAmount}</Text>
-                    </View>
-                    <View style={styles.cardBody}>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.label}>Weekly Due:</Text>
-                        <Text style={styles.value}>₹{loan.weeklyDue}</Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Pending Loans</Text>
+            {pendingLoans.length === 0 ? (
+              <Text style={styles.emptyText}>No pending loans</Text>
+            ) : (
+              pendingLoans.map((loan) => (
+                <View key={loan.id} style={styles.card}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.loanType}>
+                      {loan.loanType.toUpperCase()} LOAN
+                    </Text>
+                  </View>
+                  <View style={styles.cardBody}>
+                    <View style={styles.amountContainer}>
+                      <View style={styles.amountBox}>
+                        <Text style={styles.amountLabel}>Total Amount</Text>
+                        <Text style={styles.totalAmount}>₹{loan.amount}</Text>
                       </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.label}>Next Due Date:</Text>
-                        <Text style={styles.value}>
-                          {loan.dueDate.toLocaleDateString()}
+                      <View style={styles.amountBox}>
+                        <Text style={styles.amountLabel}>Pending Amount</Text>
+                        <Text
+                          style={[styles.totalAmount, styles.pendingAmount]}
+                        >
+                          ₹{loan.pendingAmount}
                         </Text>
                       </View>
-                      <TouchableOpacity
-                        style={styles.payButton}
-                        onPress={() =>
-                          navigation.navigate("PayPendingLoan", {
-                            loanId: loan.id,
-                          })
-                        }
-                      >
-                        <Text style={styles.payButtonText}>Pay Now</Text>
-                      </TouchableOpacity>
                     </View>
-                  </View>
-                ))
-              )}
-            </View>
-
-            {/* Weekly Dues Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Weekly Dues</Text>
-              {weeklyDues.length === 0 ? (
-                <Text style={styles.emptyText}>No pending weekly dues</Text>
-              ) : (
-                weeklyDues.map((due) => (
-                  <View key={due.id} style={styles.card}>
-                    <View style={styles.cardHeader}>
-                      <Text style={styles.dueDate}>
-                        Due: {due.dueDate.toLocaleDateString()}
+                    <View style={styles.detailRow}>
+                      <Text style={styles.label}>Monthly Due:</Text>
+                      <Text style={styles.value}>₹{loan.monthlyDue}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.label}>Progress:</Text>
+                      <Text style={styles.value}>
+                        {loan.paidMonths.length}/{loan.totalMonths} months
                       </Text>
-                      <Text style={styles.amount}>₹{due.amount}</Text>
+                    </View>
+                    <View style={styles.progressBar}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          {
+                            width: `${
+                              (loan.paidMonths.length / loan.totalMonths) * 100
+                            }%`,
+                          },
+                        ]}
+                      />
                     </View>
                     <TouchableOpacity
                       style={styles.payButton}
                       onPress={() =>
-                        navigation.navigate("PayWeeklyDue", { dueId: due.id })
+                        navigation.navigate("PayLoanDue", {
+                          loanId: loan.id,
+                          totalMonths: loan.totalMonths,
+                          paidMonths: loan.paidMonths,
+                          monthlyDue: loan.monthlyDue,
+                          loanType: loan.loanType,
+                          startDate: loan.startDate,
+                        })
                       }
                     >
-                      <Text style={styles.payButtonText}>Pay Now</Text>
+                      <Text style={styles.payButtonText}>Pay Monthly Due</Text>
                     </TouchableOpacity>
                   </View>
-                ))
-              )}
-            </View>
-          </>
+                </View>
+              ))
+            )}
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -308,5 +347,49 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_600SemiBold",
     fontSize: 14,
     color: "#fff",
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 2,
+    marginVertical: 12,
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#8B5CF6",
+    borderRadius: 2,
+  },
+  amountContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  amountBox: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: 8,
+  },
+  amountLabel: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  totalAmount: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 18,
+    color: "#1F2937",
+  },
+  pendingAmount: {
+    color: "#EF4444",
+  },
+  dueTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "#1F2937",
+    flex: 1,
   },
 });

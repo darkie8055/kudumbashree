@@ -43,6 +43,7 @@ import LoanApprovalScreen from "./screens/LoanApprovalScreen";
 import ApplyLoanScreen from "./screens/ApplyLoanScreen";
 import WeeklyDueSetupScreen from "./screens/WeeklyDueSetupScreen";
 import PayWeeklyDueScreen from "./screens/PayWeeklyDueScreen";
+import PayLoanDueScreen from './screens/PayLoanDueScreen';
 
 import ViewReportsScreen from "./screens/ViewReportsScreen";
 
@@ -335,6 +336,13 @@ export default function App() {
           <Stack.Screen
             name="PayWeeklyDue"
             component={PayWeeklyDueScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="PayLoanDue"
+            component={PayLoanDueScreen}
             options={{
               headerShown: false,
             }}

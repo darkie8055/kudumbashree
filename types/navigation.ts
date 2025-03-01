@@ -36,9 +36,19 @@ export type RootStackParamList = {
   PayPendingLoan: undefined;
   PayWeeklyDue: {
     memberId: string;
+    memberName: string;
+    unitId: string;
   };
   WeeklyDueSetup: undefined;
   ViewReports: undefined;
+  PayLoanDue: {
+    loanId: string;
+    totalMonths: number;
+    paidMonths: number[];
+    monthlyDue: number;
+    loanType: string;
+    startDate: Date;
+  };
 };
 
 // President stack
