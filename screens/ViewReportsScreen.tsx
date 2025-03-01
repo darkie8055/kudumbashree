@@ -6,6 +6,8 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
+  Alert,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,11 +24,24 @@ import {
   query,
   getDocs,
   where,
+  updateDoc,
+  doc,
 } from "firebase/firestore";
+import * as Print from "expo-print";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
+import { format } from "date-fns";
+import { Platform } from "react-native";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import type { RootStackParamList } from "../types/navigation";
+
+// Replace the StorageAccessFramework import with this
+const StorageAccessFramework = FileSystem.StorageAccessFramework;
 
 interface MemberReport {
   memberId: string;
   memberName: string;
+  phoneNumber: string;
   weeklyDues: {
     total: number;
     paid: number;
@@ -39,10 +54,71 @@ interface MemberReport {
   };
 }
 
-export default function ViewReportsScreen({ navigation }) {
+interface LoanReport {
+  id: string;
+  memberId: string;
+  memberName: string;
+  amount: number;
+  purpose: string;
+  loanType: string;
+  repaymentPeriod: number;
+  status: "pending" | "approved" | "rejected";
+  createdAt: Date;
+  paidMonths: number[];
+  pendingAmount: number;
+  totalPaid: number;
+}
+
+// First, create a const array of valid sort options
+const SORT_OPTIONS = ["date", "amount", "status", "member"] as const;
+type SortOption = (typeof SORT_OPTIONS)[number];
+
+// Add these constants at the top with other interfaces
+const ORDER_OPTIONS = ["asc", "desc"] as const;
+type OrderOption = (typeof ORDER_OPTIONS)[number];
+
+const STATUS_OPTIONS = ["all", "pending", "approved", "rejected"] as const;
+type StatusOption = (typeof STATUS_OPTIONS)[number];
+
+// Add this type definition at the top with other interfaces
+type StatusOrderType = {
+  [key: string]: number;
+  approved: number;
+  pending: number;
+  rejected: number;
+};
+
+// Update the FilterOptions interface
+interface FilterOptions {
+  sortBy: SortOption;
+  order: OrderOption;
+  status: StatusOption;
+}
+
+type ViewReportsScreenProps = {
+  navigation: StackNavigationProp<RootStackParamList, "ViewReports">;
+};
+
+// Add this utility function near the top of the file
+const formatCurrency = (amount: number): string => {
+  return Math.floor(amount).toLocaleString("en-IN");
+};
+
+export default function ViewReportsScreen({
+  navigation,
+}: ViewReportsScreenProps) {
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<MemberReport[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [loans, setLoans] = useState<LoanReport[]>([]);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+    sortBy: "date",
+    order: "desc",
+    status: "all",
+  });
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -52,48 +128,91 @@ export default function ViewReportsScreen({ navigation }) {
 
   useEffect(() => {
     fetchReports();
+    fetchLoans();
   }, [currentMonth]);
 
+  // Update the fetchReports function
   const fetchReports = async () => {
     setLoading(true);
     try {
       const db = getFirestore();
+      const startOfMonth = new Date(
+        currentMonth.getFullYear(),
+        currentMonth.getMonth(),
+        1
+      );
+      const endOfMonth = new Date(
+        currentMonth.getFullYear(),
+        currentMonth.getMonth() + 1,
+        0,
+        23,
+        59,
+        59
+      );
+
       const membersSnapshot = await getDocs(
         query(collection(db, "K-member"), where("status", "==", "approved"))
       );
 
       const reportsPromises = membersSnapshot.docs.map(async (memberDoc) => {
         const memberData = memberDoc.data();
-        
-        // Get weekly dues for the month
-        const duesQuery = query(
-          collection(db, "weeklyDuePayments"),
-          where("memberId", "==", memberDoc.id),
-          where("paidAt", ">=", new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)),
-          where("paidAt", "<=", new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0))
-        );
-        const duesSnapshot = await getDocs(duesQuery);
-        
-        // Get active loans
-        const loansQuery = query(
-          collection(db, "loanApplications"),
-          where("memberId", "==", memberDoc.id),
-          where("status", "==", "approved")
-        );
-        const loansSnapshot = await getDocs(loansQuery);
+        const fullName = `${memberData.firstName || ""} ${
+          memberData.lastName || ""
+        }`.trim();
+
+        // Initialize defaults
+        let duesData = { size: 0 };
+        let loansData = { docs: [], size: 0 };
+
+        try {
+          const duesQuery = query(
+            collection(db, "weeklyDuePayments"),
+            where("memberId", "==", memberDoc.id),
+            where("paidAt", ">=", startOfMonth),
+            where("paidAt", "<=", endOfMonth)
+          );
+
+          const loansQuery = query(
+            collection(db, "loanApplications"),
+            where("memberId", "==", memberDoc.id),
+            where("status", "==", "approved")
+          );
+
+          [duesData, loansData] = await Promise.all([
+            getDocs(duesQuery),
+            getDocs(loansQuery),
+          ]);
+        } catch (error) {
+          // Silently handle error and continue with defaults
+        }
+
+        let totalAmount = 0;
+        let pendingAmount = 0;
+
+        loansData.docs.forEach((loanDoc) => {
+          const loanData = loanDoc.data();
+          const loanAmount = loanData.amount || 0;
+          totalAmount += loanAmount;
+
+          const paidMonths = loanData.paidMonths || [];
+          const monthlyAmount = loanAmount / (loanData.repaymentPeriod || 12);
+          const paidAmount = monthlyAmount * paidMonths.length;
+          pendingAmount += Math.max(0, loanAmount - paidAmount);
+        });
 
         return {
           memberId: memberDoc.id,
-          memberName: memberData.name,
+          memberName: fullName,
+          phoneNumber: memberData.phone || "",
           weeklyDues: {
-            total: 4, // Assuming 4 weeks per month
-            paid: duesSnapshot.size,
-            pending: 4 - duesSnapshot.size,
+            total: 4,
+            paid: duesData.size,
+            pending: 4 - duesData.size,
           },
           loans: {
-            active: loansSnapshot.size,
-            totalAmount: loansSnapshot.docs.reduce((sum, doc) => sum + doc.data().amount, 0),
-            pendingAmount: loansSnapshot.docs.reduce((sum, doc) => sum + doc.data().pendingAmount, 0),
+            active: loansData.size,
+            totalAmount,
+            pendingAmount,
           },
         };
       });
@@ -101,9 +220,383 @@ export default function ViewReportsScreen({ navigation }) {
       const reportsData = await Promise.all(reportsPromises);
       setMembers(reportsData);
     } catch (error) {
-      console.error("Error fetching reports:", error);
+      Alert.alert("Error", "Failed to load reports");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Update the getLoanPendingAmount function
+  const getLoanPendingAmount = (loanAmount: number, paidMonths: number[]) => {
+    const monthlyAmount = loanAmount / 12; // Assuming 12 months repayment period
+    const paidAmount = monthlyAmount * (paidMonths?.length || 0);
+    return Math.floor(Math.max(0, loanAmount - paidAmount)); // Add Math.floor here
+  };
+
+  // Update the fetchLoans function to include payment information
+  const fetchLoans = async () => {
+    try {
+      const db = getFirestore();
+      const startOfMonth = new Date(
+        currentMonth.getFullYear(),
+        currentMonth.getMonth(),
+        1
+      );
+      const endOfMonth = new Date(
+        currentMonth.getFullYear(),
+        currentMonth.getMonth() + 1,
+        0,
+        23,
+        59,
+        59
+      );
+
+      const membersSnapshot = await getDocs(
+        query(collection(db, "K-member"), where("status", "==", "approved"))
+      );
+
+      const loansPromises = membersSnapshot.docs.map(async (memberDoc) => {
+        const memberData = memberDoc.data();
+
+        const loansQuery = query(
+          collection(db, "loanApplications"),
+          where("memberId", "==", memberDoc.id),
+          where("createdAt", ">=", startOfMonth),
+          where("createdAt", "<=", endOfMonth)
+        );
+
+        try {
+          const loansSnapshot = await getDocs(loansQuery);
+          const loanPromises = loansSnapshot.docs.map(async (doc) => {
+            const loanData = doc.data();
+            const amount = loanData.amount || 0;
+            const paidMonths = loanData.paidMonths || [];
+            const pendingAmount = getLoanPendingAmount(amount, paidMonths);
+
+            return {
+              id: doc.id,
+              memberId: memberDoc.id,
+              memberName: `${memberData.firstName || ""} ${
+                memberData.lastName || ""
+              }`.trim(),
+              amount: amount,
+              purpose: loanData.purpose || "",
+              loanType: loanData.loanType || "",
+              repaymentPeriod: loanData.repaymentPeriod || 12,
+              status: loanData.status || "pending",
+              createdAt: loanData.createdAt?.toDate() || new Date(),
+              paidMonths: paidMonths,
+              pendingAmount: pendingAmount,
+              totalPaid: amount - pendingAmount,
+            } as LoanReport;
+          });
+
+          return await Promise.all(loanPromises);
+        } catch (error) {
+          console.error(
+            `Error fetching loans for member ${memberDoc.id}:`,
+            error
+          );
+          return [];
+        }
+      });
+
+      const allLoans = (await Promise.all(loansPromises)).flat();
+      setLoans(allLoans);
+    } catch (error) {
+      console.error("Error fetching loans:", error);
+      Alert.alert("Error", "Failed to load loan data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (loanId: string, newStatus: string) => {
+    try {
+      const db = getFirestore();
+      await updateDoc(doc(db, "loanApplications", loanId), {
+        status: newStatus,
+        updatedAt: new Date(),
+      });
+
+      Alert.alert("Success", "Loan status updated successfully");
+      fetchLoans(); // Refresh the loans list
+    } catch (error) {
+      console.error("Error updating loan status:", error);
+      Alert.alert("Error", "Failed to update loan status");
+    }
+  };
+
+  const getSortedLoans = () => {
+    let filteredLoans = [...loans];
+
+    if (selectedStatus !== "all") {
+      filteredLoans = filteredLoans.filter(
+        (loan) => loan.status === selectedStatus
+      );
+    }
+
+    const statusOrder: StatusOrderType = {
+      approved: 3,
+      pending: 2,
+      rejected: 1,
+    };
+
+    return filteredLoans.sort((a, b) => {
+      switch (filterOptions.sortBy) {
+        case "date":
+          return filterOptions.order === "desc"
+            ? b.createdAt.getTime() - a.createdAt.getTime()
+            : a.createdAt.getTime() - b.createdAt.getTime();
+        case "amount":
+          return filterOptions.order === "desc"
+            ? b.amount - a.amount
+            : a.amount - b.amount;
+        case "member":
+          return filterOptions.order === "desc"
+            ? b.memberName.localeCompare(a.memberName)
+            : a.memberName.localeCompare(b.memberName);
+        case "status":
+          const statusOrder = { approved: 3, pending: 2, rejected: 1 };
+          return filterOptions.order === "desc"
+            ? (statusOrder[b.status] || 0) - (statusOrder[a.status] || 0)
+            : (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0);
+        default:
+          return 0;
+      }
+    });
+  };
+
+  const savePDFToDownloads = async (uri: string, fileName: string) => {
+    try {
+      if (Platform.OS === "android") {
+        try {
+          const permissions =
+            await StorageAccessFramework.requestDirectoryPermissionsAsync();
+
+          if (permissions.granted) {
+            try {
+              // Create file in the selected directory with proper path handling
+              const destinationUri =
+                await StorageAccessFramework.createFileAsync(
+                  permissions.directoryUri,
+                  fileName,
+                  "application/pdf"
+                );
+
+              // Read the source file
+              const fileContent = await FileSystem.readAsStringAsync(uri, {
+                encoding: FileSystem.EncodingType.Base64,
+              });
+
+              // Write to the destination
+              await FileSystem.writeAsStringAsync(destinationUri, fileContent, {
+                encoding: FileSystem.EncodingType.Base64,
+              });
+
+              Alert.alert("Success", `Report saved as ${fileName}`, [
+                { text: "OK" },
+              ]);
+            } catch (writeError) {
+              console.error("Write error:", writeError);
+              Alert.alert("Error", "Could not write file to selected location");
+            }
+          } else {
+            Alert.alert(
+              "Permission Required",
+              "Please grant permission to save files",
+              [{ text: "OK" }]
+            );
+          }
+        } catch (error) {
+          console.error("Permission error:", error);
+          Alert.alert(
+            "Error",
+            "Could not access storage. Please check app permissions."
+          );
+        }
+      } else {
+        Alert.alert(
+          "Not Supported",
+          "This feature is only available on Android devices."
+        );
+      }
+    } catch (error) {
+      console.error("Error saving PDF:", error);
+      Alert.alert("Error", "Failed to save PDF");
+    }
+  };
+
+  const generatePDF = async () => {
+    try {
+      const sortedLoans = getSortedLoans();
+      const totalAmount = sortedLoans.reduce(
+        (sum, loan) => sum + loan.amount,
+        0
+      );
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; }
+              h1 { color: #8B5CF6; text-align: center; }
+              .summary { margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+              th { background-color: #8B5CF6; color: white; }
+              .status-approved { color: #10B981; }
+              .status-rejected { color: #EF4444; }
+              .status-pending { color: #F59E0B; }
+            </style>
+          </head>
+          <body>
+            <h1>Kudumbashree Unit Loan Report</h1>
+            
+            <div class="summary">
+              <h2>Summary</h2>
+              <p>Total Loans: ${sortedLoans.length}</p>
+              <p>Approved Loans: ${
+                sortedLoans.filter((l) => l.status === "approved").length
+              }</p>
+              <p>Pending Loans: ${
+                sortedLoans.filter((l) => l.status === "pending").length
+              }</p>
+              <p>Total Amount: ₹${formatCurrency(totalAmount)}</p>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Member Name</th>
+                  <th>Loan Type</th>
+                  <th>Amount</th>
+                  <th>Purpose</th>
+                  <th>Status</th>
+                  <th>Applied Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${sortedLoans
+                  .map(
+                    (loan) => `
+                  <tr>
+                    <td>${loan.memberName}</td>
+                    <td>${loan.loanType}</td>
+                    <td>₹${formatCurrency(loan.amount)}</td>
+                    <td>${loan.purpose}</td>
+                    <td class="status-${loan.status}">${loan.status}</td>
+                    <td>${format(loan.createdAt, "dd/MM/yyyy")}</td>
+                  </tr>
+                `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({
+        html: htmlContent,
+        base64: false,
+      });
+
+      const fileName = `kudumbashree-report-${format(
+        new Date(),
+        "yyyy-MM-dd-HHmmss"
+      )}.pdf`;
+      await savePDFToDownloads(uri, fileName);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      Alert.alert("Error", "Failed to generate PDF report");
+    }
+  };
+
+  const generateMemberReport = async (member: MemberReport) => {
+    const memberLoans = loans.filter(
+      (loan) => loan.memberId === member.memberId
+    );
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #8B5CF6; text-align: center; }
+            .member-info { margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+            th { background-color: #8B5CF6; color: white; }
+            .status-approved { color: #10B981; }
+            .status-rejected { color: #EF4444; }
+            .status-pending { color: #F59E0B; }
+          </style>
+        </head>
+        <body>
+          <h1>Member Report - ${member.memberName}</h1>
+          
+          <div class="member-info">
+            <h2>Weekly Dues Summary</h2>
+            <p>Total Weeks: ${member.weeklyDues.total}</p>
+            <p>Paid Weeks: ${member.weeklyDues.paid}</p>
+            <p>Pending Weeks: ${member.weeklyDues.pending}</p>
+          </div>
+  
+          <div class="member-info">
+            <h2>Loans Summary</h2>
+            <p>Active Loans: ${member.loans.active}</p>
+            <p>Total Amount: ₹${formatCurrency(member.loans.totalAmount)}</p>
+            <p>Pending Amount: ₹${formatCurrency(
+              member.loans.pendingAmount
+            )}</p>
+          </div>
+  
+          <h2>Loan Details</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Loan Type</th>
+                <th>Amount</th>
+                <th>Purpose</th>
+                <th>Status</th>
+                <th>Applied Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${memberLoans
+                .map(
+                  (loan) => `
+                <tr>
+                  <td>${loan.loanType}</td>
+                  <td>₹${formatCurrency(loan.amount)}</td>
+                  <td>${loan.purpose}</td>
+                  <td class="status-${loan.status}">${loan.status}</td>
+                  <td>${format(loan.createdAt, "dd/MM/yyyy")}</td>
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    try {
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      const fileName = `member-report-${member.memberName}-${format(
+        new Date(),
+        "yyyy-MM-dd-HHmm"
+      )}.pdf`;
+      await savePDFToDownloads(uri, fileName);
+      Alert.alert("Success", "Member report generated successfully!");
+    } catch (error) {
+      console.error("Error generating member report:", error);
+      Alert.alert("Error", "Failed to generate member report");
     }
   };
 
@@ -126,7 +619,11 @@ export default function ViewReportsScreen({ navigation }) {
         </LinearGradient>
 
         {loading ? (
-          <ActivityIndicator size="large" color="#8B5CF6" style={styles.loader} />
+          <ActivityIndicator
+            size="large"
+            color="#8B5CF6"
+            style={styles.loader}
+          />
         ) : (
           <View style={styles.content}>
             <View style={styles.monthSelector}>
@@ -156,59 +653,349 @@ export default function ViewReportsScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={styles.filterButton}
+                onPress={() => setFilterModalVisible(true)}
+              >
+                <Ionicons name="filter" size={20} color="#6B7280" />
+                <Text style={styles.filterButtonText}>Filter</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.exportButton}
+                onPress={generatePDF}
+              >
+                <Ionicons name="download-outline" size={20} color="#fff" />
+                <Text style={styles.exportButtonText}>Export Report</Text>
+              </TouchableOpacity>
+            </View>
+
             {members.map((member) => (
               <View key={member.memberId} style={styles.memberCard}>
-                <Text style={styles.memberName}>{member.memberName}</Text>
-                
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Weekly Dues</Text>
-                  <View style={styles.statsRow}>
-                    <View style={styles.stat}>
-                      <Text style={styles.statLabel}>Total</Text>
-                      <Text style={styles.statValue}>{member.weeklyDues.total}</Text>
-                    </View>
-                    <View style={styles.stat}>
-                      <Text style={styles.statLabel}>Paid</Text>
-                      <Text style={[styles.statValue, { color: "#10B981" }]}>
-                        {member.weeklyDues.paid}
+                <TouchableOpacity
+                  onPress={() =>
+                    setExpandedMemberId(
+                      expandedMemberId === member.memberId
+                        ? null
+                        : member.memberId
+                    )
+                  }
+                  style={styles.memberHeader}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.memberName} numberOfLines={1}>
+                      {member.memberName}
+                    </Text>
+                    <View style={styles.memberSummary}>
+                      <Text style={styles.memberPhone}>
+                        {member.phoneNumber}
                       </Text>
-                    </View>
-                    <View style={styles.stat}>
-                      <Text style={styles.statLabel}>Pending</Text>
-                      <Text style={[styles.statValue, { color: "#EF4444" }]}>
-                        {member.weeklyDues.pending}
-                      </Text>
+                      {member.loans.pendingAmount > 0 && (
+                        <Text style={styles.pendingAmount}>
+                          Pending: ₹{formatCurrency(member.loans.pendingAmount)}
+                        </Text>
+                      )}
                     </View>
                   </View>
-                </View>
+                  <Ionicons
+                    name={
+                      expandedMemberId === member.memberId
+                        ? "chevron-up"
+                        : "chevron-down"
+                    }
+                    size={24}
+                    style={styles.expandIcon}
+                  />
+                </TouchableOpacity>
 
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Active Loans</Text>
-                  <View style={styles.statsRow}>
-                    <View style={styles.stat}>
-                      <Text style={styles.statLabel}>Count</Text>
-                      <Text style={styles.statValue}>{member.loans.active}</Text>
+                {expandedMemberId === member.memberId && (
+                  <View style={styles.expandedContent}>
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Weekly Dues</Text>
+                      <View style={styles.statsRow}>
+                        <View style={styles.stat}>
+                          <Text style={styles.statLabel}>Total</Text>
+                          <Text style={styles.statValue}>
+                            {member.weeklyDues.total}
+                          </Text>
+                        </View>
+                        <View style={styles.stat}>
+                          <Text style={styles.statLabel}>Paid</Text>
+                          <Text
+                            style={[styles.statValue, { color: "#10B981" }]}
+                          >
+                            {member.weeklyDues.paid}
+                          </Text>
+                        </View>
+                        <View style={styles.stat}>
+                          <Text style={styles.statLabel}>Pending</Text>
+                          <Text
+                            style={[styles.statValue, { color: "#EF4444" }]}
+                          >
+                            {member.weeklyDues.pending}
+                          </Text>
+                        </View>
+                      </View>
                     </View>
-                    <View style={styles.stat}>
-                      <Text style={styles.statLabel}>Total Amount</Text>
-                      <Text style={styles.statValue}>₹{member.loans.totalAmount}</Text>
+
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Active Loans</Text>
+                      <View style={styles.statsRow}>
+                        <View style={styles.stat}>
+                          <Text style={styles.statLabel}>Count</Text>
+                          <Text style={styles.statValue}>
+                            {member.loans.active}
+                          </Text>
+                        </View>
+                        <View style={styles.stat}>
+                          <Text style={styles.statLabel}>Total Amount</Text>
+                          <Text style={styles.statValue}>
+                            ₹{formatCurrency(member.loans.totalAmount)}
+                          </Text>
+                        </View>
+                        <View style={styles.stat}>
+                          <Text style={styles.statLabel}>Pending</Text>
+                          <Text
+                            style={[styles.statValue, { color: "#EF4444" }]}
+                          >
+                            ₹{formatCurrency(member.loans.pendingAmount)}
+                          </Text>
+                        </View>
+                      </View>
                     </View>
-                    <View style={styles.stat}>
-                      <Text style={styles.statLabel}>Pending</Text>
-                      <Text style={[styles.statValue, { color: "#EF4444" }]}>
-                        ₹{member.loans.pendingAmount}
+
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>
+                        Loan Applications -{" "}
+                        {currentMonth.toLocaleString("default", {
+                          month: "long",
+                          year: "numeric",
+                        })}
                       </Text>
+                      {loans
+                        .filter((loan) => loan.memberId === member.memberId)
+                        .map((loan) => (
+                          <View key={loan.id} style={styles.loanItem}>
+                            <View style={styles.loanHeader}>
+                              <Text style={styles.loanType}>
+                                {loan.loanType}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.loanStatus,
+                                  styles[`status${loan.status}`],
+                                ]}
+                              >
+                                {loan.status}
+                              </Text>
+                            </View>
+                            <View style={styles.loanDetails}>
+                              <View style={styles.loanRow}>
+                                <Text style={styles.loanLabel}>Amount:</Text>
+                                <Text style={styles.loanValue}>
+                                  ₹{formatCurrency(loan.amount)}
+                                </Text>
+                              </View>
+                              <View style={styles.loanRow}>
+                                <Text style={styles.loanLabel}>Purpose:</Text>
+                                <Text style={styles.loanValue}>
+                                  {loan.purpose}
+                                </Text>
+                              </View>
+                              <View style={styles.loanRow}>
+                                <Text style={styles.loanLabel}>
+                                  Applied On:
+                                </Text>
+                                <Text style={styles.loanValue}>
+                                  {format(loan.createdAt, "dd/MM/yyyy")}
+                                </Text>
+                              </View>
+                              <View style={styles.loanRow}>
+                                <Text style={styles.loanLabel}>
+                                  Paid Months:
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.loanValue,
+                                    { color: "#10B981" },
+                                  ]}
+                                >
+                                  {loan.paidMonths?.length || 0} /{" "}
+                                  {loan.repaymentPeriod}
+                                </Text>
+                              </View>
+                              <View style={styles.loanRow}>
+                                <Text style={styles.loanLabel}>
+                                  Pending Amount:
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.loanValue,
+                                    { color: "#EF4444" },
+                                  ]}
+                                >
+                                  ₹{formatCurrency(loan.pendingAmount)}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                        ))}
+                      {loans.filter((loan) => loan.memberId === member.memberId)
+                        .length === 0 && (
+                        <Text
+                          style={[
+                            styles.loanLabel,
+                            { textAlign: "center", marginTop: 8 },
+                          ]}
+                        >
+                          No loan applications for this month
+                        </Text>
+                      )}
                     </View>
+
+                    <TouchableOpacity
+                      style={styles.reportButton}
+                      onPress={() => generateMemberReport(member)}
+                    >
+                      <Ionicons
+                        name="document-text-outline"
+                        size={20}
+                        color="#fff"
+                      />
+                      <Text style={styles.reportButtonText}>
+                        Generate Report
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                </View>
+                )}
               </View>
             ))}
           </View>
         )}
       </ScrollView>
+      <FilterModal
+        visible={filterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        onApply={(options) => setFilterOptions(options)}
+        currentOptions={filterOptions}
+      />
     </SafeAreaView>
   );
 }
+
+// Move FilterModal component here, before styles
+const FilterModal = ({
+  visible,
+  onClose,
+  onApply,
+  currentOptions,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onApply: (options: FilterOptions) => void;
+  currentOptions: FilterOptions;
+}) => {
+  const [options, setOptions] = useState(currentOptions);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Filter Options</Text>
+
+          <Text style={styles.filterLabel}>Sort By</Text>
+          <View style={styles.optionsContainer}>
+            {SORT_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.filterOption,
+                  options.sortBy === option && styles.filterOptionSelected,
+                ]}
+                onPress={() => setOptions({ ...options, sortBy: option })}
+              >
+                <Text
+                  style={[
+                    styles.filterOptionText,
+                    options.sortBy === option &&
+                      styles.filterOptionTextSelected,
+                  ]}
+                >
+                  {option.charAt(0).toUpperCase() + option.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.filterLabel}>Status</Text>
+          <View style={styles.optionsContainer}>
+            {STATUS_OPTIONS.map((status) => (
+              <TouchableOpacity
+                key={status}
+                style={[
+                  styles.filterOption,
+                  options.status === status && styles.filterOptionSelected,
+                ]}
+                onPress={() => setOptions({ ...options, status })}
+              >
+                <Text
+                  style={[
+                    styles.filterOptionText,
+                    options.status === status &&
+                      styles.filterOptionTextSelected,
+                  ]}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.filterLabel}>Order</Text>
+          <View style={styles.optionsContainer}>
+            {ORDER_OPTIONS.map((order) => (
+              <TouchableOpacity
+                key={order}
+                style={[
+                  styles.filterOption,
+                  options.order === order && styles.filterOptionSelected,
+                ]}
+                onPress={() => setOptions({ ...options, order })}
+              >
+                <Text
+                  style={[
+                    styles.filterOptionText,
+                    options.order === order && styles.filterOptionTextSelected,
+                  ]}
+                >
+                  {order === "asc" ? "Ascending" : "Descending"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity style={styles.modalButton} onPress={onClose}>
+              <Text style={styles.modalButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalButtonPrimary]}
+              onPress={() => {
+                onApply(options);
+                onClose();
+              }}
+            >
+              <Text style={[styles.modalButtonText, { color: "#fff" }]}>
+                Apply
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -263,12 +1050,38 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  memberHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    backgroundColor: "#fff", // Add this to ensure background is white
   },
   memberName: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 18,
     color: "#1F2937",
-    marginBottom: 12,
+    flex: 1,
+    marginRight: 8, // Add spacing between text and icon
+  },
+  memberPhone: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  expandIcon: {
+    color: "#4B5563", // Matching gray color for the icon
+    marginLeft: 8, // Add some spacing between text and icon
+  },
+  expandedContent: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    paddingTop: 12,
   },
   section: {
     marginTop: 12,
@@ -296,9 +1109,189 @@ const styles = StyleSheet.create({
   statValue: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 16,
-    color: "#1F2937",
+    color: "#1F2937", // Dark text color for better visibility
   },
   loader: {
     marginTop: 50,
+  },
+  actionButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  filterButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  filterButtonText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: "#4B5563", // Slightly darker gray
+    marginLeft: 8,
+  },
+  exportButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#10B981",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  exportButtonText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: "#fff",
+    marginLeft: 8,
+  },
+  reportButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#8B5CF6",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 16,
+    justifyContent: "center",
+  },
+  reportButtonText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: "#fff",
+    marginLeft: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  modalTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 18,
+    color: "#1F2937",
+    marginBottom: 16,
+  },
+  filterLabel: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 8,
+  },
+  optionsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 16,
+  },
+  filterOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "#F3F4F6",
+  },
+  filterOptionSelected: {
+    backgroundColor: "#8B5CF6",
+  },
+  filterOptionText: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#1F2937",
+  },
+  filterOptionTextSelected: {
+    color: "#fff",
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+    marginTop: 16,
+  },
+  modalButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
+  },
+  modalButtonPrimary: {
+    backgroundColor: "#8B5CF6",
+  },
+  modalButtonText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: "#1F2937", // Dark text color
+  },
+  loanItem: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  loanHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  loanType: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "#1F2937",
+  },
+  loanStatus: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  statusapproved: {
+    backgroundColor: "#D1FAE5",
+    color: "#059669",
+  },
+  statuspending: {
+    backgroundColor: "#FEF3C7",
+    color: "#D97706",
+  },
+  statusrejected: {
+    backgroundColor: "#FEE2E2",
+    color: "#DC2626",
+  },
+  loanDetails: {
+    gap: 4,
+  },
+  loanRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  loanLabel: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  loanValue: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    color: "#1F2937",
+  },
+  memberSummary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 2,
+  },
+  pendingAmount: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    color: "#EF4444",
   },
 });

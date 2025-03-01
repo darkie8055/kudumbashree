@@ -21,6 +21,15 @@ type PayLoanDueScreenProps = {
   route: RouteProp<RootStackParamList, "PayLoanDue">;
 };
 
+interface LoanSummary {
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  completedMonths: number;
+  remainingMonths: number;
+  progress: number;
+}
+
 const getNextUnpaidMonth = (
   paidMonths: number[],
   totalMonths: number
@@ -42,6 +51,37 @@ export default function PayLoanDueScreen({
 
   const nextUnpaidMonth = getNextUnpaidMonth(paidMonths, totalMonths);
   const [selectedMonth] = useState<number | null>(nextUnpaidMonth);
+
+  const [loanDetails, setLoanDetails] = useState<LoanSummary>({
+    totalAmount: 0,
+    paidAmount: 0,
+    remainingAmount: 0,
+    completedMonths: 0,
+    remainingMonths: 0,
+    progress: 0,
+  });
+
+  useEffect(() => {
+    calculateLoanSummary();
+  }, [paidMonths]);
+
+  const calculateLoanSummary = () => {
+    const completedMonths = paidMonths.length;
+    const remainingMonths = totalMonths - completedMonths;
+    const totalAmount = monthlyDue * totalMonths;
+    const paidAmount = monthlyDue * completedMonths;
+    const remainingAmount = monthlyDue * remainingMonths;
+    const progress = (completedMonths / totalMonths) * 100;
+
+    setLoanDetails({
+      totalAmount,
+      paidAmount,
+      remainingAmount,
+      completedMonths,
+      remainingMonths,
+      progress,
+    });
+  };
 
   const handlePayment = async () => {
     if (!selectedMonth) return;
@@ -84,8 +124,61 @@ export default function PayLoanDueScreen({
 
         <View style={styles.content}>
           <Text style={styles.loanType}>{loanType.toUpperCase()} LOAN</Text>
-          <Text style={styles.amount}>₹{monthlyDue}</Text>
-          <Text style={styles.description}>Monthly Due Amount</Text>
+
+          {/* Loan Summary Card */}
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Total Amount</Text>
+                <Text style={styles.summaryValue}>
+                  ₹{loanDetails.totalAmount}
+                </Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Monthly Due</Text>
+                <Text style={styles.summaryValue}>₹{monthlyDue}</Text>
+              </View>
+            </View>
+
+            {/* Progress Bar */}
+            <View style={styles.progressBarContainer}>
+              <View style={styles.progressBar}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: `${loanDetails.progress}%` },
+                  ]}
+                />
+              </View>
+              <Text style={styles.progressText}>
+                {loanDetails.progress.toFixed(0)}% Complete
+              </Text>
+            </View>
+
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Paid Amount</Text>
+                <Text style={[styles.summaryValue, { color: "#10B981" }]}>
+                  ₹{loanDetails.paidAmount}
+                </Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Remaining</Text>
+                <Text style={[styles.summaryValue, { color: "#EF4444" }]}>
+                  ₹{loanDetails.remainingAmount}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.monthsContainer}>
+              <Text style={styles.monthsText}>
+                {loanDetails.completedMonths} of {totalMonths} months paid
+              </Text>
+              <Text style={styles.monthsRemaining}>
+                {loanDetails.remainingMonths} months remaining
+              </Text>
+            </View>
+          </View>
 
           <Text style={styles.sectionTitle}>Current Due Month</Text>
 
@@ -113,6 +206,27 @@ export default function PayLoanDueScreen({
           >
             <Text style={styles.payButtonText}>Pay Now</Text>
           </TouchableOpacity>
+
+          {/* Payment History */}
+          <Text style={styles.sectionTitle}>Payment History</Text>
+          <View style={styles.historyContainer}>
+            {Array.from({ length: totalMonths }, (_, i) => i + 1).map(
+              (month) => (
+                <View
+                  key={month}
+                  style={[
+                    styles.monthIndicator,
+                    paidMonths.includes(month) && styles.monthPaid,
+                  ]}
+                >
+                  <Text style={styles.monthNumber}>{month}</Text>
+                  <Text style={styles.monthLabel}>
+                    {format(addMonths(startDate, month - 1), "MMM")}
+                  </Text>
+                </View>
+              )
+            )}
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -156,20 +270,6 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
     marginBottom: 8,
-  },
-  amount: {
-    fontFamily: "Poppins_700Bold",
-    fontSize: 36,
-    color: "#1F2937",
-    textAlign: "center",
-    marginBottom: 4,
-  },
-  description: {
-    fontFamily: "Poppins_400Regular",
-    fontSize: 14,
-    color: "#6B7280",
-    textAlign: "center",
-    marginBottom: 24,
   },
   sectionTitle: {
     fontFamily: "Poppins_600SemiBold",
@@ -224,5 +324,92 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_600SemiBold",
     fontSize: 16,
     color: "#fff",
+  },
+  summaryCard: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  summaryLabel: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  summaryValue: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 20,
+    color: "#1F2937",
+  },
+  progressBarContainer: {
+    marginVertical: 16,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#8B5CF6",
+    borderRadius: 4,
+  },
+  progressText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+  },
+  monthsContainer: {
+    alignItems: "center",
+    marginTop: 8,
+  },
+  monthsText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  monthsRemaining: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  historyContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "center",
+    marginTop: 12,
+  },
+  monthIndicator: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  monthPaid: {
+    backgroundColor: "#D1FAE5",
+    borderColor: "#10B981",
+  },
+  monthLabel: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: "#6B7280",
   },
 });
