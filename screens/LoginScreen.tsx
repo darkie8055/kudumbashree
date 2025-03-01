@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,36 +11,51 @@ import {
   Platform,
   Alert,
   Pressable,
-} from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
-import { getFirestore, collection, query, where, getDocs } from "firebase/firestore"
-import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
-import type { StackNavigationProp } from "@react-navigation/stack"
-import type { RootStackParamList } from "../types/navigation"
-import Toast from 'react-native-toast-message'
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import type { RootStackParamList } from "../types/navigation";
+import Toast from "react-native-toast-message";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, "Login">
+type LoginScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  "Login"
+>;
 
 interface Props {
-  navigation: LoginScreenNavigationProp
+  navigation: LoginScreenNavigationProp;
 }
 
 export default function LoginScreen({ navigation }: Props) {
-  const [phoneNumber, setPhoneNumber] = useState("")
-  const [password, setPassword] = useState("")
-  const [passwordVisible, setPasswordVisible] = useState(false)
-  const [animation] = useState(new Animated.Value(0))
-  const [isPressed, setIsPressed] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [loginButtonScale] = useState(new Animated.Value(1))
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [animation] = useState(new Animated.Value(0));
+  const [isPressed, setIsPressed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loginButtonScale] = useState(new Animated.Value(1));
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
     Poppins_700Bold,
-  })
+  });
 
   useEffect(() => {
     Animated.timing(animation, {
@@ -48,34 +63,34 @@ export default function LoginScreen({ navigation }: Props) {
       duration: 1000,
       easing: Easing.out(Easing.ease),
       useNativeDriver: true,
-    }).start()
-  }, [animation])
+    }).start();
+  }, [animation]);
 
   const handleLogin = async () => {
     if (!/^[0-9]{10}$/.test(phoneNumber)) {
       showAlert(
         "Invalid Phone Number",
         "Please enter a valid 10-digit phone number."
-      )
-      return
+      );
+      return;
     }
 
     try {
-      setLoading(true)
-      const db = getFirestore()
-      const collections = ["K-member", "normal", "president"]
-      let userData = null
-      let userRole = ""
+      setLoading(true);
+      const db = getFirestore();
+      const collections = ["K-member", "normal", "president"];
+      let userData = null;
+      let userRole = "";
 
       for (const collectionName of collections) {
-        const usersRef = collection(db, collectionName)
-        const q = query(usersRef, where("phone", "==", phoneNumber))
-        const querySnapshot = await getDocs(q)
+        const usersRef = collection(db, collectionName);
+        const q = query(usersRef, where("phone", "==", phoneNumber));
+        const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
-          userData = querySnapshot.docs[0].data()
-          userRole = collectionName
-          break
+          userData = querySnapshot.docs[0].data();
+          userRole = collectionName;
+          break;
         }
       }
 
@@ -83,74 +98,68 @@ export default function LoginScreen({ navigation }: Props) {
         showAlert(
           "User Not Found",
           "No account associated with this phone number."
-        )
-        return
+        );
+        return;
       }
 
       if (userData.password !== password) {
-        showAlert(
-          "Incorrect Password",
-          "Please enter the correct password."
-        )
-        return
+        showAlert("Incorrect Password", "Please enter the correct password.");
+        return;
       }
+
+      // Save phone number to AsyncStorage
+      await AsyncStorage.setItem("userPhoneNumber", phoneNumber);
 
       // Show success toast
       Toast.show({
-        type: 'success',
-        text1: 'Login Successful',
-        text2: 'Welcome back!',
+        type: "success",
+        text1: "Login Successful",
+        text2: "Welcome back!",
         visibilityTime: 3000,
         autoHide: true,
         topOffset: 30,
         bottomOffset: 40,
-      })
+      });
 
       // Navigate after a short delay to allow the toast to be visible
       setTimeout(() => {
         if (userRole === "president") {
-          navigation.navigate("PresidentDashboard")
+          navigation.navigate("PresidentDashboard");
         } else if (userRole === "K-member") {
           if (userData.status === "approved") {
-            navigation.navigate("KMemberTabs", { phoneNumber })
+            navigation.navigate("KMemberTabs", { phoneNumber });
           } else if (userData.status === "pending") {
-            navigation.navigate("WaitingApproval")
+            navigation.navigate("WaitingApproval");
           } else {
-            showAlert(
-              "Access Denied",
-              "Your application has been rejected."
-            )
+            showAlert("Access Denied", "Your application has been rejected.");
           }
         } else {
-          navigation.navigate("NormalUserTabs", { phoneNumber })
+          navigation.navigate("NormalUserTabs", { phoneNumber });
         }
-      }, 1000)
+      }, 1000);
     } catch (error) {
-      showAlert(
-        "Login Failed",
-        error.message
-      )
+      showAlert("Login Failed", error.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleForgotPassword = () => {
-    navigation.navigate("ForgotPassword", { phoneNumber })
-  }
+    navigation.navigate("ForgotPassword", { phoneNumber });
+  };
 
   const translateY = animation.interpolate({
     inputRange: [0, 1],
     outputRange: [50, 0],
-  })
+  });
 
   const animateScale = (value: Animated.Value, toValue: number) => {
     Animated.timing(value, {
       toValue,
       duration: 100,
       useNativeDriver: true,
-    }).start()
-  }
+    }).start();
+  };
 
   const showAlert = (title: string, message: string) => {
     Alert.alert(
@@ -160,33 +169,41 @@ export default function LoginScreen({ navigation }: Props) {
         {
           text: "OK",
           style: "default",
-          onPress: () => setIsPressed(false)
-        }
+          onPress: () => setIsPressed(false),
+        },
       ],
       {
         cancelable: true,
-        onDismiss: () => setIsPressed(false)
+        onDismiss: () => setIsPressed(false),
       }
-    )
-  }
+    );
+  };
 
   if (!fontsLoaded) {
-    return null
+    return null;
   }
 
   return (
     <LinearGradient
       colors={[
-        isPressed ? "rgba(162,39,142,0.03)" : "rgba(162,39,142,0.01)", 
-        isPressed ? "rgba(162,39,142,0.08)" : "rgba(162,39,142,0.03)"
+        isPressed ? "rgba(162,39,142,0.03)" : "rgba(162,39,142,0.01)",
+        isPressed ? "rgba(162,39,142,0.08)" : "rgba(162,39,142,0.03)",
       ]}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
       <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
-          <Animated.View style={[styles.formContainer, { opacity: animation, transform: [{ translateY }] }]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.container}
+        >
+          <Animated.View
+            style={[
+              styles.formContainer,
+              { opacity: animation, transform: [{ translateY }] },
+            ]}
+          >
             <LinearGradient
               colors={["rgba(139, 92, 246, 0.8)", "rgba(236, 72, 153, 0.8)"]}
               style={styles.gradientBorder}
@@ -197,7 +214,12 @@ export default function LoginScreen({ navigation }: Props) {
                 <Text style={styles.title}>Welcome Back</Text>
                 <View style={styles.form}>
                   <View style={styles.inputContainer}>
-                    <Ionicons name="call-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
+                    <Ionicons
+                      name="call-outline"
+                      size={24}
+                      color="rgb(162,39,142)"
+                      style={styles.inputIcon}
+                    />
                     <TextInput
                       style={styles.input}
                       placeholder="Phone Number"
@@ -208,7 +230,12 @@ export default function LoginScreen({ navigation }: Props) {
                     />
                   </View>
                   <View style={styles.inputContainer}>
-                    <Ionicons name="lock-closed-outline" size={24} color="rgb(162,39,142)" style={styles.inputIcon} />
+                    <Ionicons
+                      name="lock-closed-outline"
+                      size={24}
+                      color="rgb(162,39,142)"
+                      style={styles.inputIcon}
+                    />
                     <TextInput
                       style={styles.input}
                       placeholder="Password"
@@ -217,16 +244,23 @@ export default function LoginScreen({ navigation }: Props) {
                       onChangeText={setPassword}
                       secureTextEntry={!passwordVisible}
                     />
-                    <TouchableOpacity onPress={() => setPasswordVisible(!passwordVisible)} style={styles.eyeIcon}>
+                    <TouchableOpacity
+                      onPress={() => setPasswordVisible(!passwordVisible)}
+                      style={styles.eyeIcon}
+                    >
                       <Ionicons
-                        name={passwordVisible ? "eye-outline" : "eye-off-outline"}
+                        name={
+                          passwordVisible ? "eye-outline" : "eye-off-outline"
+                        }
                         size={24}
                         color="rgb(162,39,142)"
                       />
                     </TouchableOpacity>
                   </View>
                   <View style={styles.buttonContainer}>
-                    <Animated.View style={{ transform: [{ scale: loginButtonScale }] }}>
+                    <Animated.View
+                      style={{ transform: [{ scale: loginButtonScale }] }}
+                    >
                       <Pressable
                         style={[styles.button]}
                         onPress={handleLogin}
@@ -235,22 +269,36 @@ export default function LoginScreen({ navigation }: Props) {
                         disabled={loading}
                       >
                         <LinearGradient
-                          colors={["rgba(139, 92, 246, 1)", "rgba(236, 72, 153, 1)"]}
-                          style={[styles.buttonGradient, loading && styles.buttonDisabled]}
+                          colors={[
+                            "rgba(139, 92, 246, 1)",
+                            "rgba(236, 72, 153, 1)",
+                          ]}
+                          style={[
+                            styles.buttonGradient,
+                            loading && styles.buttonDisabled,
+                          ]}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                         >
-                          <Text style={styles.buttonText}>{loading ? "Logging in..." : "Login"}</Text>
+                          <Text style={styles.buttonText}>
+                            {loading ? "Logging in..." : "Login"}
+                          </Text>
                         </LinearGradient>
                       </Pressable>
                     </Animated.View>
                   </View>
                   <TouchableOpacity onPress={handleForgotPassword}>
-                    <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                    <Text style={styles.forgotPasswordText}>
+                      Forgot Password?
+                    </Text>
                   </TouchableOpacity>
                 </View>
-                <TouchableOpacity onPress={() => navigation.navigate("Verification")}>
-                  <Text style={styles.linkText}>Don't have an account? Sign Up</Text>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("Verification")}
+                >
+                  <Text style={styles.linkText}>
+                    Don't have an account? Sign Up
+                  </Text>
                 </TouchableOpacity>
               </View>
             </LinearGradient>
@@ -259,7 +307,7 @@ export default function LoginScreen({ navigation }: Props) {
       </SafeAreaView>
       <Toast />
     </LinearGradient>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -285,7 +333,7 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   whiteBackground: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 15,
     padding: 20,
   },
@@ -321,7 +369,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     borderRadius: 25,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginVertical: 5,
   },
   button: {
@@ -338,7 +386,7 @@ const styles = StyleSheet.create({
   buttonGradient: {
     paddingVertical: 15,
     paddingHorizontal: 20,
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 25,
   },
   buttonDisabled: {
@@ -367,4 +415,4 @@ const styles = StyleSheet.create({
     padding: 10,
     color: "rgb(162,39,142)",
   },
-})
+});

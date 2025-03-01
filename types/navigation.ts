@@ -1,5 +1,6 @@
 import { StackNavigationProp } from "@react-navigation/stack";
 import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { NavigationProp, RouteProp } from "@react-navigation/native";
 
 // Root stack navigator
 export type RootStackParamList = {
@@ -27,7 +28,9 @@ export type RootStackParamList = {
     phoneNumber: string;
   };
   LoanApproval: undefined;
-  MainDetails: undefined;
+  MainDetails: {
+    phoneNumber: string;
+  };
   Savings: undefined;
   Loan: undefined;
   Balance: undefined;
@@ -35,6 +38,7 @@ export type RootStackParamList = {
   LinkageLoan: undefined;
   PayPendingLoan: undefined;
   PayWeeklyDue: {
+    phoneNumber: string;
     memberId: string;
     memberName: string;
     unitId: string;
@@ -108,4 +112,10 @@ export type Product = {
 export type CartItem = {
   product: Product;
   quantity: number;
+};
+
+// Update MainDetailsScreenProps to use KMemberTabsParamList
+export type MainDetailsScreenProps = {
+  navigation: NavigationProp<RootStackParamList & KMemberTabsParamList>;
+  route: RouteProp<KMemberTabsParamList, "Details">;
 };

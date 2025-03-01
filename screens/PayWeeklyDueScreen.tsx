@@ -7,7 +7,6 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,36 +21,25 @@ import {
   getFirestore,
   doc,
   getDoc,
-  addDoc,
   collection,
   query,
   where,
   getDocs,
-  writeBatch, // Add this import
+  writeBatch,
+  orderBy,
+  limit,
 } from "firebase/firestore";
-import type { StackNavigationProp } from "@react-navigation/stack";
-import type { RootStackParamList } from "../types/navigation";
-import { Calendar, DateData } from "react-native-calendars";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 
-type PayWeeklyDueScreenNavigationProp = StackNavigationProp<
-  RootStackParamList,
-  "PayWeeklyDue"
->;
-
-interface Props {
-  navigation: PayWeeklyDueScreenNavigationProp;
-}
-
-interface WeeklyDue {
+interface WeekDue {
   weekNumber: number;
   startDate: Date;
   endDate: Date;
   amount: number;
   isPaid: boolean;
+  isPayable: boolean;
 }
 
-// Add these interfaces at the top with the others
 interface UserDetails {
   id: string;
   name: string;
@@ -59,56 +47,13 @@ interface UserDetails {
   unitNumber: string;
 }
 
-// Update the MarkedDates interface
-interface MarkedDates {
-  [date: string]: {
-    selected?: boolean;
-    marked?: boolean;
-    selectedColor?: string;
-    dotColor?: string;
-    disabled?: boolean;
-    startingDay?: boolean;
-    endingDay?: boolean;
-    color?: string;
-    textColor?: string;
-  };
-}
-
-// Add before the component
-const getWeekNumber = (date: Date): number => {
-  const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-  const firstWeekStart = startOfWeek(firstDayOfMonth);
-  const daysSinceFirstWeek = Math.floor(
-    (date.getTime() - firstWeekStart.getTime()) / (24 * 60 * 60 * 1000)
-  );
-  return Math.floor(daysSinceFirstWeek / 7) + 1;
-};
-
-// Add this helper function after the getWeekNumber function
-const isWeekSelectable = (weekStartDate: Date, weekEndDate: Date): boolean => {
-  const today = new Date();
-  const nextWeekStart = new Date();
-  nextWeekStart.setDate(nextWeekStart.getDate() + (7 - nextWeekStart.getDay()));
-
-  // Current week is always selectable
-  if (today >= weekStartDate && today <= weekEndDate) {
-    return true;
-  }
-
-  // Future weeks are only selectable from their start date
-  return weekStartDate <= nextWeekStart;
-};
-
-export default function PayWeeklyDueScreen({ navigation }: Props) {
+export default function PayWeeklyDueScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [weeklyDueAmount, setWeeklyDueAmount] = useState(0);
   const [description, setDescription] = useState("");
   const [selectedWeeks, setSelectedWeeks] = useState<number[]>([]);
-  const [weeklyDues, setWeeklyDues] = useState<WeeklyDue[]>([]);
-  // Add these state variables
+  const [weekDues, setWeekDues] = useState<WeekDue[]>([]);
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
-  const [markedDates, setMarkedDates] = useState<MarkedDates>({});
-  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -117,110 +62,158 @@ export default function PayWeeklyDueScreen({ navigation }: Props) {
   });
 
   useEffect(() => {
-    Promise.all([fetchWeeklyDueSettings(), fetchUserDetails()]);
+    fetchInitialData();
   }, []);
 
-  // Add this function to fetch user details
-  const fetchUserDetails = async () => {
-    try {
-      const db = getFirestore();
-      const userDoc = await getDoc(doc(db, "K-member", "9747424242")); // Replace with actual user ID
-
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        setUserDetails({
-          id: userDoc.id,
-          name: userData.name,
-          unitName: userData.unitName,
-          unitNumber: userData.unitNumber,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching user details:", error);
-    }
+  // Update getStartDate function to start from February 1st, 2025
+  const getStartDate = async (db: any, memberId: string) => {
+    // Always start from February 1st, 2025
+    const fixedStartDate = new Date(2025, 1, 1); // February 1st, 2025
+    return fixedStartDate;
   };
 
-  const fetchWeeklyDueSettings = async () => {
+  // Update the getWeekNumber function to be more accurate
+  const getWeekNumber = (date: Date): number => {
+    // Get first day of the year
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    // Get the Thursday in week 1 and calculate the week number from there
+    firstDayOfYear.setDate(
+      firstDayOfYear.getDate() + (1 - (firstDayOfYear.getDay() || 7))
+    );
+    const pastDays = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDays + 1) / 7);
+  };
+
+  // Update fetchInitialData to use these changes
+  const fetchInitialData = async () => {
     try {
       const db = getFirestore();
-      const [settingsDoc, paymentsSnapshot] = await Promise.all([
-        getDoc(doc(db, "weeklyDueSettings", "current")),
-        getDocs(
-          query(
-            collection(db, "weeklyDuePayments"),
-            where("memberId", "==", "9747424242"), // Replace with userDetails.id once available
-            where("month", "==", new Date().getMonth() + 1),
-            where("year", "==", new Date().getFullYear())
-          )
-        ),
-      ]);
+      const PHONE_NUMBER = "9747424242";
 
-      if (settingsDoc.exists()) {
-        const data = settingsDoc.data();
-        setWeeklyDueAmount(data.amount);
-        setDescription(data.description);
-
-        // Generate weeks for current month
-        const today = new Date();
-        const weeksInMonth = getWeeksInMonth(today);
-
-        // Mark weeks as paid based on payment records
-        const paidWeeks = paymentsSnapshot.docs.map(
-          (doc) => doc.data().weekNumber
-        );
-        weeksInMonth.forEach((week) => {
-          week.isPaid = paidWeeks.includes(week.weekNumber);
-        });
-
-        setWeeklyDues(weeksInMonth);
+      // Get user details from K-member collection
+      const userDoc = await getDoc(doc(db, "K-member", PHONE_NUMBER));
+      if (!userDoc.exists()) {
+        Alert.alert("Error", "Member not found");
+        return;
       }
+
+      const userData = userDoc.data();
+      setUserDetails({
+        id: PHONE_NUMBER,
+        name: userData.name || "Unknown Member",
+        unitName: userData.unitName || "",
+        unitNumber: userData.unitNumber || "",
+      });
+
+      // Get weekly due settings
+      const settingsDoc = await getDoc(doc(db, "weeklyDueSettings", "current"));
+      if (!settingsDoc.exists()) {
+        Alert.alert("Error", "Weekly due settings not found");
+        return;
+      }
+
+      const settings = settingsDoc.data();
+      setWeeklyDueAmount(settings.amount || 0);
+      setDescription(settings.description || "");
+
+      // Get fixed start date (February 1st, 2025)
+      const startDate = await getStartDate(db, PHONE_NUMBER);
+
+      // Generate all weeks from February 1st
+      const generatedWeeks = generateWeeksFromDate(
+        startDate,
+        settings.amount || 0
+      );
+
+      // Get all payments since February 1st, 2025
+      const paymentsSnapshot = await getDocs(
+        query(
+          collection(db, "weeklyDuePayments"),
+          where("memberId", "==", PHONE_NUMBER),
+          where("paidAt", ">=", new Date(2025, 1, 1)), // February 1st, 2025
+          orderBy("paidAt", "desc")
+        )
+      );
+
+      // Create a map of paid weeks using week number as key
+      const paidWeeksMap = new Map();
+      paymentsSnapshot.docs.forEach((doc) => {
+        const payment = doc.data();
+        if (payment.paidAt) {
+          const paymentDate = payment.paidAt.toDate();
+          const weekStart = startOfWeek(paymentDate, { weekStartsOn: 1 });
+          const weekNumber =
+            Math.floor(
+              (weekStart.getTime() - startDate.getTime()) /
+                (7 * 24 * 60 * 60 * 1000)
+            ) + 1;
+          paidWeeksMap.set(weekNumber, true);
+        }
+      });
+
+      // Mark paid weeks
+      const updatedWeeks = generatedWeeks.map((week) => ({
+        ...week,
+        isPaid: paidWeeksMap.has(week.weekNumber),
+      }));
+
+      setWeekDues(updatedWeeks);
     } catch (error) {
-      console.error("Error fetching weekly due settings:", error);
+      console.error("Error fetching data:", error);
+      Alert.alert("Error", "Failed to load data");
     } finally {
       setLoading(false);
     }
   };
 
-  // Update the getWeeksInMonth function to properly calculate week periods
-  const getWeeksInMonth = (date: Date) => {
-    const weeks: WeeklyDue[] = [];
-    const month = date.getMonth();
-    const year = date.getFullYear();
+  // Add this helper function to check if a week is payable
+  const isWeekPayable = (weekEnd: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return weekEnd <= today;
+  };
 
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
+  // Update generateWeeksFromDate function
+  const generateWeeksFromDate = (
+    startDate: Date,
+    amount: number
+  ): WeekDue[] => {
+    const weeks: WeekDue[] = [];
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
 
-    // Keep weekStartsOn: 1 for Monday
-    let currentWeekStart = startOfWeek(firstDay, { weekStartsOn: 1 });
-    let weekNumber = 1;
+    // Always start from February 1st, 2025
+    let currentWeekStart = startOfWeek(startDate, { weekStartsOn: 1 });
 
-    while (currentWeekStart <= lastDay) {
+    // Generate weeks until today plus one week
+    const endDate = new Date(today);
+    endDate.setDate(today.getDate() + 7);
+
+    let weekNumber = 1; // Start from week 1
+
+    while (currentWeekStart <= endDate) {
       const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
 
-      // Only add weeks that have days in the current month
-      if (weekEnd >= firstDay) {
-        weeks.push({
-          weekNumber,
-          startDate: currentWeekStart,
-          endDate: weekEnd > lastDay ? lastDay : weekEnd,
-          amount: weeklyDueAmount,
-          isPaid: false,
-        });
-      }
+      weeks.push({
+        weekNumber,
+        startDate: new Date(currentWeekStart),
+        endDate: new Date(weekEnd),
+        amount,
+        isPaid: false,
+        isPayable: weekEnd <= today, // Only payable if week has ended
+      });
 
+      // Move to next week
       currentWeekStart = new Date(weekEnd);
       currentWeekStart.setDate(currentWeekStart.getDate() + 1);
-      weekNumber++;
+      weekNumber++; // Increment week number sequentially
     }
 
     return weeks;
   };
 
   const handlePayment = async () => {
-    if (!userDetails) {
-      Alert.alert("Error", "User details not found");
-      return;
-    }
+    if (selectedWeeks.length === 0 || !userDetails) return;
 
     setLoading(true);
     try {
@@ -228,269 +221,144 @@ export default function PayWeeklyDueScreen({ navigation }: Props) {
       const batch = writeBatch(db);
 
       for (const weekNumber of selectedWeeks) {
-        const selectedWeek = weeklyDues.find(
-          (w) => w.weekNumber === weekNumber
-        );
-        if (selectedWeek) {
-          const paymentRef = doc(collection(db, "weeklyDuePayments"));
-          batch.set(paymentRef, {
-            memberId: userDetails.id,
-            memberName: userDetails.name,
-            unitId: `${userDetails.unitName}-${userDetails.unitNumber}`,
-            weekNumber,
-            month: selectedWeek.startDate.getMonth() + 1,
-            year: selectedWeek.startDate.getFullYear(),
-            amount: weeklyDueAmount,
-            description,
-            paidAt: new Date(),
-            startDate: selectedWeek.startDate,
-            endDate: selectedWeek.endDate,
-            status: "paid",
-          });
+        const week = weekDues.find((w) => w.weekNumber === weekNumber);
+        if (!week) continue;
 
-          // Update member's payment history
-          const memberPaymentRef = doc(
-            db,
-            "members",
-            userDetails.id,
-            "paymentHistory",
-            `${selectedWeek.startDate.getFullYear()}-${
-              selectedWeek.startDate.getMonth() + 1
-            }`
-          );
-          batch.set(
-            memberPaymentRef,
-            {
-              weeklyDues: {
-                [weekNumber]: {
-                  paid: true,
-                  paidAt: new Date(),
-                  amount: weeklyDueAmount,
-                },
-              },
-            },
-            { merge: true }
-          );
+        const paymentRef = doc(collection(db, "weeklyDuePayments"));
+        const paymentData = {
+          memberId: userDetails.id,
+          memberName: userDetails.name,
+          unitId: `${userDetails.unitName}-${userDetails.unitNumber}`,
+          weekNumber: getWeekNumber(week.startDate), // Use consistent week numbering
+          month: week.startDate.getMonth() + 1,
+          year: week.startDate.getFullYear(),
+          amount: weeklyDueAmount,
+          description: description,
+          paidAt: new Date(),
+          startDate: week.startDate,
+          endDate: week.endDate,
+          status: "paid",
+        };
+
+        // Verify all required fields are present
+        if (Object.values(paymentData).some((value) => value === undefined)) {
+          throw new Error("Missing required payment data");
         }
+
+        batch.set(paymentRef, paymentData);
       }
 
       await batch.commit();
-      Alert.alert(
-        "Success",
-        `Payment successful for ${selectedWeeks.length} week(s)`,
-        [{ text: "OK", onPress: () => navigation.goBack() }]
-      );
+      await fetchInitialData(); // Refresh the data after payment
+      setSelectedWeeks([]); // Clear selection
+      Alert.alert("Success", "Payment completed successfully", [
+        { text: "OK", onPress: () => navigation.goBack() },
+      ]);
     } catch (error) {
-      console.error("Error processing payment:", error);
-      Alert.alert("Error", "Payment failed");
+      console.error("Payment error:", error);
+      Alert.alert(
+        "Error",
+        "Payment failed. Please check your connection and try again."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // Update the updateCalendarMarkings function to mark the entire week period
-  const updateCalendarMarkings = (dues: WeeklyDue[]) => {
-    const marks: MarkedDates = {};
-
-    dues.forEach((week) => {
-      // Get all dates between start and end of week
-      let currentDate = new Date(week.startDate);
-      while (currentDate <= week.endDate) {
-        const dateStr = format(currentDate, "yyyy-MM-dd");
-
-        marks[dateStr] = {
-          ...marks[dateStr],
-          marked: true,
-          color: week.isPaid
-            ? "#10B981"
-            : selectedWeeks.includes(week.weekNumber)
-            ? "#8B5CF6"
-            : "#EF4444",
-          textColor: "white",
-          startingDay:
-            format(currentDate, "yyyy-MM-dd") ===
-            format(week.startDate, "yyyy-MM-dd"),
-          endingDay:
-            format(currentDate, "yyyy-MM-dd") ===
-            format(week.endDate, "yyyy-MM-dd"),
-        };
-
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
-    });
-
-    setMarkedDates(marks);
-  };
-
-  useEffect(() => {
-    updateCalendarMarkings(weeklyDues);
-  }, [weeklyDues, selectedWeeks]);
-
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded || loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8B5CF6" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <LinearGradient
-          colors={["#8B5CF6", "#EC4899"]}
-          style={styles.headerGradient}
+      <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
         >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Pay Weekly Due</Text>
+      </LinearGradient>
+
+      <ScrollView style={styles.content}>
+        <View style={styles.amountCard}>
+          <Text style={styles.amountLabel}>Weekly Due Amount</Text>
+          <Text style={styles.amount}>₹{weeklyDueAmount}</Text>
+          <Text style={styles.description}>{description}</Text>
+        </View>
+
+        <Text style={styles.sectionTitle}>Select Weeks to Pay</Text>
+
+        {weekDues.map((week) => (
           <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            key={week.weekNumber}
+            style={[
+              styles.weekItem,
+              week.isPaid && styles.weekPaid,
+              selectedWeeks.includes(week.weekNumber) && styles.weekSelected,
+              !week.isPayable && styles.weekDisabled,
+            ]}
+            onPress={() => {
+              if (!week.isPaid && week.isPayable) {
+                setSelectedWeeks((prev) =>
+                  prev.includes(week.weekNumber)
+                    ? prev.filter((w) => w !== week.weekNumber)
+                    : [...prev, week.weekNumber]
+                );
+              }
+            }}
+            disabled={week.isPaid || !week.isPayable}
           >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Pay Weekly Due</Text>
-        </LinearGradient>
-
-        {loading ? (
-          <ActivityIndicator
-            size="large"
-            color="#8B5CF6"
-            style={styles.loader}
-          />
-        ) : (
-          <View style={styles.content}>
-            {userDetails && (
-              <View style={styles.userInfoContainer}>
-                <Text style={styles.userName}>{userDetails.name}</Text>
-                <Text style={styles.unitInfo}>
-                  Unit {userDetails.unitName}-{userDetails.unitNumber}
-                </Text>
-              </View>
-            )}
-            <View style={styles.amountContainer}>
-              <Text style={styles.label}>Weekly Due Amount</Text>
-              <Text style={styles.amount}>₹{weeklyDueAmount}</Text>
-              <Text style={styles.description}>{description}</Text>
-            </View>
-
-            <View style={styles.calendarContainer}>
-              <Text style={styles.sectionTitle}>Select Weeks to Pay</Text>
-              <Calendar
-                current={currentMonth.toISOString()}
-                minDate={new Date(
-                  currentMonth.getFullYear(),
-                  currentMonth.getMonth(),
-                  1
-                ).toISOString()}
-                maxDate={new Date(
-                  currentMonth.getFullYear(),
-                  currentMonth.getMonth() + 1,
-                  0
-                ).toISOString()}
-                onDayPress={(day: DateData) => {
-                  const date = new Date(day.timestamp);
-                  const selectedWeek = weeklyDues.find(
-                    (week) => date >= week.startDate && date <= week.endDate
-                  );
-
-                  if (
-                    selectedWeek &&
-                    !selectedWeek.isPaid &&
-                    isWeekSelectable(
-                      selectedWeek.startDate,
-                      selectedWeek.endDate
-                    )
-                  ) {
-                    setSelectedWeeks((prev) =>
-                      prev.includes(selectedWeek.weekNumber)
-                        ? prev.filter((w) => w !== selectedWeek.weekNumber)
-                        : [...prev, selectedWeek.weekNumber]
-                    );
-                  } else if (
-                    selectedWeek &&
-                    !isWeekSelectable(
-                      selectedWeek.startDate,
-                      selectedWeek.endDate
-                    )
-                  ) {
-                    Alert.alert(
-                      "Week not available",
-                      "You can only select future weeks starting from their first day."
-                    );
-                  }
-                }}
-                onMonthChange={(month: DateData) => {
-                  const newDate = new Date(month.timestamp);
-                  setCurrentMonth(newDate);
-                  // Fetch new weeks for the changed month
-                  const weeksInMonth = getWeeksInMonth(newDate);
-                  setWeeklyDues(weeksInMonth);
-                }}
-                markingType="period"
-                markedDates={markedDates}
-                firstDay={1} // Move firstDay here as a direct prop
-                theme={{
-                  todayTextColor: "#8B5CF6",
-                  selectedDayBackgroundColor: "#8B5CF6",
-                  selectedDayTextColor: "#ffffff",
-                  textDisabledColor: "#d9e1e8",
-                  arrowColor: "#8B5CF6",
-                  textSectionTitleColor: "#374151",
-                  dayTextColor: "#1F2937",
-                  textDayFontFamily: "Poppins_400Regular",
-                  textMonthFontFamily: "Poppins_600SemiBold",
-                  textDayHeaderFontFamily: "Poppins_600SemiBold",
-                  textDayFontSize: 14,
-                  textMonthFontSize: 16,
-                  textDayHeaderFontSize: 14,
-                  dotColor: "#8B5CF6",
-                  selectedDotColor: "#ffffff",
-                  monthTextColor: "#1F2937",
-                  indicatorColor: "#8B5CF6",
-                }}
-              />
-
-              <View style={styles.legendContainer}>
-                <View style={styles.legendItem}>
-                  <View
-                    style={[styles.legendDot, { backgroundColor: "#10B981" }]}
-                  />
-                  <Text style={styles.legendText}>Paid</Text>
+            <View style={styles.weekHeader}>
+              <Text style={styles.weekTitle}>Week {week.weekNumber}</Text>
+              {week.isPaid ? (
+                <View style={styles.paidBadge}>
+                  <Text style={styles.paidText}>Paid</Text>
                 </View>
-                <View style={styles.legendItem}>
-                  <View
-                    style={[styles.legendDot, { backgroundColor: "#8B5CF6" }]}
-                  />
-                  <Text style={styles.legendText}>Selected</Text>
+              ) : !week.isPayable ? (
+                <View style={styles.unavailableBadge}>
+                  <Text style={styles.unavailableText}>Not Yet Due</Text>
                 </View>
-                <View style={styles.legendItem}>
-                  <View
-                    style={[styles.legendDot, { backgroundColor: "#EF4444" }]}
-                  />
-                  <Text style={styles.legendText}>Pending</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.totalContainer}>
-              <Text style={styles.totalLabel}>Total Amount</Text>
-              <Text style={styles.totalAmount}>
-                ₹{weeklyDueAmount * selectedWeeks.length}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.payButton,
-                selectedWeeks.length === 0 && styles.payButtonDisabled,
-              ]}
-              onPress={handlePayment}
-              disabled={loading || selectedWeeks.length === 0}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.payButtonText}>
-                  Pay ₹{weeklyDueAmount * selectedWeeks.length}
-                </Text>
+                <Text style={styles.weekAmount}>₹{week.amount}</Text>
               )}
-            </TouchableOpacity>
-          </View>
-        )}
+            </View>
+            <Text style={styles.weekDates}>
+              {format(week.startDate, "MMM d")} -{" "}
+              {format(week.endDate, "MMM d, yyyy")}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
+
+      {selectedWeeks.length > 0 && (
+        <View style={styles.footer}>
+          <View style={styles.totalContainer}>
+            <Text style={styles.totalLabel}>Total Amount</Text>
+            <Text style={styles.totalAmount}>
+              ₹{weeklyDueAmount * selectedWeeks.length}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.payButton}
+            onPress={handlePayment}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.payButtonText}>
+                Pay ₹{weeklyDueAmount * selectedWeeks.length}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -500,10 +368,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
-  scrollContent: {
-    flexGrow: 1,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
   },
-  headerGradient: {
+  header: {
     padding: 20,
     paddingTop: 50,
     borderBottomLeftRadius: 20,
@@ -523,30 +394,27 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginRight: 40,
   },
-  loader: {
-    marginTop: 50,
-  },
   content: {
+    flex: 1,
     padding: 20,
   },
-  amountContainer: {
+  amountCard: {
     backgroundColor: "#F3F4F6",
     padding: 20,
     borderRadius: 12,
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 24,
   },
-  label: {
+  amountLabel: {
     fontFamily: "Poppins_400Regular",
     fontSize: 16,
     color: "#6B7280",
-    marginBottom: 8,
   },
   amount: {
     fontFamily: "Poppins_700Bold",
     fontSize: 36,
     color: "#1F2937",
-    marginBottom: 8,
+    marginVertical: 8,
   },
   description: {
     fontFamily: "Poppins_400Regular",
@@ -558,24 +426,34 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_600SemiBold",
     fontSize: 18,
     color: "#1F2937",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   weekItem: {
     backgroundColor: "#F3F4F6",
     borderRadius: 12,
-    padding: 15,
-    marginBottom: 10,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
-  weekItemSelected: {
+  weekPaid: {
+    backgroundColor: "#D1FAE5",
+    borderColor: "#10B981",
+  },
+  weekSelected: {
     backgroundColor: "#EEF2FF",
     borderColor: "#8B5CF6",
-    borderWidth: 1,
+  },
+  weekDisabled: {
+    backgroundColor: "#F9FAFB",
+    borderColor: "#E5E7EB",
+    opacity: 0.7,
   },
   weekHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 5,
+    marginBottom: 4,
   },
   weekTitle: {
     fontFamily: "Poppins_600SemiBold",
@@ -592,17 +470,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6B7280",
   },
-  weeksList: {
-    paddingVertical: 10,
+  paidBadge: {
+    backgroundColor: "#10B981",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  paidText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 12,
+    color: "#fff",
+  },
+  unavailableBadge: {
+    backgroundColor: "#E5E7EB",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  unavailableText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  footer: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    backgroundColor: "#fff",
   },
   totalContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 15,
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-    marginVertical: 10,
+    marginBottom: 16,
   },
   totalLabel: {
     fontFamily: "Poppins_600SemiBold",
@@ -620,80 +520,9 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: "center",
   },
-  payButtonDisabled: {
-    backgroundColor: "#D1D5DB",
-  },
   payButtonText: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 16,
     color: "#fff",
-  },
-  weekItemPaid: {
-    backgroundColor: "#F3F4F6",
-    opacity: 0.7,
-  },
-  weekStatusContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  paidBadge: {
-    backgroundColor: "#10B981",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 8,
-  },
-  paidText: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 12,
-    color: "#fff",
-  },
-  userInfoContainer: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  userName: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 18,
-    color: "#1F2937",
-  },
-  unitInfo: {
-    fontFamily: "Poppins_400Regular",
-    fontSize: 14,
-    color: "#6B7280",
-  },
-  calendarContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  legendContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginTop: 15,
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 6,
-  },
-  legendText: {
-    fontFamily: "Poppins_400Regular",
-    fontSize: 12,
-    color: "#6B7280",
   },
 });

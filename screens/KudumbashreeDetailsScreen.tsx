@@ -7,6 +7,7 @@ import {
   Animated,
   ScrollView,
   Dimensions,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { createStackNavigator } from "@react-navigation/stack";
@@ -21,6 +22,9 @@ import {
   Poppins_700Bold,
 } from "@expo-google-fonts/poppins";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { NavigationProp, RouteProp } from "@react-navigation/native";
+import { KMemberTabsParamList } from "../types/navigation";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Importing screens (unchanged)
 import SavingsScreen from "./SavingsScreen";
@@ -39,13 +43,23 @@ type MainDetailsScreenNavigationProp = StackNavigationProp<
   "MainDetails"
 >;
 
+// Update MainDetailsScreenProps to include route
 interface MainDetailsScreenProps {
-  navigation: MainDetailsScreenNavigationProp;
+  navigation: NavigationProp<KMemberTabsParamList>;
+  route: RouteProp<KMemberTabsParamList, "Details">;
 }
 
 const { width } = Dimensions.get("window");
 const ITEM_WIDTH = width * 0.44;
 
+interface MemberData {
+  unitName: string;
+  unitNumber: string;
+  name: string;
+  id: string;
+}
+
+// Update to get data from the tab navigator
 function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
   const [animation] = useState(new Animated.Value(0));
   const [unitData, setUnitData] = useState({
@@ -55,6 +69,7 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
     secretaryName: "",
   });
   const [loading, setLoading] = useState(true);
+  const [memberData, setMemberData] = useState<MemberData | null>(null);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -63,27 +78,50 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
   });
 
   useEffect(() => {
-    const fetchUnitData = async () => {
+    const fetchMemberData = async () => {
       try {
         const db = getFirestore();
-        const memberDoc = await getDoc(doc(db, "K-member", "9747424242"));
+        // Get phone number from AsyncStorage instead of auth
+        const phoneNumber = await AsyncStorage.getItem("userPhoneNumber");
+
+        if (!phoneNumber) {
+          console.warn("No phone number found in storage");
+          return;
+        }
+
+        const cleanPhoneNumber = phoneNumber.replace("+91", "");
+        const memberDoc = await getDoc(doc(db, "K-member", cleanPhoneNumber));
+
         if (memberDoc.exists()) {
           const data = memberDoc.data();
-          setUnitData({
-            unitName: data.unitName || "Unit Name",
+          setMemberData({
+            id: cleanPhoneNumber,
+            name: data.name || "",
+            unitName: data.unitName || "",
             unitNumber: data.unitNumber || "",
-            presidentName: data.presidentName || "President",
-            secretaryName: data.secretaryName || "Secretary",
           });
+
+          // Also update unit data
+          setUnitData({
+            unitName: data.unitName || "",
+            unitNumber: data.unitNumber || "",
+            presidentName: data.presidentName || "",
+            secretaryName: data.secretaryName || "",
+          });
+        } else {
+          console.warn("Member document not found");
         }
       } catch (error) {
-        console.error("Error fetching unit data:", error);
+        console.error("Error fetching member data:", error);
+        Alert.alert("Error", "Failed to load member data. Please try again.", [
+          { text: "OK" },
+        ]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUnitData();
+    fetchMemberData();
 
     Animated.timing(animation, {
       toValue: 1,
@@ -106,6 +144,24 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
         }),
       },
     ],
+  };
+
+  // Update the handlePayWeeklyDue function
+  const handlePayWeeklyDue = () => {
+    if (memberData) {
+      // Now using type assertion to tell TypeScript this navigation is valid
+      (navigation as NavigationProp<RootStackParamList>).navigate(
+        "PayWeeklyDue",
+        {
+          phoneNumber: memberData.id,
+          memberId: memberData.id,
+          memberName: memberData.name,
+          unitId: `${memberData.unitName}-${memberData.unitNumber}`,
+        }
+      );
+    } else {
+      Alert.alert("Error", "Member data not found");
+    }
   };
 
   return (
@@ -238,7 +294,7 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
                 style={styles.loanActionItem}
                 onPress={() =>
                   navigation.navigate("ApplyLoan", {
-                    phoneNumber: "9747424242",
+                    phoneNumber: memberData?.id || route.params?.phoneNumber,
                   })
                 }
               >
@@ -254,11 +310,7 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.loanActionItem}
-                onPress={() =>
-                  navigation.navigate("PayWeeklyDue", {
-                    memberId: "actual-member-id",
-                  })
-                }
+                onPress={handlePayWeeklyDue}
               >
                 <Ionicons name="calendar-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.loanActionText}>Pay Weekly Due</Text>

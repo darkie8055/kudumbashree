@@ -235,7 +235,7 @@ export default function LoanScreen({ navigation }) {
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Your Loan Applications</Text>
+          <Text style={styles.headerTitle}>Loan Applications</Text>
         </LinearGradient>
 
         {/* Add this new section below the header */}
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   },
   headerGradient: {
     padding: 20,
-    paddingTop: 50, // Adjust this value based on your device's status bar height
+    paddingTop: 20, // Adjust this value based on your device's status bar height
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     flexDirection: "row",

@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   },
   headerGradient: {
     padding: 20,
-    paddingTop: 50,
+    paddingTop: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     flexDirection: "row",
