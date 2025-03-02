@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -14,37 +14,77 @@ import {
   StatusBar,
   Dimensions,
   Modal,
-} from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
-import { debounce } from "lodash"
-import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
-import type { StackNavigationProp } from "@react-navigation/stack"
-import type { RootStackParamList } from "../types/navigation"
-import Toast from "react-native-toast-message"
-import { toastConfig, TOAST_DURATION } from "../components/SonnerToast"
+  ActivityIndicator,
+  TextStyle, // Add this import
+  ViewStyle,
+  ImageStyle,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { debounce } from "lodash";
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import type { RootStackParamList } from "../types/navigation";
+import Toast from "react-native-toast-message";
+import { toastConfig, TOAST_DURATION } from "../components/SonnerToast";
+import { useUser } from "../contexts/UserContext";
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  orderBy,
+  getDocs,
+  limit,
+  startAfter,
+  doc,
+  setDoc,
+} from "firebase/firestore";
 
 interface Product {
-  id: string
-  name: string
-  imageUrl: string
-  price: number
-  description: string
-  unit: string
-  phone: string
-  category: string
-  location: string
-  status?: string
+  id: string;
+  name: string;
+  imageUrl: string;
+  price: number;
+  description: string;
+  unit: string;
+  phone: string;
+  category: string;
+  location: string;
+  status?: string;
+  createdAt?: Date;
 }
 
 interface CartItem {
-  product: Product
-  quantity: number
+  product: Product;
+  quantity: number;
 }
 
-type Props = {
-  navigation: StackNavigationProp<RootStackParamList>
+// Add missing constants
+const categories = [
+  "All",
+  "Food",
+  "Beauty",
+  "Handicrafts",
+  "Clothing",
+  "Others",
+];
+const sortOptions = ["name", "priceLow", "priceHigh", "location"];
+
+// Update Props interface
+interface Props {
+  navigation: StackNavigationProp<RootStackParamList>;
+  route?: {
+    params?: {
+      cart?: CartItem[];
+    };
+  };
 }
 
 const sampleProducts: Product[] = [
@@ -56,7 +96,8 @@ const sampleProducts: Product[] = [
       "https://www.quickpantry.in/cdn/shop/products/dabur-honey-bottle-quick-pantry-1.jpg?v=1710538000&width=750",
     unit: "Ernakulam Kudumbashree",
     phone: "9876543210",
-    description: "A calming lavender-scented handmade soap enriched with natural oils.",
+    description:
+      "A calming lavender-scented handmade soap enriched with natural oils.",
     category: "Beauty",
     location: "Ernakulam",
   },
@@ -68,30 +109,31 @@ const sampleProducts: Product[] = [
       "https://www.quickpantry.in/cdn/shop/products/dabur-honey-bottle-quick-pantry-1.jpg?v=1710538000&width=750",
     unit: "Kozhikode Kudumbashree",
     phone: "9876543211",
-    description: "Fresh, organic honey sourced directly from Kerala's local beekeepers.",
+    description:
+      "Fresh, organic honey sourced directly from Kerala's local beekeepers.",
     category: "Food",
     location: "Kozhikode",
   },
   // ... other sample products
-]
+];
 
-const { width } = Dimensions.get("window")
-const ITEM_WIDTH = width * 0.44
+const { width } = Dimensions.get("window");
+const ITEM_WIDTH = width * 0.44;
 
-const AnimatedFlatList = Animated.createAnimatedComponent<any>(FlatList)
+const AnimatedFlatList = Animated.createAnimatedComponent<any>(FlatList);
 
 // Add Claude AI client
 const claudeClient = {
   getRecommendations: async (products: Product[], userPreferences: any) => {
     // Placeholder for Claude AI integration
-    return products.slice(0, 5) // Return top 5 recommended products
+    return products.slice(0, 5); // Return top 5 recommended products
   },
 
   enhanceSearch: async (query: string) => {
     // Placeholder for AI-enhanced search
-    return query
+    return query;
   },
-}
+};
 
 // Add global type declaration
 declare global {
@@ -99,14 +141,17 @@ declare global {
 }
 
 export default function MarketplaceScreen({ navigation, route }: Props) {
-  // 1. Group all useState hooks at the top
+  // 1. First, declare all hooks at the top level
+  const { userId, userDetails } = useUser();
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
     Poppins_700Bold,
   });
+
+  // 2. All useState hooks
   const [cart, setCart] = useState<CartItem[]>(route?.params?.cart || []);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(route?.params?.selectedProduct || null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -117,152 +162,297 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<Product[]>([]);
+  const [lastDoc, setLastDoc] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
 
-  // 2. Group refs
+  // 3. All useRef hooks
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerHeight = useRef(new Animated.Value(200)).current;
 
-  // 3. Define memoized callbacks before they're used
-  const handleAddToCart = useCallback((product: Product) => {
-    const existingItemIndex = cart.findIndex((item) => item.product.id === product.id)
-    if (existingItemIndex !== -1) {
-      const updatedCart = [...cart]
-      const updatedItem = {
-        ...updatedCart[existingItemIndex],
-        quantity: updatedCart[existingItemIndex].quantity + 1,
+  // 4. All useCallback hooks
+  const handleAddToCart = useCallback(
+    async (product: Product) => {
+      if (!userId) {
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Please sign in to add items to cart",
+        });
+        return;
       }
-      updatedCart[existingItemIndex] = updatedItem
-      setCart(updatedCart)
-    } else {
-      setCart([...cart, { product, quantity: 1 }])
-    }
 
-    Toast.show({
-      type: "success",
-      text1: "Added to Cart",
-      text2: `${product.name} has been added`,
-      visibilityTime: TOAST_DURATION,
-      autoHide: true,
-      topOffset: 40,
-      bottomOffset: 100,
-      position: "bottom",
-      onPress: () => Toast.hide(),
-    })
-  }, [cart]);
-
-  const handleProductPress = useCallback((product: Product) => {
-    setSelectedProduct(product)
-    setIsModalVisible(true)
-  }, []);
-
-  // 4. Define renderProduct before it's used in other callbacks
-  const renderProduct = useCallback(({ item }: { item: Product }) => {
-    return (
-      <View style={styles.productCard}>
-        <TouchableOpacity onPress={() => handleProductPress(item)}>
-          <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
-          <Text style={styles.productName}>{item.name}</Text>
-          <Text style={styles.productPrice}>₹{item.price}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.addToCartButton} onPress={() => handleAddToCart(item)}>
-          <Text style={styles.addToCartButtonText}>Add to Cart</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }, [handleProductPress, handleAddToCart]);
-
-  const fetchProducts = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setProducts(sampleProducts)
-    } catch (error) {
-      setError("Failed to fetch products")
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchProducts()
-
-    // Set up global handler for adding new products
-    global.addNewProduct = (newProduct: Product) => {
-      // Only add products with "approved" status to the marketplace
-      if (newProduct.status === "approved") {
-        setProducts((prevProducts) => [newProduct, ...prevProducts])
+      try {
+        const db = getFirestore();
+        const cartRef = doc(db, "K-member", userId, "cart", product.id);
+        await setDoc(
+          cartRef,
+          {
+            productId: product.id,
+            quantity: 1,
+            addedAt: new Date(),
+            price: product.price,
+            name: product.name,
+            imageUrl: product.imageUrl,
+          },
+          { merge: true }
+        );
 
         Toast.show({
           type: "success",
-          text1: "Product Listed",
-          text2: "Your product is now available in the marketplace",
-          visibilityTime: TOAST_DURATION,
-        })
+          text1: "Success",
+          text2: "Added to cart",
+        });
+      } catch (error) {
+        console.error("Error adding to cart:", error);
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Failed to add to cart",
+        });
       }
-    }
+    },
+    [userId]
+  );
 
-    return () => {
-      // Clean up global handler
-      global.addNewProduct = null
-    }
-  }, [fetchProducts])
+  const handleProductPress = useCallback((product: Product) => {
+    setSelectedProduct(product);
+    setIsModalVisible(true);
+  }, []);
 
-  useEffect(() => {
-    filterAndSortProducts()
-  }, [products, searchQuery, selectedCategory, sortOption])
+  const renderProduct = useCallback(
+    ({ item }: { item: Product }) => {
+      return (
+        <View style={styles.productCard}>
+          <TouchableOpacity onPress={() => handleProductPress(item)}>
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.productImage}
+            />
+            <Text style={styles.productName}>{item.name}</Text>
+            <Text style={styles.productPrice}>₹{item.price}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addToCartButton}
+            onPress={() => handleAddToCart(item)}
+          >
+            <Text style={styles.addToCartButtonText}>Add to Cart</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    },
+    [handleProductPress, handleAddToCart]
+  );
 
-  const filterAndSortProducts = useCallback(() => {
-    if (!products) return
+  // Update fetchProducts function to prevent duplicates
+  const fetchProducts = useCallback(
+    async (shouldRefresh = false) => {
+      try {
+        setIsLoading(true);
+        const db = getFirestore();
 
-    const filtered = products.filter((product) => {
-      const nameMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
-      const categoryMatch = selectedCategory === "All" || product.category === selectedCategory
-      return nameMatch && categoryMatch
-    })
+        let baseQuery = query(
+          collection(db, "products"),
+          where("status", "==", "approved"),
+          orderBy("createdAt", "desc"),
+          limit(10)
+        );
 
-    const sortedProducts = [...filtered]
+        if (!shouldRefresh && lastDoc) {
+          baseQuery = query(baseQuery, startAfter(lastDoc));
+        }
 
-    if (sortOption === "priceLow") {
-      sortedProducts.sort((a, b) => a.price - b.price)
-    } else if (sortOption === "priceHigh") {
-      sortedProducts.sort((a, b) => b.price - a.price)
-    } else if (sortOption === "location") {
-      sortedProducts.sort((a, b) => a.location.localeCompare(b.location))
-    } else {
-      sortedProducts.sort((a, b) => a.name.localeCompare(b.name))
-    }
+        const querySnapshot = await getDocs(baseQuery);
 
-    setFilteredProducts(sortedProducts)
-  }, [products, searchQuery, selectedCategory, sortOption])
+        // Properly type and map Firestore data
+        const newProducts: Product[] = querySnapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name || "",
+            imageUrl: data.imageUrl || "",
+            price: data.price || 0,
+            description: data.description || "",
+            unit: data.unit || "",
+            phone: data.phone || "",
+            category: data.category || "",
+            location: data.location || "",
+            status: data.status || "pending",
+            createdAt: data.createdAt?.toDate() || new Date(),
+          };
+        });
+
+        // Check for duplicates before updating state
+        if (shouldRefresh) {
+          setProducts(newProducts);
+          setFilteredProducts(newProducts);
+        } else {
+          setProducts((prev) => {
+            const existingIds = new Set(prev.map((p) => p.id));
+            const uniqueNewProducts = newProducts.filter(
+              (p) => !existingIds.has(p.id)
+            );
+            const updatedProducts = [...prev, ...uniqueNewProducts];
+            setFilteredProducts(updatedProducts);
+            return updatedProducts;
+          });
+        }
+
+        setHasMore(querySnapshot.docs.length === 10);
+        setLastDoc(querySnapshot.docs[querySnapshot.docs.length - 1]);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Failed to load products",
+          visibilityTime: 3000,
+        });
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [lastDoc]
+  );
 
   const closeModal = useCallback(() => {
-    setIsModalVisible(false)
-    setSelectedProduct(null)
-  }, [])
+    setIsModalVisible(false);
+    setSelectedProduct(null);
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    fetchProducts(true);
+  }, [fetchProducts]);
+
+  // Enhance search with AI
+  const debouncedSearch = useCallback(
+    debounce((text: string) => {
+      setSearchQuery(text);
+    }, 300),
+    []
+  );
+
+  const handleRemoveFromCart = useCallback(
+    (product: Product) => {
+      const updatedCart = cart.filter((item) => item.product.id !== product.id);
+      setCart(updatedCart);
+    },
+    [cart, setCart]
+  );
+
+  const handleQuantityChange = useCallback(
+    (product: Product, quantity: number) => {
+      if (quantity <= 0) {
+        handleRemoveFromCart(product);
+      } else {
+        const updatedCart = cart.map((item) =>
+          item.product.id === product.id ? { ...item, quantity } : item
+        );
+        setCart(updatedCart);
+      }
+    },
+    [cart, handleRemoveFromCart, setCart]
+  );
+
+  const goToCart = useCallback(() => {
+    navigation.navigate("Cart", {
+      cart,
+      onCartUpdate: (updatedCart: CartItem[]) => {
+        setCart(updatedCart);
+      },
+    });
+  }, [cart, navigation, setCart]);
+
+  // Update navigation call
+  const goToProductManagement = useCallback(() => {
+    navigation.navigate("ProductManagement");
+  }, [navigation]);
+
+  const handleLoadMore = useCallback(() => {
+    if (hasMore && !isLoading) {
+      fetchProducts();
+    }
+  }, [hasMore, isLoading, fetchProducts]);
+
+  const filterAndSortProducts = useCallback(() => {
+    if (!products?.length) return;
+
+    let filtered = products;
+
+    // Apply search filter
+    if (searchQuery) {
+      filtered = filtered.filter((product) =>
+        product.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Apply category filter
+    if (selectedCategory !== "All") {
+      filtered = filtered.filter(
+        (product) => product.category === selectedCategory
+      );
+    }
+
+    // Apply sorting
+    const sortedProducts = [...filtered];
+    switch (sortOption) {
+      case "priceLow":
+        sortedProducts.sort((a, b) => a.price - b.price);
+        break;
+      case "priceHigh":
+        sortedProducts.sort((a, b) => b.price - a.price);
+        break;
+      case "location":
+        sortedProducts.sort((a, b) => a.location.localeCompare(b.location));
+        break;
+      default:
+        sortedProducts.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    setFilteredProducts(sortedProducts);
+  }, [products, searchQuery, selectedCategory, sortOption]);
 
   const renderProductDetails = useCallback(() => {
-    if (!selectedProduct) return null
+    if (!selectedProduct) return null;
 
     return (
-      <Modal animationType="slide" transparent={true} visible={isModalVisible} onRequestClose={closeModal}>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isModalVisible}
+        onRequestClose={closeModal}
+      >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
               <Ionicons name="close" size={24} color="#333" />
             </TouchableOpacity>
-            <Image source={{ uri: selectedProduct.imageUrl }} style={styles.modalImage} />
+            <Image
+              source={{ uri: selectedProduct.imageUrl }}
+              style={styles.modalImage}
+            />
             <Text style={styles.modalProductName}>{selectedProduct.name}</Text>
-            <Text style={styles.modalProductPrice}>₹{selectedProduct.price}</Text>
-            <Text style={styles.modalProductUnit}>Unit: {selectedProduct.unit}</Text>
-            <Text style={styles.modalProductDescription}>{selectedProduct.description}</Text>
-            <Text style={styles.modalProductCategory}>Category: {selectedProduct.category}</Text>
-            <Text style={styles.modalProductLocation}>Location: {selectedProduct.location}</Text>
+            <Text style={styles.modalProductPrice}>
+              ₹{selectedProduct.price}
+            </Text>
+            <Text style={styles.modalProductUnit}>
+              Unit: {selectedProduct.unit}
+            </Text>
+            <Text style={styles.modalProductDescription}>
+              {selectedProduct.description}
+            </Text>
+            <Text style={styles.modalProductCategory}>
+              Category: {selectedProduct.category}
+            </Text>
+            <Text style={styles.modalProductLocation}>
+              Location: {selectedProduct.location}
+            </Text>
             <TouchableOpacity
               style={styles.modalAddToCartButton}
               onPress={() => {
-                handleAddToCart(selectedProduct)
-                closeModal()
+                handleAddToCart(selectedProduct);
+                closeModal();
               }}
             >
               <Text style={styles.modalAddToCartButtonText}>Add to Cart</Text>
@@ -270,76 +460,12 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
           </View>
         </View>
       </Modal>
-    )
-  }, [selectedProduct, isModalVisible, closeModal, handleAddToCart])
+    );
+  }, [selectedProduct, isModalVisible, closeModal, handleAddToCart]);
 
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true)
-    await fetchProducts()
-    setIsRefreshing(false)
-  }, [fetchProducts])
-
-  // Enhance search with AI
-  const debouncedSearch = useCallback(
-    debounce((text: string) => {
-      setSearchQuery(text)
-    }, 300),
-    [],
-  )
-
-  const handleRemoveFromCart = useCallback(
-    (product: Product) => {
-      const updatedCart = cart.filter((item) => item.product.id !== product.id)
-      setCart(updatedCart)
-    },
-    [cart, setCart],
-  )
-
-  const handleQuantityChange = useCallback(
-    (product: Product, quantity: number) => {
-      if (quantity <= 0) {
-        handleRemoveFromCart(product)
-      } else {
-        const updatedCart = cart.map((item) => (item.product.id === product.id ? { ...item, quantity } : item))
-        setCart(updatedCart)
-      }
-    },
-    [cart, handleRemoveFromCart, setCart],
-  )
-
-  const categories = ["All", "Beauty", "Food", "Home"]
-  const sortOptions = ["name", "priceLow", "priceHigh", "location"]
-
-  const goToCart = useCallback(() => {
-    navigation.navigate("Cart", {
-      cart,
-      onCartUpdate: (updatedCart: CartItem[]) => {
-        setCart(updatedCart)
-      },
-    })
-  }, [cart, navigation, setCart])
-
-  const goToProductManagement = useCallback(() => {
-    navigation.navigate("ProductManagement")
-  }, [navigation])
-
-  // Add AI-powered recommendations
-  useEffect(() => {
-    const getAIRecommendations = async () => {
-      if (products.length > 0) {
-        const userPreferences = {
-          recentViews: selectedProduct ? [selectedProduct] : [],
-          cartItems: cart,
-        }
-        const recommended = await claudeClient.getRecommendations(products, userPreferences)
-        setRecommendations(recommended)
-      }
-    }
-    getAIRecommendations()
-  }, [products, selectedProduct, cart])
-
+  // Update the renderRecommendations function to use unique keys
   const renderRecommendations = useCallback(() => {
-    if (recommendations.length === 0) return null
+    if (recommendations.length === 0) return null;
 
     return (
       <View style={styles.sectionContainer}>
@@ -348,27 +474,55 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
           horizontal
           showsHorizontalScrollIndicator={false}
           data={recommendations}
-          keyExtractor={(item) => item.id}
-          renderItem={renderProduct}
+          keyExtractor={(item) => `recommended-${item.id}`} // Add prefix to ensure uniqueness
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.recommendedItem}
+              onPress={() => handleProductPress(item)}
+            >
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={styles.recommendedImage}
+              />
+              <Text
+                style={styles.recommendedName}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
+                {item.name}
+              </Text>
+              <Text style={styles.recommendedPrice}>₹{item.price}</Text>
+            </TouchableOpacity>
+          )}
         />
       </View>
-    )
-  }, [recommendations, renderProduct])
+    );
+  }, [recommendations, handleProductPress]);
 
-  // Update renderHeader to include recommendations
   const renderHeader = useCallback(() => {
     const headerTranslate = scrollY.interpolate({
       inputRange: [0, 100],
       outputRange: [0, -50],
       extrapolate: "clamp",
-    })
+    });
 
     return (
-      <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslate }] }]}>
-        <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.gradientHeader}>
+      <Animated.View
+        style={[
+          styles.header,
+          { transform: [{ translateY: headerTranslate }] },
+        ]}
+      >
+        <LinearGradient
+          colors={["#8B5CF6", "#EC4899"]}
+          style={styles.gradientHeader}
+        >
           <Text style={styles.pageHeading}>Marketplace</Text>
 
-          <TouchableOpacity style={styles.sellButton} onPress={goToProductManagement}>
+          <TouchableOpacity
+            style={styles.sellButton}
+            onPress={goToProductManagement}
+          >
             <View style={styles.sellButtonContent}>
               <Ionicons name="add-circle" size={16} color="#fff" />
               <Text style={styles.sellButtonText}>Sell Product</Text>
@@ -377,7 +531,12 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
         </LinearGradient>
 
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+          <Ionicons
+            name="search"
+            size={20}
+            color="#666"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search products..."
@@ -389,7 +548,9 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.cartIcon} onPress={goToCart}>
           <Ionicons name="cart" size={30} color="#fff" />
           <View style={styles.cartBadge}>
-            <Text style={styles.cartBadgeText}>{cart.reduce((acc, item) => acc + item.quantity, 0)}</Text>
+            <Text style={styles.cartBadgeText}>
+              {cart.reduce((acc, item) => acc + item.quantity, 0)}
+            </Text>
           </View>
         </TouchableOpacity>
 
@@ -402,10 +563,18 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
             keyExtractor={(item) => item}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.categoryButton, selectedCategory === item && styles.selectedCategoryButton]}
+                style={[
+                  styles.categoryButton,
+                  selectedCategory === item && styles.selectedCategoryButton,
+                ]}
                 onPress={() => setSelectedCategory(item)}
               >
-                <Text style={[styles.categoryText, selectedCategory === item && styles.selectedCategoryText]}>
+                <Text
+                  style={[
+                    styles.categoryText,
+                    selectedCategory === item && styles.selectedCategoryText,
+                  ]}
+                >
                   {item}
                 </Text>
               </TouchableOpacity>
@@ -422,11 +591,21 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
             keyExtractor={(item) => item}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.categoryButton, sortOption === item && styles.selectedCategoryButton]}
+                style={[
+                  styles.categoryButton,
+                  sortOption === item && styles.selectedCategoryButton,
+                ]}
                 onPress={() => setSortOption(item)}
               >
-                <Text style={[styles.categoryText, sortOption === item && styles.selectedCategoryText]}>
-                  {`${item.charAt(0).toUpperCase()}${item.slice(1).replace(/([A-Z])/g, " $1")}`}
+                <Text
+                  style={[
+                    styles.categoryText,
+                    sortOption === item && styles.selectedCategoryText,
+                  ]}
+                >
+                  {`${item.charAt(0).toUpperCase()}${item
+                    .slice(1)
+                    .replace(/([A-Z])/g, " $1")}`}
                 </Text>
               </TouchableOpacity>
             )}
@@ -435,7 +614,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
 
         {renderRecommendations()}
       </Animated.View>
-    )
+    );
   }, [
     selectedCategory,
     cart,
@@ -446,25 +625,81 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     recommendations,
     renderRecommendations,
     goToProductManagement,
-  ])
+  ]);
+
+  // 5. All useEffect hooks
+  useEffect(() => {
+    fetchProducts();
+
+    global.addNewProduct = (newProduct: Product) => {
+      if (newProduct.status === "approved") {
+        setProducts((prevProducts) => {
+          // Check if product already exists
+          if (prevProducts.some((p) => p.id === newProduct.id)) {
+            return prevProducts;
+          }
+          return [
+            {
+              ...newProduct,
+              id: newProduct.id || String(Date.now()),
+              createdAt: newProduct.createdAt || new Date(),
+            },
+            ...prevProducts,
+          ];
+        });
+
+        Toast.show({
+          type: "success",
+          text1: "Product Listed",
+          text2: "Your product is now available in the marketplace",
+          visibilityTime: 3000,
+        });
+      }
+    };
+
+    return () => {
+      global.addNewProduct = null;
+    };
+  }, [fetchProducts]);
 
   useEffect(() => {
-    filterAndSortProducts()
-    // Update the cart count
-    if (navigation.setParams) {
-      navigation.setParams({
-        cartCount: cart.reduce((total, item) => total + item.quantity, 0),
-      })
-    }
-  }, [products, searchQuery, selectedCategory, sortOption, cart, filterAndSortProducts])
+    filterAndSortProducts();
+  }, [
+    products,
+    searchQuery,
+    selectedCategory,
+    sortOption,
+    filterAndSortProducts,
+  ]);
 
+  useEffect(() => {
+    const getAIRecommendations = async () => {
+      if (products.length > 0) {
+        const userPreferences = {
+          recentViews: selectedProduct ? [selectedProduct] : [],
+          cartItems: cart,
+        };
+        const recommended = await claudeClient.getRecommendations(
+          products,
+          userPreferences
+        );
+        setRecommendations(recommended);
+      }
+    };
+    getAIRecommendations();
+  }, [products, selectedProduct, cart]);
+
+  // 6. Return null for loading state
   if (!fontsLoaded) {
-    return null
+    return null;
   }
 
-  const handleScroll = Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-    useNativeDriver: true,
-  }) as any
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: true,
+    }
+  ) as any;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -472,18 +707,45 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
       <AnimatedFlatList
         data={filteredProducts}
         renderItem={renderProduct}
-        keyExtractor={(item: Product) => item.id}
+        keyExtractor={(item) => `product-${item.id}`} // Add prefix to ensure uniqueness
         numColumns={2}
         contentContainerStyle={styles.productListContainer}
         ListHeaderComponent={renderHeader}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyState}>
+            {isLoading ? (
+              <ActivityIndicator size="large" color="#8B5CF6" />
+            ) : filteredProducts.length === 0 ? (
+              <Text style={styles.emptyStateText}>No products found</Text>
+            ) : null}
+          </View>
+        )}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor="#8B5CF6"
+            colors={["#8B5CF6"]}
+          />
+        }
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={() =>
+          hasMore && isLoading ? (
+            <ActivityIndicator
+              size="large"
+              color="#8B5CF6"
+              style={styles.footerLoader}
+            />
+          ) : null
+        }
       />
       {renderProductDetails()}
       <Toast config={toastConfig} />
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -513,7 +775,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     paddingHorizontal: 12,
     paddingVertical: 6,
-    marginTop:1,
+    marginTop: 1,
     borderRadius: 20,
   },
   sellButtonContent: {
@@ -715,13 +977,26 @@ const styles = StyleSheet.create({
   recommendedName: {
     fontSize: 12,
     marginTop: 4,
-    numberOfLines: 2,
-    ellipsizeMode: "tail",
-  },
+    color: "#333",
+    fontWeight: "500",
+  } as TextStyle, // Remove numberOfLines and ellipsizeMode from styles
   recommendedPrice: {
     fontSize: 12,
     fontWeight: "bold",
     color: "#69C779",
   },
-})
-
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 100,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+  },
+  footerLoader: {
+    paddingVertical: 20,
+  },
+});

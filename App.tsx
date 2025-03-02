@@ -9,7 +9,8 @@ import { useEffect } from "react";
 import * as Notifications from "expo-notifications";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { firebase } from "./firebase";
-import Toast from "react-native-toast-message";
+import Toast, { BaseToast, ErrorToast } from "react-native-toast-message";
+import { UserProvider } from "./contexts/UserContext";
 
 // Import screens
 import OnboardingScreen from "./screens/OnboardingScreen";
@@ -29,7 +30,7 @@ import KMemberApprovalScreen from "./screens/KMemberApprovalScreen";
 import ApprovedMembersScreen from "./screens/ApprovedMembersScreen";
 import ScheduleMeetingScreen from "./screens/ScheduleMeetingScreen";
 import AddNoticeNewsScreen from "./screens/AddNoticeNewsScreen";
-import ProductManagementScreen from "./screens/ProductManagementScreen" // New import
+import ProductManagementScreen from "./screens/ProductManagementScreen"; // New import
 
 // Import new checkout screens
 import PaymentMethodScreen from "./screens/PaymentMethodScreen";
@@ -43,9 +44,10 @@ import LoanApprovalScreen from "./screens/LoanApprovalScreen";
 import ApplyLoanScreen from "./screens/ApplyLoanScreen";
 import WeeklyDueSetupScreen from "./screens/WeeklyDueSetupScreen";
 import PayWeeklyDueScreen from "./screens/PayWeeklyDueScreen";
-import PayLoanDueScreen from './screens/PayLoanDueScreen';
+import PayLoanDueScreen from "./screens/PayLoanDueScreen";
 
 import ViewReportsScreen from "./screens/ViewReportsScreen";
+import ProductApprovalScreen from "./screens/ProductApprovalScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -237,8 +239,38 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  const toastConfig = {
+    success: (props) => (
+      <BaseToast
+        {...props}
+        style={{ borderLeftColor: "#8B5CF6" }}
+        contentContainerStyle={{ paddingHorizontal: 15 }}
+        text1Style={{
+          fontSize: 16,
+          fontWeight: "600",
+        }}
+        text2Style={{
+          fontSize: 14,
+        }}
+      />
+    ),
+    error: (props) => (
+      <ErrorToast
+        {...props}
+        style={{ borderLeftColor: "#ef4444" }}
+        text1Style={{
+          fontSize: 16,
+          fontWeight: "600",
+        }}
+        text2Style={{
+          fontSize: 14,
+        }}
+      />
+    ),
+  };
+
   return (
-    <>
+    <UserProvider>
       <NavigationContainer>
         <StatusBar
           barStyle="dark-content"
@@ -354,8 +386,8 @@ export default function App() {
               headerShown: false,
             }}
           />
-           {/* New Product Management Screen */}
-           <Stack.Screen
+          {/* New Product Management Screen */}
+          <Stack.Screen
             name="ProductManagement"
             component={ProductManagementScreen}
             options={{
@@ -363,10 +395,24 @@ export default function App() {
               presentation: "card",
             }}
           />
+          <Stack.Screen
+            name="ProductApproval"
+            component={ProductApprovalScreen}
+            options={{
+              title: "Product Approval",
+              headerTitleStyle: {
+                fontFamily: "Poppins_600SemiBold",
+              },
+              headerStyle: {
+                backgroundColor: "#fff",
+              },
+              headerTintColor: "#333",
+            }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
-      <Toast />
-    </>
+      <Toast config={toastConfig} />
+    </UserProvider>
   );
 }
 

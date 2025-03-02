@@ -105,6 +105,12 @@ export default function PresidentDashboardScreen({ navigation }: Props) {
       onPress: () => navigation.navigate("WeeklyDueSetup"),
       color: "rgb(162,39,142)",
     },
+    {
+      title: "Product Approval",
+      icon: "cart",
+      onPress: () => navigation.navigate("ProductApproval"),
+      color: "rgb(162,39,142)",
+    },
   ];
 
   return (

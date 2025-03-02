@@ -32,6 +32,7 @@ import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../types/navigation";
 import Toast from "react-native-toast-message";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useUser } from "../contexts/UserContext";
 
 type LoginScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -42,7 +43,7 @@ interface Props {
   navigation: LoginScreenNavigationProp;
 }
 
-export default function LoginScreen({ navigation }: Props) {
+const LoginScreen = ({ navigation }: Props) => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -56,6 +57,8 @@ export default function LoginScreen({ navigation }: Props) {
     Poppins_600SemiBold,
     Poppins_700Bold,
   });
+
+  const { updateUser } = useUser();
 
   useEffect(() => {
     Animated.timing(animation, {
@@ -120,6 +123,9 @@ export default function LoginScreen({ navigation }: Props) {
         topOffset: 30,
         bottomOffset: 40,
       });
+
+      // After successful login, update the user context
+      await updateUser(phoneNumber);
 
       // Navigate after a short delay to allow the toast to be visible
       setTimeout(() => {
@@ -308,7 +314,7 @@ export default function LoginScreen({ navigation }: Props) {
       <Toast />
     </LinearGradient>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -416,3 +422,5 @@ const styles = StyleSheet.create({
     color: "rgb(162,39,142)",
   },
 });
+
+export default LoginScreen;

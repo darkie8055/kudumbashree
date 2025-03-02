@@ -7,21 +7,14 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Login: undefined;
   Verification: { phoneNumber: string };
-  SignUp: { phoneNumber: string };
-  ForgotPassword: { phoneNumber?: string };
-  WaitingApproval: { phoneNumber: string };
+  SignUp: undefined;
+  ForgotPassword: undefined;
+  WaitingApproval: undefined;
   PresidentDashboard: undefined;
-  KMemberTabs: { phoneNumber: string };
-  NormalUserTabs: { phoneNumber: string };
-  KMemberApproval: undefined;
-  PresidentStack: undefined;
-  CheckoutStack: undefined;
-  Home: undefined;
-  Marketplace: undefined | { selectedProduct?: Product };
-  Cart: {
-    cart: CartItem[];
-    onCartUpdate: (cart: CartItem[]) => void;
-  };
+  KMemberTabs: undefined;
+  NormalUserTabs: undefined;
+  ProductManagement: undefined;
+  Cart: { cart: CartItem[]; onCartUpdate: (cart: CartItem[]) => void };
   Market: undefined;
   Payment: { cart: CartItem[] };
   ApplyLoan: {
@@ -52,6 +45,14 @@ export type RootStackParamList = {
     monthlyDue: number;
     loanType: string;
     startDate: Date;
+  };
+  ProductApproval: undefined;
+  PresidentStack: {
+    screen:
+      | "ApprovedMembers"
+      | "ScheduleMeeting"
+      | "AddNoticeNews"
+      | "ProductApproval";
   };
 };
 

@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,80 +16,122 @@ import {
   Platform,
   SafeAreaView,
   StatusBar,
-} from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
-import * as ImagePicker from "expo-image-picker"
-import Toast from "react-native-toast-message"
-import { toastConfig, TOAST_DURATION } from "../components/SonnerToast"
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import * as ImagePicker from "expo-image-picker";
+import Toast from "react-native-toast-message";
+import { toastConfig, TOAST_DURATION } from "../components/SonnerToast";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  deleteDoc,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { useUser } from "../contexts/UserContext";
+import LocationInput from "../components/LocationInput";
 
 interface Product {
-  id: string
-  name: string
-  imageUrl: string
-  price: number
-  description: string
-  unit: string
-  phone: string
-  category: string
-  location: string
-  status: "draft" | "pending" | "approved" | "rejected"
-  createdAt: Date
+  id: string;
+  name: string;
+  imageUrl: string;
+  price: number;
+  description: string;
+  unit: string;
+  phone: string;
+  category: string;
+  location: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: Date;
+  createdBy: string;
+  district: string;
+  pincode: string;
 }
 
 const ProductManagementScreen = ({ navigation }) => {
+  const { userId, userDetails, loading: userLoading } = useUser();
+
   // Product form state
-  const [productName, setProductName] = useState("")
-  const [productPrice, setProductPrice] = useState("")
-  const [productDescription, setProductDescription] = useState("")
-  const [productCategory, setProductCategory] = useState("Food")
-  const [productLocation, setProductLocation] = useState("")
-  const [productImage, setProductImage] = useState(null)
-  const [productUnit, setProductUnit] = useState("Your Kudumbashree")
-  const [productPhone, setProductPhone] = useState("+918891115593")
+  const [productName, setProductName] = useState("");
+  const [productPrice, setProductPrice] = useState("");
+  const [productDescription, setProductDescription] = useState("");
+  const [productCategory, setProductCategory] = useState("Food");
+  const [productLocation, setProductLocation] = useState("");
+  const [productImage, setProductImage] = useState(null);
+  const [productUnit, setProductUnit] = useState("Your Kudumbashree");
+  const [productPhone, setProductPhone] = useState("+918891115593");
+  const [locationData, setLocationData] = useState({
+    pincode: "",
+    district: null as string | null,
+  });
 
   // UI state
-  const [isLoading, setIsLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState("add") // 'add' or 'manage'
-  const [myProducts, setMyProducts] = useState<Product[]>([])
-  const [isPreviewVisible, setIsPreviewVisible] = useState(false)
-  const [previewProduct, setPreviewProduct] = useState<Product | null>(null)
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("add"); // 'add' or 'manage'
+  const [myProducts, setMyProducts] = useState<Product[]>([]);
+  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [formErrors, setFormErrors] = useState({
+    location: "",
+  });
 
-  // Load user's products
   useEffect(() => {
-    // In a real app, you would fetch this from your backend
-    // For now, we'll use mock data
-    const mockProducts: Product[] = [
-      {
-        id: "1001",
-        name: "Homemade Pickle",
-        price: 120,
-        imageUrl: "https://picsum.photos/400/400?random=101",
-        unit: "Your Kudumbashree",
-        phone: "+918891115593",
-        description: "Traditional homemade pickle made with fresh ingredients.",
-        category: "Food",
-        location: "Kochi",
-        status: "approved",
-        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
-      },
-      {
-        id: "1002",
-        name: "Handcrafted Soap",
-        price: 80,
-        imageUrl: "https://picsum.photos/400/400?random=102",
-        unit: "Your Kudumbashree",
-        phone: "+918891115593",
-        description: "Natural handcrafted soap with essential oils.",
-        category: "Beauty",
-        location: "Thrissur",
-        status: "pending",
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-      },
-    ]
+    fetchMyProducts();
+  }, []);
 
-    setMyProducts(mockProducts)
-  }, [])
+  const fetchMyProducts = async () => {
+    if (!userId) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Please sign in to manage products",
+        visibilityTime: TOAST_DURATION,
+      });
+      navigation.goBack();
+      return;
+    }
+
+    try {
+      setIsLoading(true); // Add loading state
+      const db = getFirestore();
+      const productsRef = collection(db, "products");
+      const q = query(
+        productsRef,
+        where("createdBy", "==", userId),
+        orderBy("createdAt", "desc"),
+        orderBy("__name__", "desc") // Add this line to match the index
+      );
+
+      const querySnapshot = await getDocs(q);
+      const products = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate(),
+      })) as Product[];
+
+      setMyProducts(products);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Failed to load your products. Please try again later.",
+        visibilityTime: TOAST_DURATION,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -97,12 +139,12 @@ const ProductManagementScreen = ({ navigation }) => {
       allowsEditing: true,
       aspect: [4, 3],
       quality: 1,
-    })
+    });
 
     if (!result.canceled) {
-      setProductImage(result.assets[0].uri)
+      setProductImage(result.assets[0].uri);
     }
-  }
+  };
 
   const validateForm = () => {
     if (!productName) {
@@ -110,8 +152,9 @@ const ProductManagementScreen = ({ navigation }) => {
         type: "error",
         text1: "Missing Information",
         text2: "Please enter a product name",
-      })
-      return false
+        visibilityTime: TOAST_DURATION,
+      });
+      return false;
     }
 
     if (!productPrice || isNaN(Number(productPrice))) {
@@ -119,8 +162,9 @@ const ProductManagementScreen = ({ navigation }) => {
         type: "error",
         text1: "Invalid Price",
         text2: "Please enter a valid price",
-      })
-      return false
+        visibilityTime: TOAST_DURATION,
+      });
+      return false;
     }
 
     if (!productDescription) {
@@ -128,8 +172,9 @@ const ProductManagementScreen = ({ navigation }) => {
         type: "error",
         text1: "Missing Information",
         text2: "Please enter a product description",
-      })
-      return false
+        visibilityTime: TOAST_DURATION,
+      });
+      return false;
     }
 
     if (!productLocation) {
@@ -137,8 +182,9 @@ const ProductManagementScreen = ({ navigation }) => {
         type: "error",
         text1: "Missing Information",
         text2: "Please enter your location",
-      })
-      return false
+        visibilityTime: TOAST_DURATION,
+      });
+      return false;
     }
 
     if (!productImage) {
@@ -146,15 +192,36 @@ const ProductManagementScreen = ({ navigation }) => {
         type: "error",
         text1: "Missing Image",
         text2: "Please add a product image",
-      })
-      return false
+        visibilityTime: TOAST_DURATION,
+      });
+      return false;
     }
 
-    return true
-  }
+    return true;
+  };
 
   const handlePreview = () => {
-    if (!validateForm()) return
+    // Check all required fields first
+    if (!productName || !productPrice || !productDescription || !productImage) {
+      Toast.show({
+        type: "error",
+        text1: "Missing Information",
+        text2: "Please fill in all required fields",
+        visibilityTime: TOAST_DURATION,
+      });
+      return;
+    }
+
+    // Check if we have valid location data
+    if (!locationData.district || !locationData.pincode) {
+      Toast.show({
+        type: "error",
+        text1: "Missing Location",
+        text2: "Please enter a valid Kerala PIN code",
+        visibilityTime: TOAST_DURATION,
+      });
+      return;
+    }
 
     const newProduct: Product = {
       id: Date.now().toString(),
@@ -163,167 +230,304 @@ const ProductManagementScreen = ({ navigation }) => {
       imageUrl: productImage,
       description: productDescription,
       category: productCategory,
-      location: productLocation,
-      unit: productUnit,
-      phone: productPhone,
+      location: locationData.district,
+      pincode: locationData.pincode,
+      district: locationData.district,
+      unit: userDetails?.unitName || "Unknown Unit",
+      phone: userDetails?.phone || "",
       status: "pending",
       createdAt: new Date(),
+      createdBy: userId || "",
+    };
+
+    setPreviewProduct(newProduct);
+    setIsPreviewVisible(true);
+  };
+
+  const uploadImage = async (uri: string): Promise<string> => {
+    const storage = getStorage();
+    const response = await fetch(uri);
+    const blob = await response.blob();
+
+    const filename = `products/${userId}/${Date.now()}`;
+    const storageRef = ref(storage, filename);
+
+    try {
+      const uploadTask = uploadBytes(storageRef, blob);
+      await uploadTask;
+
+      const downloadURL = await getDownloadURL(storageRef);
+      return downloadURL;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      throw new Error("Failed to upload image");
     }
+  };
 
-    setPreviewProduct(newProduct)
-    setIsPreviewVisible(true)
-  }
+  const handleSubmitProduct = async () => {
+    if (!previewProduct || !userId) return;
 
-  const handleSubmitProduct = () => {
-    if (!previewProduct) return
+    setIsLoading(true);
+    setIsUploading(true);
 
-    setIsLoading(true)
+    try {
+      const db = getFirestore();
+      const imageUrl = await uploadImage(previewProduct.imageUrl);
 
-    // Simulate API call
-    setTimeout(() => {
-      // Add to user's products
-      setMyProducts((prevProducts) => [previewProduct, ...prevProducts])
+      // Prepare product data with correct typing
+      const productData = {
+        ...previewProduct,
+        imageUrl,
+        createdBy: userId,
+        createdAt: new Date(),
+        status: "pending" as "pending" | "approved" | "rejected",
+        pincode: locationData.pincode,
+        district: locationData.district,
+        location: locationData.district, // For backward compatibility
+      };
 
-      // In a real app, you would send this to your backend
-      // When approved, you would add it to the global product list
-      if (global.addNewProduct) {
-        // This would happen after admin approval in a real app
-        // global.addNewProduct(previewProduct)
-      }
+      // Add to Firestore
+      const docRef = await addDoc(collection(db, "products"), productData);
+
+      // Update local state with proper typing
+      const newProduct: Product = {
+        ...productData,
+        id: docRef.id,
+        status: "pending",
+      };
+
+      setMyProducts((prev) => [newProduct, ...prev]);
 
       Toast.show({
         type: "success",
         text1: "Product Submitted",
         text2: "Your product is pending approval",
         visibilityTime: TOAST_DURATION,
-      })
+      });
 
-      // Reset form and state
-      resetForm()
-      setIsPreviewVisible(false)
-      setIsLoading(false)
-
-      // Switch to manage tab to show the pending product
-      setActiveTab("manage")
-    }, 1500)
-  }
+      resetForm();
+      setIsPreviewVisible(false);
+      setActiveTab("manage");
+    } catch (error) {
+      console.error("Error submitting product:", error);
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Failed to submit product",
+        visibilityTime: TOAST_DURATION,
+      });
+    } finally {
+      setIsLoading(false);
+      setIsUploading(false);
+    }
+  };
 
   const resetForm = () => {
-    setProductName("")
-    setProductPrice("")
-    setProductDescription("")
-    setProductCategory("Food")
-    setProductLocation("")
-    setProductImage(null)
-    setPreviewProduct(null)
-  }
+    setProductName("");
+    setProductPrice("");
+    setProductDescription("");
+    setProductCategory("Food");
+    setProductLocation("");
+    setProductImage(null);
+    setPreviewProduct(null);
+  };
 
-  const handleDeleteProduct = (productId: string) => {
-    Alert.alert("Delete Product", "Are you sure you want to delete this product?", [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
-      {
-        text: "Delete",
-        onPress: () => {
-          setMyProducts((prevProducts) => prevProducts.filter((product) => product.id !== productId))
+  const handleDeleteProduct = async (productId: string) => {
+    Alert.alert(
+      "Delete Product",
+      "Are you sure you want to delete this product?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const db = getFirestore();
+              await deleteDoc(doc(db, "products", productId));
 
-          Toast.show({
-            type: "success",
-            text1: "Product Deleted",
-            text2: "Your product has been deleted",
-            visibilityTime: TOAST_DURATION,
-          })
+              setMyProducts((prev) =>
+                prev.filter((product) => product.id !== productId)
+              );
+
+              Toast.show({
+                type: "success",
+                text1: "Product Deleted",
+                text2: "Your product has been removed",
+                visibilityTime: TOAST_DURATION,
+              });
+            } catch (error) {
+              console.error("Error deleting product:", error);
+              Toast.show({
+                type: "error",
+                text1: "Error",
+                text2: "Failed to delete product",
+                visibilityTime: TOAST_DURATION,
+              });
+            }
+          },
         },
-        style: "destructive",
-      },
-    ])
-  }
+      ]
+    );
+  };
 
-  const handleEditProduct = (product: Product) => {
-    // Set form values
-    setProductName(product.name)
-    setProductPrice(product.price.toString())
-    setProductDescription(product.description)
-    setProductCategory(product.category)
-    setProductLocation(product.location)
-    setProductImage(product.imageUrl)
+  const handleEditProduct = async (product: Product) => {
+    try {
+      const db = getFirestore();
+      const productRef = doc(db, "products", product.id);
 
-    // Switch to add tab
-    setActiveTab("add")
+      await updateDoc(productRef, {
+        name: productName,
+        price: Number(productPrice),
+        description: productDescription,
+        category: productCategory,
+        location: productLocation,
+        updatedAt: new Date(),
+      });
 
-    // Scroll to top
-    if (scrollViewRef.current) {
-      scrollViewRef.current.scrollTo({ y: 0, animated: true })
+      // Update local state
+      setMyProducts((prev) =>
+        prev.map((p) =>
+          p.id === product.id
+            ? {
+                ...p,
+                name: productName,
+                price: Number(productPrice),
+                description: productDescription,
+              }
+            : p
+        )
+      );
+
+      Toast.show({
+        type: "success",
+        text1: "Product Updated",
+        text2: "Changes have been saved",
+        visibilityTime: TOAST_DURATION,
+      });
+
+      setActiveTab("manage");
+    } catch (error) {
+      console.error("Error updating product:", error);
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Failed to update product",
+        visibilityTime: TOAST_DURATION,
+      });
     }
+  };
 
-    Toast.show({
-      type: "info",
-      text1: "Edit Mode",
-      text2: "You can now edit your product",
-      visibilityTime: TOAST_DURATION,
-    })
-  }
-
-  const scrollViewRef = React.useRef(null)
+  const scrollViewRef = React.useRef(null);
 
   const renderProductItem = ({ item }: { item: Product }) => {
     const getStatusColor = (status: string) => {
       switch (status) {
         case "approved":
-          return "#22c55e"
+          return "#22c55e";
         case "pending":
-          return "#f59e0b"
+          return "#f59e0b";
         case "rejected":
-          return "#ef4444"
+          return "#ef4444";
         default:
-          return "#6b7280"
+          return "#6b7280";
       }
-    }
+    };
 
     return (
       <View style={styles.productItem}>
-        <Image source={{ uri: item.imageUrl }} style={styles.productItemImage} />
+        <Image
+          source={{ uri: item.imageUrl }}
+          style={styles.productItemImage}
+        />
         <View style={styles.productItemContent}>
           <Text style={styles.productItemName}>{item.name}</Text>
           <Text style={styles.productItemPrice}>₹{item.price}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(item.status) },
+            ]}
+          >
             <Text style={styles.statusText}>{item.status.toUpperCase()}</Text>
           </View>
-          <Text style={styles.productItemDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+          <Text style={styles.productItemDate}>
+            {new Date(item.createdAt).toLocaleDateString()}
+          </Text>
         </View>
         <View style={styles.productItemActions}>
-          <TouchableOpacity style={styles.actionButton} onPress={() => handleEditProduct(item)}>
-            <Ionicons name="pencil" size={18} color="#8B5CF6" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton} onPress={() => handleDeleteProduct(item.id)}>
+          {/* Only show edit button for pending products */}
+          {item.status === "pending" && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => {
+                setProductName(item.name);
+                setProductPrice(item.price.toString());
+                setProductDescription(item.description);
+                setProductCategory(item.category);
+                setProductLocation(item.location);
+                setProductImage(item.imageUrl);
+                setActiveTab("add");
+                // Store the product being edited
+                setEditingProduct(item);
+              }}
+            >
+              <Ionicons name="pencil" size={18} color="#8B5CF6" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleDeleteProduct(item.id)}
+          >
             <Ionicons name="trash" size={18} color="#ef4444" />
           </TouchableOpacity>
         </View>
+        {isUploading && (
+          <View style={styles.uploadProgress}>
+            <ActivityIndicator size="small" color="#8B5CF6" />
+            <Text style={styles.uploadProgressText}>
+              Uploading... {uploadProgress}%
+            </Text>
+          </View>
+        )}
       </View>
-    )
-  }
+    );
+  };
 
   const renderAddProductForm = () => {
     return (
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
-        <ScrollView ref={scrollViewRef} style={styles.formContainer} contentContainerStyle={{ paddingBottom: 100 }}>
+      <View style={{ flex: 1 }}>
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.formContainer}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={true}
+        >
+          {/* Form content */}
           <Text style={styles.formTitle}>Add New Product</Text>
           <Text style={styles.formSubtitle}>
-            Fill in the details below to add your product to the marketplace. Your product will be reviewed before it
-            appears in the marketplace.
+            Fill in the details below to add your product to the marketplace.
+            Your product will be reviewed before it appears in the marketplace.
           </Text>
 
           {/* Product Image */}
           <Text style={styles.inputLabel}>Product Image*</Text>
-          <TouchableOpacity style={styles.imagePickerContainer} onPress={pickImage}>
+          <TouchableOpacity
+            style={styles.imagePickerContainer}
+            onPress={pickImage}
+          >
             {productImage ? (
-              <Image source={{ uri: productImage }} style={styles.productImagePreview} />
+              <Image
+                source={{ uri: productImage }}
+                style={styles.productImagePreview}
+              />
             ) : (
               <View style={styles.imagePlaceholder}>
                 <Ionicons name="camera" size={40} color="#8B5CF6" />
-                <Text style={styles.imagePlaceholderText}>Add Product Image</Text>
+                <Text style={styles.imagePlaceholderText}>
+                  Add Product Image
+                </Text>
               </View>
             )}
           </TouchableOpacity>
@@ -364,11 +568,18 @@ const ProductManagementScreen = ({ navigation }) => {
             {["Food", "Beauty", "Home"].map((category) => (
               <TouchableOpacity
                 key={category}
-                style={[styles.categoryButton, productCategory === category && styles.selectedCategoryButton]}
+                style={[
+                  styles.categoryButton,
+                  productCategory === category && styles.selectedCategoryButton,
+                ]}
                 onPress={() => setProductCategory(category)}
               >
                 <Text
-                  style={[styles.categoryButtonText, productCategory === category && styles.selectedCategoryButtonText]}
+                  style={[
+                    styles.categoryButtonText,
+                    productCategory === category &&
+                      styles.selectedCategoryButtonText,
+                  ]}
                 >
                   {category}
                 </Text>
@@ -378,15 +589,29 @@ const ProductManagementScreen = ({ navigation }) => {
 
           {/* Product Location */}
           <Text style={styles.inputLabel}>Location*</Text>
-          <TextInput
-            style={styles.input}
-            value={productLocation}
-            onChangeText={setProductLocation}
-            placeholder="Enter your location"
+          <LocationInput
+            onLocationChange={({ pincode, district }) => {
+              setLocationData({ pincode, district });
+              // You might want to show an error if district is null
+              setFormErrors((prev) => ({
+                ...prev,
+                location:
+                  district === null
+                    ? "Please enter a valid Kerala PIN code"
+                    : "",
+              }));
+            }}
+            initialPincode={productLocation}
+            error={formErrors.location}
           />
+        </ScrollView>
 
-          {/* Submit Button */}
-          <TouchableOpacity style={styles.previewButton} onPress={handlePreview}>
+        {/* Fixed position preview button */}
+        <View style={styles.fixedPreviewButtonContainer}>
+          <TouchableOpacity
+            style={styles.previewButton}
+            onPress={handlePreview}
+          >
             <LinearGradient
               colors={["#8B5CF6", "#EC4899"]}
               start={{ x: 0, y: 0 }}
@@ -396,25 +621,33 @@ const ProductManagementScreen = ({ navigation }) => {
               <Text style={styles.previewButtonText}>Preview Product</Text>
             </LinearGradient>
           </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    )
-  }
+        </View>
+      </View>
+    );
+  };
 
   const renderManageProducts = () => {
     return (
       <View style={styles.manageContainer}>
         <Text style={styles.formTitle}>Manage Your Products</Text>
         <Text style={styles.formSubtitle}>
-          View, edit, and delete your products. Products must be approved before they appear in the marketplace.
+          View, edit, and delete your products. Products must be approved before
+          they appear in the marketplace.
         </Text>
 
         {myProducts.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="basket-outline" size={60} color="#d1d5db" />
-            <Text style={styles.emptyStateText}>You haven't added any products yet</Text>
-            <TouchableOpacity style={styles.emptyStateButton} onPress={() => setActiveTab("add")}>
-              <Text style={styles.emptyStateButtonText}>Add Your First Product</Text>
+            <Text style={styles.emptyStateText}>
+              You haven't added any products yet
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyStateButton}
+              onPress={() => setActiveTab("add")}
+            >
+              <Text style={styles.emptyStateButtonText}>
+                Add Your First Product
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -426,11 +659,11 @@ const ProductManagementScreen = ({ navigation }) => {
           />
         )}
       </View>
-    )
-  }
+    );
+  };
 
   const renderProductPreview = () => {
-    if (!previewProduct) return null
+    if (!previewProduct) return null;
 
     return (
       <View style={styles.previewOverlay}>
@@ -443,28 +676,52 @@ const ProductManagementScreen = ({ navigation }) => {
           </View>
 
           <ScrollView style={styles.previewContent}>
-            <Image source={{ uri: previewProduct.imageUrl }} style={styles.previewImage} />
+            <Image
+              source={{ uri: previewProduct.imageUrl }}
+              style={styles.previewImage}
+            />
             <Text style={styles.previewProductName}>{previewProduct.name}</Text>
-            <Text style={styles.previewProductPrice}>₹{previewProduct.price}</Text>
-            <Text style={styles.previewProductUnit}>Unit: {previewProduct.unit}</Text>
-            <Text style={styles.previewProductDescription}>{previewProduct.description}</Text>
-            <Text style={styles.previewProductCategory}>Category: {previewProduct.category}</Text>
-            <Text style={styles.previewProductLocation}>Location: {previewProduct.location}</Text>
+            <Text style={styles.previewProductPrice}>
+              ₹{previewProduct.price}
+            </Text>
+            <Text style={styles.previewProductUnit}>
+              Unit: {previewProduct.unit}
+            </Text>
+            <Text style={styles.previewProductDescription}>
+              {previewProduct.description}
+            </Text>
+            <Text style={styles.previewProductCategory}>
+              Category: {previewProduct.category}
+            </Text>
+            <Text style={styles.previewProductLocation}>
+              Location: {previewProduct.district}
+            </Text>
+            <Text style={styles.previewProductPincode}>
+              PIN Code: {previewProduct.pincode}
+            </Text>
 
             <View style={styles.previewNote}>
               <Ionicons name="information-circle" size={20} color="#8B5CF6" />
               <Text style={styles.previewNoteText}>
-                Your product will be reviewed before it appears in the marketplace.
+                Your product will be reviewed before it appears in the
+                marketplace.
               </Text>
             </View>
           </ScrollView>
 
           <View style={styles.previewActions}>
-            <TouchableOpacity style={styles.previewEditButton} onPress={() => setIsPreviewVisible(false)}>
+            <TouchableOpacity
+              style={styles.previewEditButton}
+              onPress={() => setIsPreviewVisible(false)}
+            >
               <Text style={styles.previewEditButtonText}>Edit</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.previewSubmitButton} onPress={handleSubmitProduct} disabled={isLoading}>
+            <TouchableOpacity
+              style={styles.previewSubmitButton}
+              onPress={handleSubmitProduct}
+              disabled={isLoading}
+            >
               <LinearGradient
                 colors={["#8B5CF6", "#EC4899"]}
                 start={{ x: 0, y: 0 }}
@@ -474,57 +731,122 @@ const ProductManagementScreen = ({ navigation }) => {
                 {isLoading ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={styles.previewSubmitButtonText}>Submit Product</Text>
+                  <Text style={styles.previewSubmitButtonText}>
+                    Submit Product
+                  </Text>
                 )}
               </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
       </View>
-    )
+    );
+  };
+
+  if (userLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8B5CF6" />
+      </View>
+    );
+  }
+
+  if (!userId) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Product Management</Text>
+        </View>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateText}>
+            Please sign in to manage products
+          </Text>
+        </View>
+      </View>
+    );
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Product Management</Text>
+        </View>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Product Management</Text>
-      </View>
+        {/* Tabs */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === "add" && styles.activeTab]}
+            onPress={() => setActiveTab("add")}
+          >
+            <Ionicons
+              name="add-circle"
+              size={20}
+              color={activeTab === "add" ? "#8B5CF6" : "#6b7280"}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "add" && styles.activeTabText,
+              ]}
+            >
+              Add Product
+            </Text>
+          </TouchableOpacity>
 
-      {/* Tabs */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "add" && styles.activeTab]}
-          onPress={() => setActiveTab("add")}
-        >
-          <Ionicons name="add-circle" size={20} color={activeTab === "add" ? "#8B5CF6" : "#6b7280"} />
-          <Text style={[styles.tabText, activeTab === "add" && styles.activeTabText]}>Add Product</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === "manage" && styles.activeTab]}
+            onPress={() => setActiveTab("manage")}
+          >
+            <Ionicons
+              name="list"
+              size={20}
+              color={activeTab === "manage" ? "#8B5CF6" : "#6b7280"}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "manage" && styles.activeTabText,
+              ]}
+            >
+              Manage Products
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "manage" && styles.activeTab]}
-          onPress={() => setActiveTab("manage")}
-        >
-          <Ionicons name="list" size={20} color={activeTab === "manage" ? "#8B5CF6" : "#6b7280"} />
-          <Text style={[styles.tabText, activeTab === "manage" && styles.activeTabText]}>Manage Products</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Content */}
+        <View style={styles.contentContainer}>
+          {activeTab === "add"
+            ? renderAddProductForm()
+            : renderManageProducts()}
+        </View>
 
-      {/* Content */}
-      {activeTab === "add" ? renderAddProductForm() : renderManageProducts()}
+        {/* Product Preview Modal */}
+        {isPreviewVisible && renderProductPreview()}
 
-      {/* Product Preview Modal */}
-      {isPreviewVisible && renderProductPreview()}
-
-      <Toast config={toastConfig} />
+        <Toast config={toastConfig} />
+      </KeyboardAvoidingView>
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -537,6 +859,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
+    marginTop: 30,
   },
   backButton: {
     marginRight: 16,
@@ -572,7 +895,9 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   formContainer: {
-    padding: 16,
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingBottom: 80, // Add padding to account for fixed button
   },
   formTitle: {
     fontSize: 20,
@@ -650,9 +975,16 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   previewButton: {
-    marginVertical: 16,
     borderRadius: 8,
     overflow: "hidden",
+    elevation: 2, // Add elevation for Android
+    shadowColor: "#000", // Add shadow for iOS
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   previewButtonGradient: {
     paddingVertical: 16,
@@ -818,6 +1150,11 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     marginBottom: 16,
   },
+  previewProductPincode: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 16,
+  },
   previewNote: {
     flexDirection: "row",
     alignItems: "center",
@@ -863,7 +1200,50 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
   },
-})
+  uploadProgress: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255,255,255,0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
+  },
+  uploadProgressText: {
+    marginTop: 8,
+    color: "#8B5CF6",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  contentContainer: {
+    flex: 1,
+  },
+  fixedPreviewButtonContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "white",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+});
 
-export default ProductManagementScreen
-
+export default ProductManagementScreen;
