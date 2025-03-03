@@ -184,6 +184,21 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
       try {
         const db = getFirestore();
         const cartRef = doc(db, "K-member", userId, "cart", product.id);
+        
+        // First update local state
+        setCart(prevCart => {
+          const existingItem = prevCart.find(item => item.product.id === product.id);
+          if (existingItem) {
+            return prevCart.map(item =>
+              item.product.id === product.id
+                ? { ...item, quantity: item.quantity + 1 }
+                : item
+            );
+          }
+          return [...prevCart, { product, quantity: 1 }];
+        });
+
+        // Then update Firestore
         await setDoc(
           cartRef,
           {
@@ -517,7 +532,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
           colors={["#8B5CF6", "#EC4899"]}
           style={styles.gradientHeader}
         >
-          <Text style={styles.pageHeading}>Marketplace</Text>
+          <Text style={styles.pageHeading}>K-MART</Text>
 
           <TouchableOpacity
             style={styles.sellButton}
@@ -549,7 +564,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
           <Ionicons name="cart" size={30} color="#fff" />
           <View style={styles.cartBadge}>
             <Text style={styles.cartBadgeText}>
-              {cart.reduce((acc, item) => acc + item.quantity, 0)}
+              {cart.length} {/* Changed from cart.reduce to cart.length */}
             </Text>
           </View>
         </TouchableOpacity>
@@ -638,7 +653,8 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
           if (prevProducts.some((p) => p.id === newProduct.id)) {
             return prevProducts;
           }
-          return [
+          // Add new product in a stable way
+          const updatedProducts = [
             {
               ...newProduct,
               id: newProduct.id || String(Date.now()),
@@ -646,13 +662,21 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
             },
             ...prevProducts,
           ];
+          // Update filtered products in the same cycle
+          requestAnimationFrame(() => {
+            setFilteredProducts(updatedProducts);
+          });
+          return updatedProducts;
         });
 
-        Toast.show({
-          type: "success",
-          text1: "Product Listed",
-          text2: "Your product is now available in the marketplace",
-          visibilityTime: 3000,
+        // Show toast after state update
+        requestAnimationFrame(() => {
+          Toast.show({
+            type: "success",
+            text1: "Product Listed",
+            text2: "Your product is now available in the marketplace",
+            visibilityTime: 3000,
+          });
         });
       }
     };
