@@ -503,6 +503,7 @@ export default function HomeScreen({ navigation }: Props) {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#8B5CF6" />
       </View>
+      
     );
   }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -26,9 +26,9 @@ interface CartItem {
   quantity: number;
 }
 
-const CartScreen = ({ route, navigation }) => {
-  const [cart, setCart] = useState<CartItem[]>(route.params?.cart || []);
-  const onCartUpdate = route.params?.onCartUpdate;
+export default function CartScreen({ navigation, route }) {
+  const { cart, onCartUpdate } = route.params;
+  
   const [recommendations, setRecommendations] = useState<Product[]>([]);
   const [optimizedPrices, setOptimizedPrices] = useState<{[key: string]: number}>({});
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -45,10 +45,7 @@ const CartScreen = ({ route, navigation }) => {
       return cartItem;
     }).filter(Boolean) as CartItem[];
 
-    setCart(updatedCart);
-    if (onCartUpdate) {
-      onCartUpdate(updatedCart);
-    }
+    updateCartItem(updatedCart);
   };
 
   const getTotalAmount = () => {
@@ -59,10 +56,7 @@ const CartScreen = ({ route, navigation }) => {
   };
 
   const clearCart = () => {
-    setCart([]);
-    if (onCartUpdate) {
-      onCartUpdate([]);
-    }
+    updateCartItem([]);
   };
 
   useEffect(() => {
@@ -191,16 +185,10 @@ const CartScreen = ({ route, navigation }) => {
         quantity: updatedCart[existingItemIndex].quantity + 1
       };
       updatedCart[existingItemIndex] = updatedItem;
-      setCart(updatedCart);
-      if (onCartUpdate) {
-        onCartUpdate(updatedCart);
-      }
+      updateCartItem(updatedCart);
     } else {
       const updatedCart = [...cart, { product, quantity: 1 }];
-      setCart(updatedCart);
-      if (onCartUpdate) {
-        onCartUpdate(updatedCart);
-      }
+      updateCartItem(updatedCart);
     }
     
     // Show toast message
@@ -555,5 +543,3 @@ const styles = StyleSheet.create({
     padding: 4,
   },
 });
-
-export default CartScreen;

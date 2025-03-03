@@ -28,10 +28,10 @@ interface KMemberDetails {
 
 
 export default function KMemberProfileScreen({ route }) {
+  const phoneNumber = route?.params?.phoneNumber || '';
   const [isEditing, setIsEditing] = useState(false);
   const [userDetails, setUserDetails] = useState<KMemberDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const phoneNumber = route.params?.phoneNumber;
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,

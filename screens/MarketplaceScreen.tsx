@@ -140,8 +140,7 @@ declare global {
   var addNewProduct: ((product: Product) => void) | null;
 }
 
-export default function MarketplaceScreen({ navigation, route }: Props) {
-  // 1. First, declare all hooks at the top level
+export default function MarketplaceScreen({ navigation, route }) {
   const { userId, userDetails } = useUser();
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -149,7 +148,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     Poppins_700Bold,
   });
 
-  // 2. All useState hooks
   const [cart, setCart] = useState<CartItem[]>(route?.params?.cart || []);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -165,11 +163,15 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
   const [lastDoc, setLastDoc] = useState(null);
   const [hasMore, setHasMore] = useState(true);
 
-  // 3. All useRef hooks
+  useEffect(() => {
+    if (!route?.params?.cart) {
+      navigation.setParams({ cart: [] });
+    }
+  }, []);
+
   const scrollY = useRef(new Animated.Value(0)).current;
   const headerHeight = useRef(new Animated.Value(200)).current;
 
-  // 4. All useCallback hooks
   const handleAddToCart = useCallback(
     async (product: Product) => {
       if (!userId) {
@@ -184,21 +186,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
       try {
         const db = getFirestore();
         const cartRef = doc(db, "K-member", userId, "cart", product.id);
-        
-        // First update local state
-        setCart(prevCart => {
-          const existingItem = prevCart.find(item => item.product.id === product.id);
-          if (existingItem) {
-            return prevCart.map(item =>
-              item.product.id === product.id
-                ? { ...item, quantity: item.quantity + 1 }
-                : item
-            );
-          }
-          return [...prevCart, { product, quantity: 1 }];
-        });
-
-        // Then update Firestore
         await setDoc(
           cartRef,
           {
@@ -211,6 +198,28 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
           },
           { merge: true }
         );
+
+        // Update local cart state
+        setCart(prevCart => {
+          const existingItem = prevCart.find(item => item.product.id === product.id);
+          if (existingItem) {
+            return prevCart.map(item =>
+              item.product.id === product.id
+                ? { ...item, quantity: item.quantity + 1 }
+                : item
+            );
+          }
+          return [...prevCart, { product, quantity: 1 }];
+        });
+
+        // Update navigation params to reflect new cart state
+        navigation.setParams({ 
+          cart: cart.map(item =>
+            item.product.id === product.id
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
+          )
+        });
 
         Toast.show({
           type: "success",
@@ -226,7 +235,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
         });
       }
     },
-    [userId]
+    [userId, cart, navigation]
   );
 
   const handleProductPress = useCallback((product: Product) => {
@@ -258,7 +267,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     [handleProductPress, handleAddToCart]
   );
 
-  // Update fetchProducts function to prevent duplicates
   const fetchProducts = useCallback(
     async (shouldRefresh = false) => {
       try {
@@ -278,7 +286,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
 
         const querySnapshot = await getDocs(baseQuery);
 
-        // Properly type and map Firestore data
         const newProducts: Product[] = querySnapshot.docs.map((doc) => {
           const data = doc.data();
           return {
@@ -296,7 +303,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
           };
         });
 
-        // Check for duplicates before updating state
         if (shouldRefresh) {
           setProducts(newProducts);
           setFilteredProducts(newProducts);
@@ -340,7 +346,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     fetchProducts(true);
   }, [fetchProducts]);
 
-  // Enhance search with AI
   const debouncedSearch = useCallback(
     debounce((text: string) => {
       setSearchQuery(text);
@@ -379,7 +384,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     });
   }, [cart, navigation, setCart]);
 
-  // Update navigation call
   const goToProductManagement = useCallback(() => {
     navigation.navigate("ProductManagement");
   }, [navigation]);
@@ -395,21 +399,18 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
 
     let filtered = products;
 
-    // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter((product) =>
         product.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
-    // Apply category filter
     if (selectedCategory !== "All") {
       filtered = filtered.filter(
         (product) => product.category === selectedCategory
       );
     }
 
-    // Apply sorting
     const sortedProducts = [...filtered];
     switch (sortOption) {
       case "priceLow":
@@ -478,7 +479,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     );
   }, [selectedProduct, isModalVisible, closeModal, handleAddToCart]);
 
-  // Update the renderRecommendations function to use unique keys
   const renderRecommendations = useCallback(() => {
     if (recommendations.length === 0) return null;
 
@@ -489,7 +489,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
           horizontal
           showsHorizontalScrollIndicator={false}
           data={recommendations}
-          keyExtractor={(item) => `recommended-${item.id}`} // Add prefix to ensure uniqueness
+          keyExtractor={(item) => `recommended-${item.id}`}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.recommendedItem}
@@ -513,6 +513,11 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
       </View>
     );
   }, [recommendations, handleProductPress]);
+
+  // Add a function to calculate total cart items
+  const getTotalCartItems = useCallback(() => {
+    return cart.reduce((total, item) => total + item.quantity, 0);
+  }, [cart]);
 
   const renderHeader = useCallback(() => {
     const headerTranslate = scrollY.interpolate({
@@ -559,15 +564,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
             placeholderTextColor="#999"
           />
         </View>
-
-        <TouchableOpacity style={styles.cartIcon} onPress={goToCart}>
-          <Ionicons name="cart" size={30} color="#fff" />
-          <View style={styles.cartBadge}>
-            <Text style={styles.cartBadgeText}>
-              {cart.length} {/* Changed from cart.reduce to cart.length */}
-            </Text>
-          </View>
-        </TouchableOpacity>
 
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionHeader}>Categories</Text>
@@ -640,21 +636,19 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     recommendations,
     renderRecommendations,
     goToProductManagement,
+    getTotalCartItems,
   ]);
 
-  // 5. All useEffect hooks
   useEffect(() => {
     fetchProducts();
 
     global.addNewProduct = (newProduct: Product) => {
       if (newProduct.status === "approved") {
         setProducts((prevProducts) => {
-          // Check if product already exists
           if (prevProducts.some((p) => p.id === newProduct.id)) {
             return prevProducts;
           }
-          // Add new product in a stable way
-          const updatedProducts = [
+          return [
             {
               ...newProduct,
               id: newProduct.id || String(Date.now()),
@@ -662,21 +656,13 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
             },
             ...prevProducts,
           ];
-          // Update filtered products in the same cycle
-          requestAnimationFrame(() => {
-            setFilteredProducts(updatedProducts);
-          });
-          return updatedProducts;
         });
 
-        // Show toast after state update
-        requestAnimationFrame(() => {
-          Toast.show({
-            type: "success",
-            text1: "Product Listed",
-            text2: "Your product is now available in the marketplace",
-            visibilityTime: 3000,
-          });
+        Toast.show({
+          type: "success",
+          text1: "Product Listed",
+          text2: "Your product is now available in the marketplace",
+          visibilityTime: 3000,
         });
       }
     };
@@ -713,7 +699,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     getAIRecommendations();
   }, [products, selectedProduct, cart]);
 
-  // 6. Return null for loading state
   if (!fontsLoaded) {
     return null;
   }
@@ -731,7 +716,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
       <AnimatedFlatList
         data={filteredProducts}
         renderItem={renderProduct}
-        keyExtractor={(item) => `product-${item.id}`} // Add prefix to ensure uniqueness
+        keyExtractor={(item) => `product-${item.id}`}
         numColumns={2}
         contentContainerStyle={styles.productListContainer}
         ListHeaderComponent={renderHeader}
@@ -767,6 +752,29 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
         }
       />
       {renderProductDetails()}
+
+      {/* Add floating cart button */}
+      <TouchableOpacity 
+        style={styles.floatingCartButton} 
+        onPress={goToCart}
+      >
+        <LinearGradient
+          colors={["#8B5CF6", "#EC4899"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.floatingCartGradient}
+        >
+          <Ionicons name="cart" size={24} color="#fff" />
+          {getTotalCartItems() > 0 && (
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>
+                {getTotalCartItems()}
+              </Text>
+            </View>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
+
       <Toast config={toastConfig} />
     </SafeAreaView>
   );
@@ -828,27 +836,6 @@ const styles = StyleSheet.create({
   },
   searchIcon: {
     marginRight: 10,
-  },
-  cartIcon: {
-    position: "absolute",
-    top: 30,
-    right: 25,
-  },
-  cartBadge: {
-    position: "absolute",
-    top: -5,
-    right: -5,
-    backgroundColor: "#EC4899",
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  cartBadgeText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "bold",
   },
   sectionContainer: {
     marginTop: 24,
@@ -1022,5 +1009,48 @@ const styles = StyleSheet.create({
   },
   footerLoader: {
     paddingVertical: 20,
+  },
+  // Remove old cartIcon styles
+  cartIcon: undefined,
+
+  // Add new floating cart styles
+  floatingCartButton: {
+    position: 'absolute',
+    bottom: 85, // Position above tabbar
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 1000,
+  },
+  floatingCartGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#EC4899',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  cartBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

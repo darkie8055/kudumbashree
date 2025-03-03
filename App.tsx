@@ -62,104 +62,130 @@ Notifications.setNotificationHandler({
 });
 
 function KMemberTabs({ route }) {
-  const phoneNumber = route.params?.phoneNumber;
+  const phoneNumber = route?.params?.phoneNumber;
 
   return (
-    <ScreenWithFloatingButton>
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          headerShown: false,
-          tabBarShowLabel: false,
-          tabBarStyle: styles.tabBar,
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName;
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarStyle: styles.tabBar,
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
 
-            if (route.name === "Home") {
-              iconName = focused ? "home" : "home-outline";
-            } else if (route.name === "Details") {
-              iconName = focused
-                ? "information-circle"
-                : "information-circle-outline";
-            } else if (route.name === "Market") {
-              iconName = focused ? "basket" : "basket-outline";
-            } else if (route.name === "Profile") {
-              iconName = focused ? "person" : "person-outline";
-            }
+          if (route.name === "Home") {
+            iconName = focused ? "home" : "home-outline";
+          } else if (route.name === "Details") {
+            iconName = focused
+              ? "information-circle"
+              : "information-circle-outline";
+          } else if (route.name === "Market") {
+            iconName = focused ? "basket" : "basket-outline";
+          } else if (route.name === "Profile") {
+            iconName = focused ? "person" : "person-outline";
+          }
 
-            return (
-              <View
-                style={[
-                  styles.tabCircle,
-                  focused ? styles.activeTab : styles.inactiveTab,
-                ]}
-              >
-                <Ionicons
-                  name={iconName}
-                  size={size}
-                  color={focused ? "#FFFFFF" : "#8B5CF6"}
-                />
-              </View>
-            );
-          },
-        })}
-      >
-        <Tab.Screen name="Home" component={HomeScreen} />
-        <Tab.Screen name="Details" component={KudumbashreeDetailsScreen} />
-        <Tab.Screen name="Market" component={MarketplaceScreen} />
-        <Tab.Screen
-          name="Profile"
-          component={KMemberProfileScreen}
-          initialParams={{ phoneNumber }}
-        />
-      </Tab.Navigator>
-    </ScreenWithFloatingButton>
+          return (
+            <View
+              style={[
+                styles.tabCircle,
+                focused ? styles.activeTab : styles.inactiveTab,
+              ]}
+            >
+              <Ionicons
+                name={iconName}
+                size={size}
+                color={focused ? "#FFFFFF" : "#8B5CF6"}
+              />
+            </View>
+          );
+        },
+      })}
+    >
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen} 
+        initialParams={{ phoneNumber }}
+      />
+      <Tab.Screen 
+        name="Details" 
+        component={KudumbashreeDetailsScreen} 
+        initialParams={{ phoneNumber }}
+      />
+      <Tab.Screen 
+        name="Market" 
+        component={MarketplaceScreen} 
+        initialParams={{ cart: [] }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={KMemberProfileScreen}
+        initialParams={{ phoneNumber }}
+        options={{
+          wrapper: (props) => (
+            <ScreenWithFloatingButton>
+              {props.children}
+            </ScreenWithFloatingButton>
+          ),
+        }}
+      />
+    </Tab.Navigator>
   );
 }
 
 function NormalUserTabs({ route }) {
-  const phoneNumber = route.params?.phoneNumber;
+  const phoneNumber = route?.params?.phoneNumber;
 
   return (
-    <ScreenWithFloatingButton>
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          headerShown: false,
-          tabBarShowLabel: false,
-          tabBarStyle: styles.tabBar,
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName;
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarStyle: styles.tabBar,
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
 
-            if (route.name === "Market") {
-              iconName = focused ? "basket" : "basket-outline";
-            } else if (route.name === "Profile") {
-              iconName = focused ? "person" : "person-outline";
-            }
+          if (route.name === "Market") {
+            iconName = focused ? "basket" : "basket-outline";
+          } else if (route.name === "Profile") {
+            iconName = focused ? "person" : "person-outline";
+          }
 
-            return (
-              <View
-                style={[
-                  styles.tabCircle,
-                  focused ? styles.activeTab : styles.inactiveTab,
-                ]}
-              >
-                <Ionicons
-                  name={iconName}
-                  size={size}
-                  color={focused ? "#FFFFFF" : "#8B5CF6"}
-                />
-              </View>
-            );
-          },
-        })}
-      >
-        <Tab.Screen name="Market" component={MarketplaceScreen} />
-        <Tab.Screen
-          name="Profile"
-          component={NormalUserProfileScreen}
-          initialParams={{ phoneNumber }}
-        />
-      </Tab.Navigator>
-    </ScreenWithFloatingButton>
+          return (
+            <View
+              style={[
+                styles.tabCircle,
+                focused ? styles.activeTab : styles.inactiveTab,
+              ]}
+            >
+              <Ionicons
+                name={iconName}
+                size={size}
+                color={focused ? "#FFFFFF" : "#8B5CF6"}
+              />
+            </View>
+          );
+        },
+      })}
+    >
+      <Tab.Screen 
+        name="Market" 
+        component={MarketplaceScreen} 
+        initialParams={{ cart: [] }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={NormalUserProfileScreen}
+        initialParams={{ phoneNumber }}
+        options={{
+          wrapper: (props) => (
+            <ScreenWithFloatingButton>
+              {props.children}
+            </ScreenWithFloatingButton>
+          ),
+        }}
+      />
+    </Tab.Navigator>
   );
 }
 

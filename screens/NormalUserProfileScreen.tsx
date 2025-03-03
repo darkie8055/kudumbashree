@@ -24,10 +24,10 @@ interface NormalUserDetails {
 }
 
 export default function NormalUserProfileScreen({ route }) {
+  const phoneNumber = route?.params?.phoneNumber || '';
   const [isEditing, setIsEditing] = useState(false);
   const [userDetails, setUserDetails] = useState<NormalUserDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const phoneNumber = route.params?.phoneNumber;
   const [isSaving, setIsSaving] = useState(false);
 
   // Define fields in specific order matching signup page
