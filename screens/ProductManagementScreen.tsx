@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -33,6 +33,8 @@ import {
   deleteDoc,
   doc,
   updateDoc,
+  collectionGroup,
+  setDoc,
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useUser } from "../contexts/UserContext";
@@ -332,7 +334,7 @@ const ProductManagementScreen = ({ navigation }) => {
     setPreviewProduct(null);
   };
 
-  const handleDeleteProduct = async (productId: string) => {
+  const handleDeleteProduct = useCallback(async (productId: string) => {
     Alert.alert(
       "Delete Product",
       "Are you sure you want to delete this product?",
@@ -344,11 +346,33 @@ const ProductManagementScreen = ({ navigation }) => {
           onPress: async () => {
             try {
               const db = getFirestore();
+
+              // Delete from products collection
               await deleteDoc(doc(db, "products", productId));
 
+              // Delete all cart references to this product
+              const cartQuery = query(
+                collectionGroup(db, "cart"),
+                where("productId", "==", productId)
+              );
+              
+              const cartSnapshots = await getDocs(cartQuery);
+              const cartDeletions = cartSnapshots.docs.map(doc => 
+                deleteDoc(doc.ref)
+              );
+              
+              await Promise.all(cartDeletions);
+
+              // Update local state
               setMyProducts((prev) =>
                 prev.filter((product) => product.id !== productId)
               );
+
+              // Trigger marketplace refresh by setting a flag in Firebase
+              await setDoc(doc(db, "system", "marketplace"), {
+                lastUpdate: new Date(),
+                deletedProductId: productId
+              }, { merge: true });
 
               Toast.show({
                 type: "success",
@@ -369,7 +393,7 @@ const ProductManagementScreen = ({ navigation }) => {
         },
       ]
     );
-  };
+  }, []);
 
   const handleEditProduct = async (product: Product) => {
     try {

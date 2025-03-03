@@ -45,6 +45,7 @@ import {
   startAfter,
   doc,
   setDoc,
+  onSnapshot,
 } from "firebase/firestore";
 
 interface Product {
@@ -698,6 +699,31 @@ export default function MarketplaceScreen({ navigation, route }) {
     };
     getAIRecommendations();
   }, [products, selectedProduct, cart]);
+
+  // Add listener for product deletions
+  useEffect(() => {
+    const db = getFirestore();
+    const unsubscribe = onSnapshot(
+      doc(db, "system", "marketplace"),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          const deletedId = data?.deletedProductId;
+          
+          if (deletedId) {
+            // Remove deleted product from products and filtered products
+            setProducts(prev => prev.filter(p => p.id !== deletedId));
+            setFilteredProducts(prev => prev.filter(p => p.id !== deletedId));
+            
+            // Remove from cart if present
+            setCart(prev => prev.filter(item => item.product.id !== deletedId));
+          }
+        }
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   if (!fontsLoaded) {
     return null;

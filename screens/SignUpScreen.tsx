@@ -48,6 +48,7 @@ import {
 import axios from "axios";
 import * as DocumentPicker from "expo-document-picker";
 import { RouteProp } from "@react-navigation/native";
+import { handleAadhaarUpload } from '../utils/documentUpload';
 
 type SignUpScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -89,6 +90,7 @@ export default function SignUpScreen({ navigation }: Props) {
     documentUploaded: false,
     status: "pending",
     profilePhotoUrl: "",
+    rationCardDocumentUrl: "", // This will be set by the document upload
   });
 
   const [animation] = useState(new Animated.Value(0));
@@ -105,6 +107,8 @@ export default function SignUpScreen({ navigation }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
+  const [isRationCardUploading, setIsRationCardUploading] = useState(false);
+  const [rationCardDocumentUrl, setRationCardDocumentUrl] = useState("");
 
   useEffect(() => {
     Animated.timing(animation, {
@@ -240,6 +244,47 @@ export default function SignUpScreen({ navigation }: Props) {
       Alert.alert("Error", "Failed to upload profile photo");
     } finally {
       setIsPhotoUploading(false);
+    }
+  };
+
+  const handleRationCardDocumentUpload = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.assets && result.assets[0]) {
+        setIsRationCardUploading(true);
+        const storage = getStorage(app);
+        const fileRef = storageRef(
+          storage,
+          `ration-card-documents/${formData.phone}-${Date.now()}.pdf`
+        );
+
+        const response = await fetch(result.assets[0].uri);
+        const blob = await response.blob();
+
+        const metadata = {
+          contentType: result.assets[0].mimeType || "application/pdf",
+        };
+
+        await uploadBytes(fileRef, blob, metadata);
+        const downloadUrl = await getDownloadURL(fileRef);
+
+        setRationCardDocumentUrl(downloadUrl); // Update the local state
+        setFormData(prev => ({ ...prev, rationCardDocumentUrl: downloadUrl })); // Update formData
+        setIsRationCardUploading(false);
+        Alert.alert("Success", "Ration card document uploaded successfully");
+      }
+    } catch (error) {
+      console.error("Error uploading ration card document:", error);
+      setIsRationCardUploading(false);
+      Alert.alert("Error", "Failed to upload ration card document");
     }
   };
 
@@ -890,6 +935,42 @@ export default function SignUpScreen({ navigation }: Props) {
                             maxLength={10}
                           />
                         </View>
+                      </LinearGradient>
+                      <LinearGradient
+                        colors={[
+                          "rgba(139, 92, 246, 0.8)",
+                          "rgba(236, 72, 153, 0.8)",
+                        ]}
+                        style={styles.uploadGradientBorder}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                      >
+                        <TouchableOpacity
+                          style={styles.uploadButton}
+                          onPress={handleRationCardDocumentUpload}
+                          disabled={isRationCardUploading}
+                        >
+                          <Ionicons
+                            name={
+                              isRationCardUploading
+                                ? "reload-outline"
+                                : "cloud-upload-outline"
+                            }
+                            size={24}
+                            color="rgb(162,39,142)"
+                            style={[
+                              styles.uploadIcon,
+                              isRationCardUploading && styles.rotating,
+                            ]}
+                          />
+                          <Text style={styles.uploadButtonText}>
+                            {isRationCardUploading
+                              ? "Uploading..."
+                              : rationCardDocumentUrl
+                              ? "Ration Card Document Uploaded"
+                              : "Upload Ration Card Document"}
+                          </Text>
+                        </TouchableOpacity>
                       </LinearGradient>
                       <LinearGradient
                         colors={[
