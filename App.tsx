@@ -48,6 +48,7 @@ import PayLoanDueScreen from "./screens/PayLoanDueScreen";
 
 import ViewReportsScreen from "./screens/ViewReportsScreen";
 import ProductApprovalScreen from "./screens/ProductApprovalScreen";
+import AttendanceScreen from "./screens/AttendanceScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -210,6 +211,13 @@ function PresidentStack() {
           headerTitleStyle: {
             fontFamily: "Poppins_600SemiBold",
           },
+        }}
+      />
+      <Stack.Screen
+        name="Attendance"
+        component={AttendanceScreen}
+        options={{
+          headerShown: false,
         }}
       />
     </Stack.Navigator>
@@ -407,6 +415,20 @@ export default function App() {
                 backgroundColor: "#fff",
               },
               headerTintColor: "#333",
+            }}
+          />
+          <Stack.Screen
+            name="Attendance"
+            component={AttendanceScreen}
+            options={{
+              title: "Attendance",
+              headerStyle: {
+                backgroundColor: "#8B5CF6",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontFamily: "Poppins_600SemiBold",
+              },
             }}
           />
         </Stack.Navigator>

@@ -22,6 +22,8 @@ import {
   where,
   doc,
   deleteDoc,
+  updateDoc,
+  getDoc,
 } from "firebase/firestore";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
@@ -36,6 +38,7 @@ import {
   showNotificationInDevMode,
   sendNotificationToAll,
 } from "../utils/notifications";
+import { useUser } from "../contexts/UserContext";
 
 type Meeting = {
   id: string;
@@ -44,6 +47,8 @@ type Meeting = {
   venue?: string;
   date?: Date;
   createdAt?: any;
+  attendanceMarked: boolean;
+  attendanceOpen: boolean; // Add this field
 };
 
 // Update the Notice type definition
@@ -58,6 +63,7 @@ type Notice = {
 };
 
 export default function ScheduleMeetingScreen() {
+  const { userDetails } = useUser();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [venue, setVenue] = useState("");
@@ -80,6 +86,11 @@ export default function ScheduleMeetingScreen() {
     setupNotifications();
   }, []);
 
+  useEffect(() => {
+    console.log("Current user details:", userDetails);
+  }, [userDetails]);
+
+  // Update the handleSchedule function
   const handleSchedule = async () => {
     if (!title.trim()) {
       Alert.alert("Error", "Please enter a meeting title");
@@ -89,11 +100,29 @@ export default function ScheduleMeetingScreen() {
       Alert.alert("Error", "Please enter a meeting venue");
       return;
     }
+    if (!userDetails?.phone) {
+      Alert.alert("Error", "Please login again");
+      return;
+    }
 
     try {
       setLoading(true);
-      const noticesRef = collection(firebase, "notices");
 
+      // Get all president documents to find the matching unit number
+      const presidentsRef = collection(firebase, "president");
+      const querySnapshot = await getDocs(presidentsRef);
+      const presidentDoc = querySnapshot.docs[0]; // Get the first president document
+
+      if (!presidentDoc) {
+        Alert.alert("Error", "President details not found");
+        return;
+      }
+
+      const presidentData = presidentDoc.data();
+      const unitNumber = presidentData.unitNumber;
+      const unitName = presidentData.unitName;
+
+      const noticesRef = collection(firebase, "notices");
       await addDoc(noticesRef, {
         title: title,
         description: description,
@@ -101,17 +130,19 @@ export default function ScheduleMeetingScreen() {
         date: date,
         createdAt: serverTimestamp(),
         type: "meeting",
+        attendanceMarked: false,
+        attendanceOpen: true,
+        unitNumber: unitNumber,
+        createdBy: userDetails.phone,
+        unitName: unitName,
       });
 
-      // Send notification to all connected devices
+      // Rest of your notification code...
       await sendNotificationToAll(
         "New Meeting Scheduled",
         `${title} at ${venue}\nDate: ${date.toLocaleDateString()}\nTime: ${date.toLocaleTimeString(
           [],
-          {
-            hour: "2-digit",
-            minute: "2-digit",
-          }
+          { hour: "2-digit", minute: "2-digit" }
         )}`
       );
 
@@ -128,6 +159,7 @@ export default function ScheduleMeetingScreen() {
       ]);
     } catch (error) {
       console.error("Error scheduling meeting:", error);
+      console.log("User phone:", userDetails.phone); // Debug log
       Alert.alert("Error", "Failed to schedule meeting");
     } finally {
       setLoading(false);
@@ -143,6 +175,22 @@ export default function ScheduleMeetingScreen() {
     } catch (error) {
       console.error("Error deleting meeting:", error);
       Alert.alert("Error", "Failed to delete meeting");
+    }
+  };
+
+  const toggleAttendance = async (
+    meetingId: string,
+    currentStatus: boolean
+  ) => {
+    try {
+      const meetingRef = doc(firebase, "notices", meetingId);
+      await updateDoc(meetingRef, {
+        attendanceOpen: !currentStatus,
+      });
+      fetchMeetings(); // Refresh the meetings list
+    } catch (error) {
+      console.error("Error toggling attendance:", error);
+      Alert.alert("Error", "Failed to update attendance status");
     }
   };
 
@@ -187,6 +235,8 @@ export default function ScheduleMeetingScreen() {
         venue: doc.data().venue,
         date: doc.data().date?.toDate(),
         createdAt: doc.data().createdAt,
+        attendanceMarked: doc.data().attendanceMarked,
+        attendanceOpen: doc.data().attendanceOpen,
       })) as Meeting[];
 
       meetingsList.sort(
@@ -240,6 +290,31 @@ export default function ScheduleMeetingScreen() {
           {meeting.description && (
             <Text style={styles.descriptionText}>{meeting.description}</Text>
           )}
+
+          {/* Add attendance toggle button */}
+          <TouchableOpacity
+            style={[
+              styles.attendanceButton,
+              {
+                backgroundColor: meeting.attendanceOpen ? "#22C55E" : "#EF4444",
+              },
+            ]}
+            onPress={() => toggleAttendance(meeting.id, meeting.attendanceOpen)}
+          >
+            <Ionicons
+              name={
+                meeting.attendanceOpen
+                  ? "checkbox-outline"
+                  : "close-circle-outline"
+              }
+              size={18}
+              color="white"
+            />
+            <Text style={styles.attendanceButtonText}>
+              {meeting.attendanceOpen ? "Attendance Open" : "Attendance Closed"}
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={() => {
@@ -535,6 +610,21 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
     padding: 16,
+  },
+  attendanceButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  attendanceButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontFamily: "Poppins_600SemiBold",
+    marginLeft: 8,
   },
   deleteButton: {
     backgroundColor: "#EF4444",
