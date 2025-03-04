@@ -45,6 +45,9 @@ interface PendingLoan {
   progress: number; // Add this line
   memberName: string;
   unitId: string;
+  baseAmount: number; // Original loan amount
+  interestAmount: number; // Interest amount
+  status: "pending" | "completed";
 }
 
 interface MemberData {
@@ -106,25 +109,34 @@ export default function PendingScreen({ navigation }: PendingScreenProps) {
       const loansSnapshot = await getDocs(loansQuery);
       const loans = loansSnapshot.docs.map((doc) => {
         const data = doc.data();
+        const baseAmount = data.amount;
+        const interestRate = 0.03; // 3% interest
+        const totalAmount = baseAmount + baseAmount * interestRate;
+        const paidMonths = data.paidMonths || [];
+        const totalMonths = data.repaymentPeriod || 12;
+
         return {
           id: doc.id,
-          amount: data.amount,
+          amount: totalAmount, // This is now base amount + 3%
           purpose: data.purpose,
           loanType: data.loanType,
           startDate: data.createdAt?.toDate() || new Date(),
           repaymentPeriod: data.repaymentPeriod || 12,
-          monthlyDue: Math.ceil(data.amount / (data.repaymentPeriod || 12)),
+          monthlyDue: Math.ceil(totalAmount / (data.repaymentPeriod || 12)),
           paidMonths: data.paidMonths || [],
           totalMonths: data.repaymentPeriod || 12,
           memberName: data.memberName,
           unitId: data.unitId,
           pendingAmount:
-            data.amount -
-            Math.ceil(data.amount / (data.repaymentPeriod || 12)) *
+            totalAmount -
+            Math.ceil(totalAmount / (data.repaymentPeriod || 12)) *
               (data.paidMonths?.length || 0),
           progress:
             ((data.paidMonths?.length || 0) / (data.repaymentPeriod || 12)) *
             100,
+          baseAmount: baseAmount, // Original loan amount
+          interestAmount: baseAmount * interestRate, // Interest amount
+          status: paidMonths.length >= totalMonths ? "completed" : "pending",
         };
       }) as PendingLoan[];
 
@@ -174,12 +186,22 @@ export default function PendingScreen({ navigation }: PendingScreenProps) {
                     <Text style={styles.loanType}>
                       {loan.loanType.toUpperCase()} LOAN
                     </Text>
+                    {loan.status === "completed" && (
+                      <View style={styles.completedBadge}>
+                        <Text style={styles.completedText}>FULLY PAID</Text>
+                      </View>
+                    )}
                   </View>
                   <View style={styles.cardBody}>
                     <View style={styles.amountContainer}>
                       <View style={styles.amountBox}>
-                        <Text style={styles.amountLabel}>Total Amount</Text>
-                        <Text style={styles.totalAmount}>₹{loan.amount}</Text>
+                        <Text style={styles.amountLabel}>Base Amount</Text>
+                        <Text style={styles.totalAmount}>
+                          ₹{loan.baseAmount}
+                        </Text>
+                        <Text style={styles.interestText}>
+                          (+3% Interest: ₹{loan.interestAmount})
+                        </Text>
                       </View>
                       <View style={styles.amountBox}>
                         <Text style={styles.amountLabel}>Pending Amount</Text>
@@ -212,21 +234,25 @@ export default function PendingScreen({ navigation }: PendingScreenProps) {
                         ]}
                       />
                     </View>
-                    <TouchableOpacity
-                      style={styles.payButton}
-                      onPress={() =>
-                        navigation.navigate("PayLoanDue", {
-                          loanId: loan.id,
-                          totalMonths: loan.totalMonths,
-                          paidMonths: loan.paidMonths,
-                          monthlyDue: loan.monthlyDue,
-                          loanType: loan.loanType,
-                          startDate: loan.startDate,
-                        })
-                      }
-                    >
-                      <Text style={styles.payButtonText}>Pay Monthly Due</Text>
-                    </TouchableOpacity>
+                    {loan.status !== "completed" && (
+                      <TouchableOpacity
+                        style={styles.payButton}
+                        onPress={() =>
+                          navigation.navigate("PayLoanDue", {
+                            loanId: loan.id,
+                            totalMonths: loan.totalMonths,
+                            paidMonths: loan.paidMonths,
+                            monthlyDue: loan.monthlyDue,
+                            loanType: loan.loanType,
+                            startDate: loan.startDate,
+                          })
+                        }
+                      >
+                        <Text style={styles.payButtonText}>
+                          Pay Monthly Due
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               ))
@@ -391,5 +417,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#1F2937",
     flex: 1,
+  },
+  interestText: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 4,
+  },
+  completedBadge: {
+    backgroundColor: "#22C55E",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  completedText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 12,
+    color: "#fff",
   },
 });

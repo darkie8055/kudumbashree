@@ -301,13 +301,13 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
                 <Ionicons name="add-circle-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.loanActionText}>Apply for New Loan</Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 style={styles.loanActionItem}
                 onPress={() => navigation.navigate("PayPendingLoan")}
               >
                 <Ionicons name="card-outline" size={24} color="#8B5CF6" />
                 <Text style={styles.loanActionText}>Pay Pending Loans</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
               <TouchableOpacity
                 style={styles.loanActionItem}
                 onPress={handlePayWeeklyDue}
