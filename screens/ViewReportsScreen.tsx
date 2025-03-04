@@ -76,8 +76,8 @@ interface LoanReport {
   totalPaid: number;
 }
 
-// First, create a const array of valid sort options
-const SORT_OPTIONS = ["date", "amount", "status", "member"] as const;
+// Update the SORT_OPTIONS constant at the top of the file
+const SORT_OPTIONS = ["date", "amount", "status"] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
 
 // Add these constants at the top with other interfaces
@@ -340,40 +340,40 @@ export default function ViewReportsScreen({
     }
   };
 
+  // First, update the getSortedLoans function
   const getSortedLoans = () => {
     let filteredLoans = [...loans];
 
-    if (selectedStatus !== "all") {
+    // First apply status filter
+    if (filterOptions.status !== "all") {
       filteredLoans = filteredLoans.filter(
-        (loan) => loan.status === selectedStatus
+        (loan) => loan.status === filterOptions.status
       );
     }
 
-    const statusOrder: StatusOrderType = {
-      approved: 3,
-      pending: 2,
-      rejected: 1,
-    };
-
+    // Then apply sorting
     return filteredLoans.sort((a, b) => {
       switch (filterOptions.sortBy) {
         case "date":
-          return filterOptions.order === "desc"
-            ? b.createdAt.getTime() - a.createdAt.getTime()
-            : a.createdAt.getTime() - b.createdAt.getTime();
+          const dateA = new Date(a.createdAt).getTime();
+          const dateB = new Date(b.createdAt).getTime();
+          return filterOptions.order === "desc" ? dateB - dateA : dateA - dateB;
+
         case "amount":
+          const amountA = a.amount + a.amount * 0.03; // Include 3% interest
+          const amountB = b.amount + b.amount * 0.03;
           return filterOptions.order === "desc"
-            ? b.amount - a.amount
-            : a.amount - b.amount;
-        case "member":
-          return filterOptions.order === "desc"
-            ? b.memberName.localeCompare(a.memberName)
-            : a.memberName.localeCompare(b.memberName);
+            ? amountB - amountA
+            : amountA - amountB;
+
         case "status":
           const statusOrder = { approved: 3, pending: 2, rejected: 1 };
+          const statusCompare =
+            (statusOrder[b.status] || 0) - (statusOrder[a.status] || 0);
           return filterOptions.order === "desc"
-            ? (statusOrder[b.status] || 0) - (statusOrder[a.status] || 0)
-            : (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0);
+            ? statusCompare
+            : -statusCompare;
+
         default:
           return 0;
       }
@@ -857,7 +857,7 @@ export default function ViewReportsScreen({
                           year: "numeric",
                         })}
                       </Text>
-                      {loans
+                      {getSortedLoans()
                         .filter((loan) => loan.memberId === member.memberId)
                         .map((loan) => (
                           <View key={loan.id} style={styles.loanItem}>
@@ -982,6 +982,7 @@ export default function ViewReportsScreen({
 }
 
 // Move FilterModal component here, before styles
+// Update the FilterModal component to properly handle changes
 const FilterModal = ({
   visible,
   onClose,
@@ -993,13 +994,23 @@ const FilterModal = ({
   onApply: (options: FilterOptions) => void;
   currentOptions: FilterOptions;
 }) => {
-  const [options, setOptions] = useState(currentOptions);
+  const [localOptions, setLocalOptions] =
+    useState<FilterOptions>(currentOptions);
+
+  useEffect(() => {
+    setLocalOptions(currentOptions);
+  }, [currentOptions]);
+
+  const handleApply = () => {
+    onApply(localOptions);
+    onClose();
+  };
 
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Filter Options</Text>
+          <Text style={styles.modalTitle}>Filter & Sort</Text>
 
           <Text style={styles.filterLabel}>Sort By</Text>
           <View style={styles.optionsContainer}>
@@ -1008,14 +1019,16 @@ const FilterModal = ({
                 key={option}
                 style={[
                   styles.filterOption,
-                  options.sortBy === option && styles.filterOptionSelected,
+                  localOptions.sortBy === option && styles.filterOptionSelected,
                 ]}
-                onPress={() => setOptions({ ...options, sortBy: option })}
+                onPress={() =>
+                  setLocalOptions({ ...localOptions, sortBy: option })
+                }
               >
                 <Text
                   style={[
                     styles.filterOptionText,
-                    options.sortBy === option &&
+                    localOptions.sortBy === option &&
                       styles.filterOptionTextSelected,
                   ]}
                 >
@@ -1025,21 +1038,21 @@ const FilterModal = ({
             ))}
           </View>
 
-          <Text style={styles.filterLabel}>Status</Text>
+          <Text style={styles.filterLabel}>Status Filter</Text>
           <View style={styles.optionsContainer}>
             {STATUS_OPTIONS.map((status) => (
               <TouchableOpacity
                 key={status}
                 style={[
                   styles.filterOption,
-                  options.status === status && styles.filterOptionSelected,
+                  localOptions.status === status && styles.filterOptionSelected,
                 ]}
-                onPress={() => setOptions({ ...options, status })}
+                onPress={() => setLocalOptions({ ...localOptions, status })}
               >
                 <Text
                   style={[
                     styles.filterOptionText,
-                    options.status === status &&
+                    localOptions.status === status &&
                       styles.filterOptionTextSelected,
                   ]}
                 >
@@ -1056,14 +1069,15 @@ const FilterModal = ({
                 key={order}
                 style={[
                   styles.filterOption,
-                  options.order === order && styles.filterOptionSelected,
+                  localOptions.order === order && styles.filterOptionSelected,
                 ]}
-                onPress={() => setOptions({ ...options, order })}
+                onPress={() => setLocalOptions({ ...localOptions, order })}
               >
                 <Text
                   style={[
                     styles.filterOptionText,
-                    options.order === order && styles.filterOptionTextSelected,
+                    localOptions.order === order &&
+                      styles.filterOptionTextSelected,
                   ]}
                 >
                   {order === "asc" ? "Ascending" : "Descending"}
@@ -1078,13 +1092,10 @@ const FilterModal = ({
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modalButton, styles.modalButtonPrimary]}
-              onPress={() => {
-                onApply(options);
-                onClose();
-              }}
+              onPress={handleApply}
             >
               <Text style={[styles.modalButtonText, { color: "#fff" }]}>
-                Apply
+                Apply Filters
               </Text>
             </TouchableOpacity>
           </View>
