@@ -26,6 +26,8 @@ import {
   where,
   updateDoc,
   doc,
+  getDoc,
+  Timestamp,
 } from "firebase/firestore";
 import * as Print from "expo-print";
 import * as FileSystem from "expo-file-system";
@@ -46,6 +48,11 @@ interface MemberReport {
     total: number;
     paid: number;
     pending: number;
+    weeklyAmount: number;
+    totalDueAmount: number;
+    paidAmount: number;
+    pendingAmount: number;
+    lastPaidDate: Timestamp | null;
   };
   loans: {
     active: number;
@@ -131,23 +138,23 @@ export default function ViewReportsScreen({
     fetchLoans();
   }, [currentMonth]);
 
-  // Update the fetchReports function
+  // Update the fetchReports function to correctly calculate weekly dues
   const fetchReports = async () => {
     setLoading(true);
     try {
       const db = getFirestore();
-      const startOfMonth = new Date(
-        currentMonth.getFullYear(),
-        currentMonth.getMonth(),
-        1
-      );
-      const endOfMonth = new Date(
-        currentMonth.getFullYear(),
-        currentMonth.getMonth() + 1,
-        0,
-        23,
-        59,
-        59
+
+      // Get weekly due settings for amount
+      const settingsDoc = await getDoc(doc(db, "weeklyDueSettings", "config"));
+      const weeklyAmount = settingsDoc.exists() ? settingsDoc.data().amount : 0;
+
+      // Start date for weekly dues (February 1st, 2025)
+      const startDate = new Date("2025-02-01");
+      const now = new Date();
+
+      // Calculate total weeks from start date till now
+      const totalWeeks = Math.ceil(
+        (now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)
       );
 
       const membersSnapshot = await getDocs(
@@ -160,44 +167,40 @@ export default function ViewReportsScreen({
           memberData.lastName || ""
         }`.trim();
 
-        // Initialize defaults
-        let duesData = { size: 0 };
-        let loansData = { docs: [], size: 0 };
+        // Get weekly dues payments
+        const duesDoc = await getDoc(
+          doc(db, "weeklyDuePayments", memberDoc.id)
+        );
+        const paidWeeksData = duesDoc.exists() ? duesDoc.data() : null;
+        const paidWeeks = paidWeeksData?.paidWeeks || [];
+        const paidDates = paidWeeksData?.paidDates || {};
 
-        try {
-          const duesQuery = query(
-            collection(db, "weeklyDuePayments"),
-            where("memberId", "==", memberDoc.id),
-            where("paidAt", ">=", startOfMonth),
-            where("paidAt", "<=", endOfMonth)
-          );
+        // Calculate pending amount
+        const totalDueAmount = weeklyAmount * totalWeeks;
+        const paidAmount = weeklyAmount * paidWeeks.length;
+        const pendingAmount = totalDueAmount - paidAmount;
 
-          const loansQuery = query(
-            collection(db, "loanApplications"),
-            where("memberId", "==", memberDoc.id),
-            where("status", "==", "approved")
-          );
+        // Get loan information
+        const loansQuery = query(
+          collection(db, "loanApplications"),
+          where("memberId", "==", memberDoc.id),
+          where("status", "==", "approved")
+        );
+        const loansSnapshot = await getDocs(loansQuery);
 
-          [duesData, loansData] = await Promise.all([
-            getDocs(duesQuery),
-            getDocs(loansQuery),
-          ]);
-        } catch (error) {
-          // Silently handle error and continue with defaults
-        }
+        let loansTotalAmount = 0; // Changed variable name to avoid conflict
+        let pendingAmountLoans = 0;
 
-        let totalAmount = 0;
-        let pendingAmount = 0;
-
-        loansData.docs.forEach((loanDoc) => {
+        loansSnapshot.docs.forEach((loanDoc) => {
           const loanData = loanDoc.data();
-          const loanAmount = loanData.amount || 0;
-          totalAmount += loanAmount;
-
+          const baseAmount = loanData.amount || 0;
+          const interestRate = 0.03; // 3% interest
+          const totalAmount = baseAmount + baseAmount * interestRate;
           const paidMonths = loanData.paidMonths || [];
-          const monthlyAmount = loanAmount / (loanData.repaymentPeriod || 12);
-          const paidAmount = monthlyAmount * paidMonths.length;
-          pendingAmount += Math.max(0, loanAmount - paidAmount);
+          const monthlyAmount = totalAmount / (loanData.repaymentPeriod || 12);
+
+          loansTotalAmount += totalAmount; // Use total amount with interest
+          pendingAmountLoans += totalAmount - monthlyAmount * paidMonths.length;
         });
 
         return {
@@ -205,14 +208,22 @@ export default function ViewReportsScreen({
           memberName: fullName,
           phoneNumber: memberData.phone || "",
           weeklyDues: {
-            total: 4,
-            paid: duesData.size,
-            pending: 4 - duesData.size,
+            total: totalWeeks,
+            paid: paidWeeks.length,
+            pending: totalWeeks - paidWeeks.length,
+            weeklyAmount: weeklyAmount,
+            totalDueAmount: totalDueAmount,
+            paidAmount: paidAmount,
+            pendingAmount: pendingAmount,
+            lastPaidDate:
+              paidWeeks.length > 0
+                ? paidDates[paidWeeks[paidWeeks.length - 1]]
+                : null,
           },
           loans: {
-            active: loansData.size,
-            totalAmount,
-            pendingAmount,
+            active: loansSnapshot.size,
+            totalAmount: loansTotalAmount, // Use the accumulated total
+            pendingAmount: pendingAmountLoans,
           },
         };
       });
@@ -220,6 +231,7 @@ export default function ViewReportsScreen({
       const reportsData = await Promise.all(reportsPromises);
       setMembers(reportsData);
     } catch (error) {
+      console.error("Error fetching reports:", error);
       Alert.alert("Error", "Failed to load reports");
     } finally {
       setLoading(false);
@@ -228,9 +240,10 @@ export default function ViewReportsScreen({
 
   // Update the getLoanPendingAmount function
   const getLoanPendingAmount = (loanAmount: number, paidMonths: number[]) => {
-    const monthlyAmount = loanAmount / 12; // Assuming 12 months repayment period
+    const totalAmount = loanAmount + loanAmount * 0.03; // Add 3% interest
+    const monthlyAmount = totalAmount / 12; // Assuming 12 months repayment period
     const paidAmount = monthlyAmount * (paidMonths?.length || 0);
-    return Math.floor(Math.max(0, loanAmount - paidAmount)); // Add Math.floor here
+    return Math.floor(Math.max(0, totalAmount - paidAmount));
   };
 
   // Update the fetchLoans function to include payment information
@@ -430,10 +443,11 @@ export default function ViewReportsScreen({
   const generatePDF = async () => {
     try {
       const sortedLoans = getSortedLoans();
-      const totalAmount = sortedLoans.reduce(
+      const baseAmount = sortedLoans.reduce(
         (sum, loan) => sum + loan.amount,
         0
       );
+      const totalAmount = baseAmount * 1.03; // Including 3% interest
 
       const htmlContent = `
         <!DOCTYPE html>
@@ -450,23 +464,40 @@ export default function ViewReportsScreen({
               .status-approved { color: #10B981; }
               .status-rejected { color: #EF4444; }
               .status-pending { color: #F59E0B; }
+              .amount-detail { color: #6B7280; font-size: 0.9em; }
             </style>
           </head>
           <body>
-            <h1>Kudumbashree Unit Loan Report</h1>
+            <h1>Kudumbashree Unit Report</h1>
             
             <div class="summary">
               <h2>Summary</h2>
-              <p>Total Loans: ${sortedLoans.length}</p>
-              <p>Approved Loans: ${
-                sortedLoans.filter((l) => l.status === "approved").length
-              }</p>
-              <p>Pending Loans: ${
-                sortedLoans.filter((l) => l.status === "pending").length
-              }</p>
-              <p>Total Amount: ₹${formatCurrency(totalAmount)}</p>
+              <p>Total Members: ${members.length}</p>
+              <p>Weekly Dues Status:</p>
+              <ul>
+                <li>Total Members with Pending Dues: ${
+                  members.filter((m) => m.weeklyDues.pending > 0).length
+                }</li>
+                <li>Total Pending Due Amount: ₹${formatCurrency(
+                  members.reduce(
+                    (sum, m) => sum + m.weeklyDues.pendingAmount,
+                    0
+                  )
+                )}</li>
+              </ul>
+              <p>Loans Status:</p>
+              <ul>
+                <li>Total Active Loans: ${
+                  sortedLoans.filter((l) => l.status === "approved").length
+                }</li>
+                <li>Base Amount: ₹${formatCurrency(baseAmount)}</li>
+                <li>Total Amount (with 3% interest): ₹${formatCurrency(
+                  totalAmount
+                )}</li>
+              </ul>
             </div>
 
+            <h2>Loan Details</h2>
             <table>
               <thead>
                 <tr>
@@ -485,7 +516,13 @@ export default function ViewReportsScreen({
                   <tr>
                     <td>${loan.memberName}</td>
                     <td>${loan.loanType}</td>
-                    <td>₹${formatCurrency(loan.amount)}</td>
+                    <td>
+                      ₹${formatCurrency(loan.amount)}
+                      <br/>
+                      <span class="amount-detail">
+                        With Interest: ₹${formatCurrency(loan.amount * 1.03)}
+                      </span>
+                    </td>
                     <td>${loan.purpose}</td>
                     <td class="status-${loan.status}">${loan.status}</td>
                     <td>${format(loan.createdAt, "dd/MM/yyyy")}</td>
@@ -499,11 +536,7 @@ export default function ViewReportsScreen({
         </html>
       `;
 
-      const { uri } = await Print.printToFileAsync({
-        html: htmlContent,
-        base64: false,
-      });
-
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
       const fileName = `kudumbashree-report-${format(
         new Date(),
         "yyyy-MM-dd-HHmmss"
@@ -528,6 +561,7 @@ export default function ViewReportsScreen({
             body { font-family: Arial, sans-serif; padding: 20px; }
             h1 { color: #8B5CF6; text-align: center; }
             .member-info { margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; }
+            .amount-detail { color: #6B7280; font-size: 0.9em; margin-top: 4px; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
             th { background-color: #8B5CF6; color: white; }
@@ -544,8 +578,26 @@ export default function ViewReportsScreen({
             <p>Total Weeks: ${member.weeklyDues.total}</p>
             <p>Paid Weeks: ${member.weeklyDues.paid}</p>
             <p>Pending Weeks: ${member.weeklyDues.pending}</p>
+            <p>Weekly Amount: ₹${formatCurrency(
+              member.weeklyDues.weeklyAmount
+            )}</p>
+            <p>Total Due: ₹${formatCurrency(
+              member.weeklyDues.totalDueAmount
+            )}</p>
+            <p>Total Paid: ₹${formatCurrency(member.weeklyDues.paidAmount)}</p>
+            <p>Pending Amount: ₹${formatCurrency(
+              member.weeklyDues.pendingAmount
+            )}</p>
+            ${
+              member.weeklyDues.lastPaidDate
+                ? `<p>Last Paid: ${format(
+                    member.weeklyDues.lastPaidDate.toDate(),
+                    "dd MMM yyyy"
+                  )}</p>`
+                : ""
+            }
           </div>
-  
+
           <div class="member-info">
             <h2>Loans Summary</h2>
             <p>Active Loans: ${member.loans.active}</p>
@@ -554,7 +606,7 @@ export default function ViewReportsScreen({
               member.loans.pendingAmount
             )}</p>
           </div>
-  
+
           <h2>Loan Details</h2>
           <table>
             <thead>
@@ -572,7 +624,13 @@ export default function ViewReportsScreen({
                   (loan) => `
                 <tr>
                   <td>${loan.loanType}</td>
-                  <td>₹${formatCurrency(loan.amount)}</td>
+                  <td>
+                    Base: ₹${formatCurrency(loan.amount)}
+                    <br/>
+                    <span class="amount-detail">
+                      With Interest: ₹${formatCurrency(loan.amount * 1.03)}
+                    </span>
+                  </td>
                   <td>${loan.purpose}</td>
                   <td class="status-${loan.status}">${loan.status}</td>
                   <td>${format(loan.createdAt, "dd/MM/yyyy")}</td>
@@ -684,19 +742,23 @@ export default function ViewReportsScreen({
                   style={styles.memberHeader}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.memberName} numberOfLines={1}>
-                      {member.memberName}
-                    </Text>
+                    <Text style={styles.memberName}>{member.memberName}</Text>
                     <View style={styles.memberSummary}>
                       <Text style={styles.memberPhone}>
                         {member.phoneNumber}
                       </Text>
-                      {member.loans.pendingAmount > 0 && (
-                        <Text style={styles.pendingAmount}>
-                          Pending: ₹{formatCurrency(member.loans.pendingAmount)}
-                        </Text>
-                      )}
                     </View>
+                    {member.loans.pendingAmount > 0 && (
+                      <Text style={styles.pendingAmount}>
+                        ₹{formatCurrency(member.loans.pendingAmount)} loan
+                        pending
+                      </Text>
+                    )}
+                    {member.weeklyDues.pending > 0 && (
+                      <Text style={styles.pendingText}>
+                        {member.weeklyDues.pending} weekly dues pending
+                      </Text>
+                    )}
                   </View>
                   <Ionicons
                     name={
@@ -715,17 +777,25 @@ export default function ViewReportsScreen({
                       <Text style={styles.sectionTitle}>Weekly Dues</Text>
                       <View style={styles.statsRow}>
                         <View style={styles.stat}>
-                          <Text style={styles.statLabel}>Total</Text>
+                          <Text style={styles.statLabel}>Total Weeks</Text>
                           <Text style={styles.statValue}>
                             {member.weeklyDues.total}
                           </Text>
+                          <Text style={styles.statSubtext}>
+                            ₹{formatCurrency(member.weeklyDues.totalDueAmount)}
+                          </Text>
                         </View>
                         <View style={styles.stat}>
-                          <Text style={styles.statLabel}>Paid</Text>
+                          <Text style={styles.statLabel}>Paid Weeks</Text>
                           <Text
                             style={[styles.statValue, { color: "#10B981" }]}
                           >
                             {member.weeklyDues.paid}
+                          </Text>
+                          <Text
+                            style={[styles.statSubtext, { color: "#10B981" }]}
+                          >
+                            ₹{formatCurrency(member.weeklyDues.paidAmount)}
                           </Text>
                         </View>
                         <View style={styles.stat}>
@@ -735,8 +805,22 @@ export default function ViewReportsScreen({
                           >
                             {member.weeklyDues.pending}
                           </Text>
+                          <Text
+                            style={[styles.statSubtext, { color: "#EF4444" }]}
+                          >
+                            ₹{formatCurrency(member.weeklyDues.pendingAmount)}
+                          </Text>
                         </View>
                       </View>
+                      {member.weeklyDues.lastPaidDate && (
+                        <Text style={styles.lastPaidText}>
+                          Last paid on:{" "}
+                          {format(
+                            member.weeklyDues.lastPaidDate.toDate(),
+                            "dd MMM yyyy"
+                          )}
+                        </Text>
+                      )}
                     </View>
 
                     <View style={styles.section}>
@@ -792,9 +876,22 @@ export default function ViewReportsScreen({
                             </View>
                             <View style={styles.loanDetails}>
                               <View style={styles.loanRow}>
-                                <Text style={styles.loanLabel}>Amount:</Text>
+                                <Text style={styles.loanLabel}>
+                                  Base Amount:
+                                </Text>
                                 <Text style={styles.loanValue}>
                                   ₹{formatCurrency(loan.amount)}
+                                </Text>
+                              </View>
+                              <View style={styles.loanRow}>
+                                <Text style={styles.loanLabel}>
+                                  With 3% Interest:
+                                </Text>
+                                <Text style={styles.loanValue}>
+                                  ₹
+                                  {formatCurrency(
+                                    loan.amount + loan.amount * 0.03
+                                  )}
                                 </Text>
                               </View>
                               <View style={styles.loanRow}>
@@ -1007,7 +1104,7 @@ const styles = StyleSheet.create({
   },
   headerGradient: {
     padding: 20,
-    paddingTop: 50,
+    paddingTop: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     flexDirection: "row",
@@ -1286,12 +1383,34 @@ const styles = StyleSheet.create({
   memberSummary: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginTop: 2,
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 8,
   },
   pendingAmount: {
     fontFamily: "Poppins_500Medium",
     fontSize: 14,
     color: "#EF4444",
+    marginTop: 4,
+  },
+  pendingText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    color: "#F59E0B",
+    marginTop: 4,
+  },
+  statSubtext: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  lastPaidText: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: "#6B7280",
+    textAlign: "center",
+    marginTop: 8,
   },
 });
