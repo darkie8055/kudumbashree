@@ -201,10 +201,12 @@ export default function MarketplaceScreen({ navigation, route }) {
         );
 
         // Update local cart state
-        setCart(prevCart => {
-          const existingItem = prevCart.find(item => item.product.id === product.id);
+        setCart((prevCart) => {
+          const existingItem = prevCart.find(
+            (item) => item.product.id === product.id
+          );
           if (existingItem) {
-            return prevCart.map(item =>
+            return prevCart.map((item) =>
               item.product.id === product.id
                 ? { ...item, quantity: item.quantity + 1 }
                 : item
@@ -214,12 +216,12 @@ export default function MarketplaceScreen({ navigation, route }) {
         });
 
         // Update navigation params to reflect new cart state
-        navigation.setParams({ 
-          cart: cart.map(item =>
+        navigation.setParams({
+          cart: cart.map((item) =>
             item.product.id === product.id
               ? { ...item, quantity: item.quantity + 1 }
               : item
-          )
+          ),
         });
 
         Toast.show({
@@ -268,74 +270,73 @@ export default function MarketplaceScreen({ navigation, route }) {
     [handleProductPress, handleAddToCart]
   );
 
-  const fetchProducts = useCallback(
-    async (shouldRefresh = false) => {
-      try {
-        setIsLoading(true);
-        const db = getFirestore();
+  const fetchProducts = useCallback(async (shouldRefresh = false) => {
+    if (isLoading && !shouldRefresh) return;
 
-        let baseQuery = query(
-          collection(db, "products"),
-          where("status", "==", "approved"),
-          orderBy("createdAt", "desc"),
-          limit(10)
-        );
+    try {
+      setIsLoading(true);
+      const db = getFirestore();
 
-        if (!shouldRefresh && lastDoc) {
-          baseQuery = query(baseQuery, startAfter(lastDoc));
-        }
+      let baseQuery = query(
+        collection(db, "products"),
+        where("status", "==", "approved"),
+        orderBy("createdAt", "desc"),
+        limit(10)
+      );
 
-        const querySnapshot = await getDocs(baseQuery);
-
-        const newProducts: Product[] = querySnapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            name: data.name || "",
-            imageUrl: data.imageUrl || "",
-            price: data.price || 0,
-            description: data.description || "",
-            unit: data.unit || "",
-            phone: data.phone || "",
-            category: data.category || "",
-            location: data.location || "",
-            status: data.status || "pending",
-            createdAt: data.createdAt?.toDate() || new Date(),
-          };
-        });
-
-        if (shouldRefresh) {
-          setProducts(newProducts);
-          setFilteredProducts(newProducts);
-        } else {
-          setProducts((prev) => {
-            const existingIds = new Set(prev.map((p) => p.id));
-            const uniqueNewProducts = newProducts.filter(
-              (p) => !existingIds.has(p.id)
-            );
-            const updatedProducts = [...prev, ...uniqueNewProducts];
-            setFilteredProducts(updatedProducts);
-            return updatedProducts;
-          });
-        }
-
-        setHasMore(querySnapshot.docs.length === 10);
-        setLastDoc(querySnapshot.docs[querySnapshot.docs.length - 1]);
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        Toast.show({
-          type: "error",
-          text1: "Error",
-          text2: "Failed to load products",
-          visibilityTime: 3000,
-        });
-      } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
+      if (!shouldRefresh && lastDoc) {
+        baseQuery = query(baseQuery, startAfter(lastDoc));
       }
-    },
-    [lastDoc]
-  );
+
+      const querySnapshot = await getDocs(baseQuery);
+
+      const newProducts: Product[] = querySnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || "",
+          imageUrl: data.imageUrl || "",
+          price: data.price || 0,
+          description: data.description || "",
+          unit: data.unit || "",
+          phone: data.phone || "",
+          category: data.category || "",
+          location: data.location || "",
+          status: data.status || "pending",
+          createdAt: data.createdAt?.toDate() || new Date(),
+        };
+      });
+
+      if (shouldRefresh) {
+        setProducts(newProducts);
+        setFilteredProducts(newProducts);
+      } else {
+        setProducts((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const uniqueNewProducts = newProducts.filter(
+            (p) => !existingIds.has(p.id)
+          );
+          const updatedProducts = [...prev, ...uniqueNewProducts];
+          setFilteredProducts(updatedProducts);
+          return updatedProducts;
+        });
+      }
+
+      setHasMore(querySnapshot.docs.length === 10);
+      setLastDoc(querySnapshot.docs[querySnapshot.docs.length - 1]);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Failed to load products",
+        visibilityTime: 3000,
+      });
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
 
   const closeModal = useCallback(() => {
     setIsModalVisible(false);
@@ -641,6 +642,13 @@ export default function MarketplaceScreen({ navigation, route }) {
   ]);
 
   useEffect(() => {
+    const initialFetch = async () => {
+      await fetchProducts(true);
+    };
+    initialFetch();
+  }, []);
+
+  useEffect(() => {
     fetchProducts();
 
     global.addNewProduct = (newProduct: Product) => {
@@ -674,14 +682,10 @@ export default function MarketplaceScreen({ navigation, route }) {
   }, [fetchProducts]);
 
   useEffect(() => {
-    filterAndSortProducts();
-  }, [
-    products,
-    searchQuery,
-    selectedCategory,
-    sortOption,
-    filterAndSortProducts,
-  ]);
+    if (products.length > 0) {
+      filterAndSortProducts();
+    }
+  }, [searchQuery, selectedCategory, sortOption]);
 
   useEffect(() => {
     const getAIRecommendations = async () => {
@@ -709,14 +713,18 @@ export default function MarketplaceScreen({ navigation, route }) {
         if (snapshot.exists()) {
           const data = snapshot.data();
           const deletedId = data?.deletedProductId;
-          
+
           if (deletedId) {
             // Remove deleted product from products and filtered products
-            setProducts(prev => prev.filter(p => p.id !== deletedId));
-            setFilteredProducts(prev => prev.filter(p => p.id !== deletedId));
-            
+            setProducts((prev) => prev.filter((p) => p.id !== deletedId));
+            setFilteredProducts((prev) =>
+              prev.filter((p) => p.id !== deletedId)
+            );
+
             // Remove from cart if present
-            setCart(prev => prev.filter(item => item.product.id !== deletedId));
+            setCart((prev) =>
+              prev.filter((item) => item.product.id !== deletedId)
+            );
           }
         }
       }
@@ -780,10 +788,7 @@ export default function MarketplaceScreen({ navigation, route }) {
       {renderProductDetails()}
 
       {/* Add floating cart button */}
-      <TouchableOpacity 
-        style={styles.floatingCartButton} 
-        onPress={goToCart}
-      >
+      <TouchableOpacity style={styles.floatingCartButton} onPress={goToCart}>
         <LinearGradient
           colors={["#8B5CF6", "#EC4899"]}
           start={{ x: 0, y: 0 }}
@@ -793,9 +798,7 @@ export default function MarketplaceScreen({ navigation, route }) {
           <Ionicons name="cart" size={24} color="#fff" />
           {getTotalCartItems() > 0 && (
             <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>
-                {getTotalCartItems()}
-              </Text>
+              <Text style={styles.cartBadgeText}>{getTotalCartItems()}</Text>
             </View>
           )}
         </LinearGradient>
@@ -1041,42 +1044,42 @@ const styles = StyleSheet.create({
 
   // Add new floating cart styles
   floatingCartButton: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 85, // Position above tabbar
     right: 20,
     width: 56,
     height: 56,
     borderRadius: 28,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     zIndex: 1000,
   },
   floatingCartGradient: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   cartBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: -5,
     right: -5,
-    backgroundColor: '#EC4899',
+    backgroundColor: "#EC4899",
     width: 22,
     height: 22,
     borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: "#fff",
   },
   cartBadgeText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });

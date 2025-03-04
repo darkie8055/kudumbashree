@@ -149,7 +149,7 @@ export default function PresidentDashboardScreen({ navigation }: Props) {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
               >
-                <Text style={styles.title}>President Dashboard</Text>
+                <Text style={styles.title}>Dashboard</Text>
                 <View style={styles.cardContainer}>
                   {dashboardItems.map((item, index) => (
                     <View key={index} style={styles.cardWrapper}>

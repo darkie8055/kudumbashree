@@ -371,7 +371,7 @@ export default function AttendanceScreen() {
                   {members.map(renderMemberAttendance)}
 
                   <View style={styles.summaryContainer}>
-                    <Text style={styles.sectionTitle}>Meeting Summary</Text>
+                    <Text style={styles.sectionTitle}>Journal</Text>
                     <TextInput
                       style={styles.summaryInput}
                       multiline
