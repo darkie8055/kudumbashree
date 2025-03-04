@@ -414,6 +414,7 @@ export default function ApplyLoanScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingBottom:20,
   },
   scrollContent: {
     flexGrow: 1,

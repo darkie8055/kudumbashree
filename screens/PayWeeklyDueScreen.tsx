@@ -19,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useUser } from "../contexts/UserContext";
 import Toast from "react-native-toast-message";
 import { TOAST_DURATION } from "../components/SonnerToast";
+import { Ionicons } from "@expo/vector-icons";
 
 interface WeeklyDue {
   weekNumber: number;
@@ -260,8 +261,19 @@ export default function PayWeeklyDueScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.header}>
-        <Text style={styles.title}>Weekly Dues</Text>
+      <LinearGradient
+        colors={["#7C3AED", "#C026D3"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Weekly Dues</Text>
       </LinearGradient>
 
       <FlatList
@@ -278,19 +290,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingBottom:80,
+    paddingBottom: 80,
   },
   header: {
     padding: 20,
     paddingTop: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
   },
-  title: {
+  backButton: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    padding: 8,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  headerTitle: {
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 24,
-    fontWeight: "bold",
     color: "#fff",
-    textAlign: "center",
+    flex: 1,
   },
   listContent: {
     padding: 16,

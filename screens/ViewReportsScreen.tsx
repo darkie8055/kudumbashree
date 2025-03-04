@@ -664,7 +664,9 @@ export default function ViewReportsScreen({
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <LinearGradient
-          colors={["#8B5CF6", "#EC4899"]}
+          colors={["#7C3AED", "#C026D3"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={styles.headerGradient}
         >
           <TouchableOpacity
@@ -1122,16 +1124,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   backButton: {
+    backgroundColor: "rgba(255,255,255,0.2)",
     padding: 8,
-    marginRight: 8,
+    borderRadius: 12,
+    marginRight: 12,
   },
   headerTitle: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 24,
     color: "#fff",
     flex: 1,
-    textAlign: "center",
-    marginRight: 40,
   },
   content: {
     padding: 16,

@@ -182,7 +182,12 @@ export default function BalanceScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.header}>
+      <LinearGradient
+        colors={["#7C3AED", "#C026D3"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -296,31 +301,27 @@ const styles = StyleSheet.create({
   header: {
     padding: 20,
     paddingTop: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
-    flexDirection: "row",
-    alignItems: "center",
   },
   backButton: {
     backgroundColor: "rgba(255,255,255,0.2)",
     padding: 8,
     borderRadius: 12,
-    width: 40,
-    alignItems: "center",
-    marginRight: 8,
+    marginRight: 12,
   },
   headerTitle: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 24,
     color: "#fff",
     flex: 1,
-    textAlign: "center",
-    marginRight: 48, // To center the title accounting for back button
   },
   content: {
     padding: 16,

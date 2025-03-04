@@ -228,14 +228,22 @@ export default function ProductApprovalScreen({ navigation }) {
 
       {/* Header */}
       <LinearGradient
-        colors={["#8B5CF6", "#EC4899"]}
+        colors={["#7C3AED", "#C026D3"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.headerGradient}
+        style={styles.header}
       >
-        <View style={styles.headerContent}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        <View style={styles.headerTextContainer}>
           <Text style={styles.headerTitle}>Product Approval</Text>
-          <Text style={styles.headerSubtitle}>Manage product listings</Text>
+          <Text style={styles.headerSubtitle}>
+            Review and manage product listings
+          </Text>
         </View>
       </LinearGradient>
 
@@ -247,10 +255,12 @@ export default function ProductApprovalScreen({ navigation }) {
           </View>
         ) : products.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="cart-outline" size={80} color="#8B5CF6" />
-            <Text style={styles.emptyStateText}>No pending products</Text>
+            <View style={styles.emptyStateIcon}>
+              <Ionicons name="basket-outline" size={48} color="#8B5CF6" />
+            </View>
+            <Text style={styles.emptyStateText}>No Pending Products</Text>
             <Text style={styles.emptyStateSubtext}>
-              New product listings will appear here for approval
+              New product listings will appear here for your review and approval
             </Text>
           </View>
         ) : (
@@ -334,35 +344,41 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
-  headerGradient: {
+  header: {
+    padding: 20,
     paddingTop: 20,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
   },
-  headerContent: {
-    marginTop: 0,
+  backButton: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    padding: 8,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 24,
     color: "#fff",
-    marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 16,
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
     color: "rgba(255, 255, 255, 0.8)",
+    marginTop: 4,
   },
   content: {
     flex: 1,
-    marginTop: -20,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    backgroundColor: "#f8f8f8",
+    backgroundColor: "#F9FAFB",
+    paddingTop: 16,
   },
   listContainer: {
-    padding: 20,
+    padding: 16,
   },
   productCard: {
     flexDirection: "row",
@@ -378,37 +394,62 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   productImage: {
-    width: 90,
-    height: 90,
+    width: 100,
+    height: 100,
     borderRadius: 12,
   },
   productInfo: {
     flex: 1,
     marginLeft: 16,
-    justifyContent: "space-between",
   },
   productName: {
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 18,
-    fontWeight: "600",
     color: "#1F2937",
     marginBottom: 6,
   },
   productPrice: {
+    fontFamily: "Poppins_700Bold",
     fontSize: 17,
-    fontWeight: "bold",
     color: "#8B5CF6",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   productUnit: {
+    fontFamily: "Poppins_400Regular",
     fontSize: 15,
     color: "#4B5563",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   productDate: {
+    fontFamily: "Poppins_400Regular",
     fontSize: 13,
     color: "#6B7280",
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  emptyStateIcon: {
+    marginBottom: 16,
+  },
+  emptyStateText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 20,
+    color: "#1F2937",
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    paddingHorizontal: 32,
   },
   modalContainer: {
     flex: 1,
@@ -488,24 +529,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingBottom: 100,
-  },
-  emptyStateText: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#1F2937",
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  emptyStateSubtext: {
-    fontSize: 16,
-    color: "#6B7280",
-    textAlign: "center",
-    paddingHorizontal: 40,
   },
 });

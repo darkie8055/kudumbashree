@@ -23,6 +23,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { useUser } from "../contexts/UserContext";
+import { LinearGradient } from "expo-linear-gradient";
 
 interface Member {
   id: string;
@@ -51,7 +52,8 @@ interface AttendanceRecord {
   };
 }
 
-export default function AttendanceScreen() {
+// Update the component definition with navigation prop
+export default function AttendanceScreen({ navigation }: { navigation: any }) {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
@@ -269,7 +271,7 @@ export default function AttendanceScreen() {
     }
   };
 
-  // Update the renderMeetingItem function to include an arrow icon
+  // Update the meeting card rendering
   const renderMeetingItem = (meeting: Meeting) => (
     <TouchableOpacity
       key={meeting.id}
@@ -277,20 +279,27 @@ export default function AttendanceScreen() {
       onPress={() => handleMeetingSelect(meeting)}
     >
       <View style={styles.meetingHeader}>
-        <Ionicons name="calendar-outline" size={24} color="#8B5CF6" />
+        <View style={styles.iconContainer}>
+          <Ionicons name="calendar-outline" size={24} color="#8B5CF6" />
+        </View>
         <View style={styles.meetingInfo}>
           <Text style={styles.meetingTitle}>{meeting.title}</Text>
-          <Text style={styles.meetingDate}>
-            {meeting.date.toLocaleDateString()}
-          </Text>
-          <Text style={styles.meetingVenue}>{meeting.venue}</Text>
+          <View style={styles.meetingDetails}>
+            <View style={styles.detailItem}>
+              <Ionicons name="time-outline" size={16} color="#6B7280" />
+              <Text style={styles.meetingDate}>
+                {meeting.date.toLocaleDateString()}
+              </Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Ionicons name="location-outline" size={16} color="#6B7280" />
+              <Text style={styles.meetingVenue}>{meeting.venue}</Text>
+            </View>
+          </View>
         </View>
-        <Ionicons
-          name="chevron-forward"
-          size={24}
-          color="#6B7280"
-          style={styles.expandIcon}
-        />
+        <View style={styles.arrowContainer}>
+          <Ionicons name="chevron-forward" size={24} color="#8B5CF6" />
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -332,9 +341,20 @@ export default function AttendanceScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+      <LinearGradient
+        colors={["#7C3AED", "#C026D3"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Meeting Attendance</Text>
-      </View>
+      </LinearGradient>
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -365,9 +385,32 @@ export default function AttendanceScreen() {
                 </TouchableOpacity>
               </View>
 
+              <View style={styles.attendanceStats}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{members.length}</Text>
+                  <Text style={styles.statLabel}>Total Members</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {Object.values(attendance).filter((a) => a.present).length}
+                  </Text>
+                  <Text style={styles.statLabel}>Present</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {members.length -
+                      Object.values(attendance).filter((a) => a.present).length}
+                  </Text>
+                  <Text style={styles.statLabel}>Absent</Text>
+                </View>
+              </View>
+
               {members.length > 0 ? (
                 <>
-                  <Text style={styles.sectionTitle}>Mark Attendance</Text>
+                  <View style={styles.sectionHeader}>
+                    <Ionicons name="people-outline" size={24} color="#6B7280" />
+                    <Text style={styles.sectionTitle}>Mark Attendance</Text>
+                  </View>
                   {members.map(renderMemberAttendance)}
 
                   <View style={styles.summaryContainer}>
@@ -396,6 +439,13 @@ export default function AttendanceScreen() {
                 </Text>
               )}
             </View>
+          ) : meetings.length === 0 ? (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyStateIcon}>
+                <Ionicons name="calendar-outline" size={32} color="#8B5CF6" />
+              </View>
+              <Text style={styles.emptyStateText}>No meetings available</Text>
+            </View>
           ) : (
             meetings.map(renderMeetingItem)
           )}
@@ -412,22 +462,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
   },
   header: {
-    backgroundColor: "#8B5CF6",
     padding: 20,
-    paddingTop: 12,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: "#8B5CF6",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    paddingTop: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
   },
   headerTitle: {
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 24,
-    fontWeight: "700",
-    color: "white",
-    marginBottom: 4,
+    color: "#fff",
+    flex: 1,
   },
   content: {
     flex: 1,
@@ -439,9 +485,10 @@ const styles = StyleSheet.create({
     padding: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 15,
-    elevation: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    marginBottom: 16,
   },
   meetingCard: {
     backgroundColor: "white",
@@ -450,9 +497,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 15,
-    elevation: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   closeButton: {
     padding: 8,
@@ -474,28 +523,25 @@ const styles = StyleSheet.create({
   meetingHeader: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
   },
   meetingInfo: {
-    marginLeft: 12,
     flex: 1,
   },
   meetingTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
     color: "#1F2937",
-    marginBottom: 4,
+    marginBottom: 8,
   },
   meetingDate: {
+    fontFamily: "Poppins_400Regular",
     fontSize: 14,
     color: "#6B7280",
-    marginBottom: 2,
   },
   meetingVenue: {
+    fontFamily: "Poppins_400Regular",
     fontSize: 14,
     color: "#6B7280",
-    flexDirection: "row",
-    alignItems: "center",
   },
   attendanceContainer: {
     padding: 20,
@@ -510,12 +556,13 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E5E7EB",
   },
   selectedMeetingTitle: {
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 24,
-    fontWeight: "bold",
     color: "#1F2937",
     marginBottom: 4,
   },
   selectedMeetingDate: {
+    fontFamily: "Poppins_500Medium",
     fontSize: 16,
     color: "#6B7280",
   },
@@ -560,11 +607,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   sectionTitle: {
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 20,
-    fontWeight: "700",
     color: "#1F2937",
-    marginBottom: 16,
-    marginTop: 8,
   },
   emptyText: {
     fontSize: 16,
@@ -621,5 +666,80 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "700",
+  },
+  backButton: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    padding: 8,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  iconContainer: {
+    backgroundColor: "#EDE9FE",
+    padding: 12,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  meetingDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    gap: 4,
+  },
+  detailItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 12,
+    gap: 6,
+  },
+  arrowContainer: {
+    backgroundColor: "#F3F4F6",
+    padding: 8,
+    borderRadius: 20,
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+  },
+  emptyStateIcon: {
+    backgroundColor: "#EDE9FE",
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  emptyStateText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+  },
+  attendanceStats: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  statItem: {
+    alignItems: "center",
+  },
+  statValue: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 24,
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    marginTop: 8,
+    gap: 8,
   },
 });
