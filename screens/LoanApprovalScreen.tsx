@@ -169,6 +169,42 @@ export default function LoanApprovalScreen({ navigation }) {
       end={{ x: 1, y: 1 }}
     >
       <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={["#7C3AED", "#C026D3"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Loan Approval</Text>
+            <Text style={styles.headerSubtitle}>
+              Review and manage loan applications
+            </Text>
+          </View>
+        </LinearGradient>
+
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{loanApplications.length}</Text>
+            <Text style={styles.statLabel}>Pending</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>
+              ₹
+              {loanApplications
+                .reduce((sum, app) => sum + app.amount, 0)
+                .toLocaleString("en-IN")}
+            </Text>
+            <Text style={styles.statLabel}>Total Amount</Text>
+          </View>
+        </View>
+
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Animated.View style={[styles.formContainer, fadeIn]}>
             <LinearGradient
@@ -194,13 +230,19 @@ export default function LoanApprovalScreen({ navigation }) {
                   </View>
                 ) : loanApplications.length === 0 ? (
                   <View style={styles.emptyContainer}>
-                    <Ionicons
-                      name="document-text-outline"
-                      size={48}
-                      color="#ffffff"
-                    />
+                    <View style={styles.emptyIconContainer}>
+                      <Ionicons
+                        name="documents-outline"
+                        size={48}
+                        color="#8B5CF6"
+                      />
+                    </View>
+                    <Text style={styles.emptyTitle}>
+                      No Pending Applications
+                    </Text>
                     <Text style={styles.emptyText}>
-                      No pending loan applications
+                      When members submit loan applications, they will appear
+                      here for your review
                     </Text>
                   </View>
                 ) : (
@@ -467,41 +509,53 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 40,
+    padding: 32,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 16,
+    margin: 16,
+  },
+  emptyIconContainer: {
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 18,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 8,
   },
   emptyText: {
     fontFamily: "Poppins_400Regular",
-    fontSize: 16,
-    color: "#ffffff",
-    marginTop: 10,
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
   },
   applicationList: {
     marginTop: 10,
   },
   applicationCard: {
     backgroundColor: "#ffffff",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 8,
     elevation: 3,
+    borderLeftWidth: 4,
+    borderLeftColor: "#8B5CF6",
   },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   memberName: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 16,
-    color: "#333333",
+    color: "#1F2937",
     flex: 1,
   },
   amountText: {
@@ -515,7 +569,10 @@ const styles = StyleSheet.create({
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 5,
+    marginBottom: 8,
+    backgroundColor: "#F9FAFB",
+    padding: 8,
+    borderRadius: 8,
   },
   detailText: {
     fontFamily: "Poppins_400Regular",
@@ -655,5 +712,61 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#ffffff",
     marginLeft: 6,
+  },
+  header: {
+    padding: 20,
+    paddingTop: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  backButton: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    padding: 8,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 24,
+    color: "#fff",
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.9)",
+  },
+  statsContainer: {
+    flexDirection: "row",
+    padding: 16,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  statValue: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 20,
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#6B7280",
   },
 });
