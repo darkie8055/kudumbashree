@@ -83,6 +83,9 @@ export default function PayWeeklyDueScreen({ navigation }) {
         weekNumber++;
       }
 
+      // Sort weeks in reverse order (latest week first)
+      weeks.sort((a, b) => b.weekNumber - a.weekNumber);
+
       setWeeklyDues(weeks);
     } catch (error) {
       console.error("Error fetching weekly dues:", error);
@@ -275,6 +278,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+    paddingBottom:80,
   },
   header: {
     padding: 20,
