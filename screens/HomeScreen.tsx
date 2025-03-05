@@ -503,7 +503,6 @@ export default function HomeScreen({ navigation }: Props) {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#8B5CF6" />
       </View>
-      
     );
   }
 
@@ -520,38 +519,102 @@ export default function HomeScreen({ navigation }: Props) {
           />
         }
       >
-        <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.header}>
-          <Text style={styles.headerText}>Welcome, {firstName || "User"}!</Text>
-        </LinearGradient>
-
-        <Animated.View style={fadeIn}>
-          {/* Quick Actions Section */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionHeader}>Quick Actions</Text>
-            <View style={styles.quickActionsContainer}>
-              <TouchableOpacity style={styles.quickActionItem}>
-                <Ionicons name="list-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.quickActionText}>ACTIVITIES</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickActionItem}>
-                <Ionicons name="book-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.quickActionText}>Rules & RGL</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickActionItem}>
-                <Ionicons name="calendar-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.quickActionText}>UPCOMING</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickActionItem}>
-                <Ionicons
-                  name="document-text-outline"
-                  size={24}
-                  color="#8B5CF6"
-                />
-                <Text style={styles.quickActionText}>TODAY'S STORY</Text>
-              </TouchableOpacity>
+        <LinearGradient
+          colors={["#7C3AED", "#C026D3"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <View style={styles.headerIcon}>
+              <Ionicons name="home" size={24} color="#fff" />
+            </View>
+            <Text style={styles.headerTitle}>
+              Welcome, {firstName || "User"}
+            </Text>
+            <View style={styles.headerBadge}>
+              <Ionicons
+                name="location"
+                size={14}
+                color="#fff"
+                style={styles.badgeIcon}
+              />
+              <Text style={styles.headerSubtitle}>Home</Text>
             </View>
           </View>
+        </LinearGradient>
 
+        {/* Quick Actions Section */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.cardsGrid}>
+            {[
+              {
+                title: "Activities",
+                icon: "list",
+                description: "View all activities",
+                color: "#8B5CF6",
+              },
+              {
+                title: "Rules & RGL",
+                icon: "book",
+                description: "Check guidelines",
+                color: "#EC4899",
+              },
+              {
+                title: "Upcoming",
+                icon: "calendar",
+                description: "View schedule",
+                color: "#10B981",
+              },
+              {
+                title: "Today's Story",
+                icon: "document-text",
+                description: "Daily updates",
+                color: "#F59E0B",
+              },
+            ].map((item, index) => (
+              <View key={index} style={styles.cardWrapper}>
+                <TouchableOpacity
+                  style={[styles.card, { borderLeftColor: item.color }]}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.cardContent}>
+                    <View style={styles.cardHeader}>
+                      <View
+                        style={[
+                          styles.iconContainer,
+                          { backgroundColor: `${item.color}15` },
+                        ]}
+                      >
+                        <Ionicons
+                          name={`${item.icon}-outline`}
+                          size={22}
+                          color={item.color}
+                        />
+                      </View>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={20}
+                        color={item.color}
+                      />
+                    </View>
+                    <Text
+                      style={[styles.cardTitle, { color: item.color }]}
+                      numberOfLines={1}
+                    >
+                      {item.title}
+                    </Text>
+                    <Text style={styles.cardDescription} numberOfLines={2}>
+                      {item.description}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <Animated.View style={fadeIn}>
           {/* Notice Board Section */}
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionHeader}>Notice Board</Text>
@@ -692,18 +755,58 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: 20,
-    paddingBottom: 10,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  headerText: {
-    fontFamily: "Poppins_700Bold",
-    fontSize: 28,
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    gap: 12,
+    height: 48,
+  },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 20,
     color: "#fff",
-    marginBottom: 20,
+    flex: 1,
+  },
+  headerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 16,
+    gap: 4,
+  },
+  headerSubtitle: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: "#fff",
+  },
+  badgeIcon: {
+    marginRight: 2,
   },
   sectionContainer: {
+    marginTop:20,
     marginBottom: 25,
     paddingHorizontal: 20,
   },
@@ -819,18 +922,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   closeIconButton: {
-    position: 'absolute',
+    position: "absolute",
     right: 10,
     top: 10,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: "#8B5CF6",
     borderRadius: 20,
     width: 36,
     height: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 1,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -843,10 +946,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 8,
   },
-  headerContent: {
-    flex: 1,
-    marginRight: 10,
-  },
+  // headerContent: {
+  //   flex: 1,
+  //   marginRight: 10,
+  // },
   expandedContent: {
     paddingLeft: 34, // Aligns with the text after icon
     paddingTop: 8,
@@ -916,5 +1019,61 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#fff",
+  },
+  cardsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  cardWrapper: {
+    width: "48%",
+    marginBottom: 12,
+  },
+  card: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 16,
+    height: 120,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderLeftWidth: 4,
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: "space-between",
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  cardTopContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  cardDescription: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: "#6B7280",
+    lineHeight: 16,
   },
 });

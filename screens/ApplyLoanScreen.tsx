@@ -236,191 +236,171 @@ export default function ApplyLoanScreen({ navigation, route }: Props) {
   };
 
   return (
-    <LinearGradient
-      colors={["rgba(162,39,142,0.01)", "rgba(162,39,142,0.03)"]}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
-      <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.container}
-        >
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            <Animated.View style={[styles.formContainer, fadeIn]}>
-              <LinearGradient
-                colors={[
-                  "rgba(255, 255, 255, 0.3)",
-                  "rgba(255, 255, 255, 0.2)",
-                ]}
-                style={styles.borderGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+    <View style={styles.container}>
+      <LinearGradient
+        colors={["#7C3AED", "#C026D3"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <SafeAreaView>
+          <View style={styles.headerContent}>
+            <View style={styles.headerIcon}>
+              <Ionicons name="cash" size={24} color="#fff" />
+            </View>
+            <Text style={styles.headerTitle}>Apply for Loan</Text>
+            <View style={styles.headerBadge}>
+              <Text style={styles.headerSubtitle}>New</Text>
+            </View>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.mainContainer}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Animated.View style={[styles.formContainer, fadeIn]}>
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionHeader}>Loan Details</Text>
+              <Text style={styles.sectionSubtitle}>
+                Please fill in all required fields
+              </Text>
+              <Formik<FormValues>
+                initialValues={{
+                  amount: "",
+                  purpose: "",
+                  repaymentPeriod: "12",
+                  loanType: "personal",
+                  references: [],
+                }}
+                validationSchema={validationSchema}
+                onSubmit={handleSubmit}
               >
-                <LinearGradient
-                  colors={["#8B5CF6", "#EC4899"]}
-                  style={styles.formGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <View style={styles.headerContainer}>
-                    <TouchableOpacity
-                      onPress={() => navigation.goBack()}
-                      style={styles.backButton}
-                    >
-                      <Ionicons name="arrow-back" size={24} color="#fff" />
-                    </TouchableOpacity>
-                    <Text style={styles.title}>Apply for Loan</Text>
-                  </View>
-
-                  <Formik<FormValues>
-                    initialValues={{
-                      amount: "",
-                      purpose: "",
-                      repaymentPeriod: "12",
-                      loanType: "personal",
-                      references: [],
-                    }}
-                    validationSchema={validationSchema}
-                    onSubmit={handleSubmit}
-                  >
-                    {({
-                      handleChange,
-                      handleBlur,
-                      handleSubmit,
-                      values,
-                      errors,
-                      touched,
-                      setFieldValue,
-                    }) => (
-                      <View>
-                        <Text style={styles.fieldLabel}>Loan Type</Text>
-                        <View style={styles.pickerContainer}>
-                          <Picker
-                            selectedValue={values.loanType}
-                            style={styles.picker}
-                            onValueChange={(itemValue) =>
-                              setFieldValue("loanType", itemValue)
-                            }
-                            dropdownIconColor="#8B5CF6"
-                          >
-                            <Picker.Item
-                              label="Personal Loan"
-                              value="personal"
-                            />
-                            <Picker.Item
-                              label="Business Loan"
-                              value="business"
-                            />
-                            <Picker.Item
-                              label="Education Loan"
-                              value="education"
-                            />
-                            <Picker.Item label="Medical Loan" value="medical" />
-                            <Picker.Item label="Housing Loan" value="housing" />
-                          </Picker>
-                        </View>
-                        {errors.loanType && touched.loanType && (
-                          <Text style={styles.errorText}>
-                            {errors.loanType}
-                          </Text>
-                        )}
-
-                        <Text style={styles.fieldLabel}>Loan Amount (₹)</Text>
-                        <TextInput
-                          style={styles.input}
-                          keyboardType="numeric"
-                          placeholder="Enter amount (in ₹)"
-                          onChangeText={handleChange("amount")}
-                          onBlur={handleBlur("amount")}
-                          value={values.amount}
-                          maxLength={10}
-                        />
-                        {errors.amount && touched.amount && (
-                          <Text style={styles.errorText}>{errors.amount}</Text>
-                        )}
-
-                        <Text style={styles.fieldLabel}>Purpose of Loan</Text>
-                        <TextInput
-                          style={[styles.input, styles.textArea]}
-                          placeholder="Why do you need this loan?"
-                          onChangeText={handleChange("purpose")}
-                          onBlur={handleBlur("purpose")}
-                          value={values.purpose}
-                          multiline
-                        />
-                        {errors.purpose && touched.purpose && (
-                          <Text style={styles.errorText}>{errors.purpose}</Text>
-                        )}
-
-                        <Text style={styles.fieldLabel}>
-                          Repayment Period (months)
-                        </Text>
-                        <TextInput
-                          style={styles.input}
-                          keyboardType="numeric"
-                          placeholder="Enter number of months"
-                          onChangeText={handleChange("repaymentPeriod")}
-                          onBlur={handleBlur("repaymentPeriod")}
-                          value={values.repaymentPeriod}
-                          maxLength={2}
-                        />
-                        {errors.repaymentPeriod && touched.repaymentPeriod && (
-                          <Text style={styles.errorText}>
-                            {errors.repaymentPeriod}
-                          </Text>
-                        )}
-
-                        <View style={styles.infoContainer}>
-                          <Ionicons
-                            name="information-circle-outline"
-                            size={16}
-                            color="#8B5CF6"
-                          />
-                          <Text style={styles.infoText}>
-                            By submitting this application, you agree to the
-                            terms and conditions of the Kudumbashree loan
-                            program.
-                          </Text>
-                        </View>
-
-                        <TouchableOpacity
-                          style={styles.submitButton}
-                          onPress={() => handleSubmit()}
-                          disabled={loading}
-                        >
-                          {loading ? (
-                            <ActivityIndicator color="#fff" size="small" />
-                          ) : (
-                            <Text style={styles.submitButtonText}>
-                              Submit Application
-                            </Text>
-                          )}
-                        </TouchableOpacity>
-                      </View>
+                {({
+                  handleChange,
+                  handleBlur,
+                  handleSubmit,
+                  values,
+                  errors,
+                  touched,
+                  setFieldValue,
+                }) => (
+                  <View style={styles.formContent}>
+                    <Text style={styles.fieldLabel}>Loan Type</Text>
+                    <View style={styles.pickerContainer}>
+                      <Picker
+                        selectedValue={values.loanType}
+                        style={styles.picker}
+                        onValueChange={(itemValue) =>
+                          setFieldValue("loanType", itemValue)
+                        }
+                        dropdownIconColor="#8B5CF6"
+                      >
+                        <Picker.Item label="Personal Loan" value="personal" />
+                        <Picker.Item label="Business Loan" value="business" />
+                        <Picker.Item label="Education Loan" value="education" />
+                        <Picker.Item label="Medical Loan" value="medical" />
+                        <Picker.Item label="Housing Loan" value="housing" />
+                      </Picker>
+                    </View>
+                    {errors.loanType && touched.loanType && (
+                      <Text style={styles.errorText}>{errors.loanType}</Text>
                     )}
-                  </Formik>
-                </LinearGradient>
-              </LinearGradient>
-            </Animated.View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </LinearGradient>
+
+                    <Text style={styles.fieldLabel}>Loan Amount (₹)</Text>
+                    <TextInput
+                      style={styles.input}
+                      keyboardType="numeric"
+                      placeholder="Enter amount (in ₹)"
+                      onChangeText={handleChange("amount")}
+                      onBlur={handleBlur("amount")}
+                      value={values.amount}
+                      maxLength={10}
+                    />
+                    {errors.amount && touched.amount && (
+                      <Text style={styles.errorText}>{errors.amount}</Text>
+                    )}
+
+                    <Text style={styles.fieldLabel}>Purpose of Loan</Text>
+                    <TextInput
+                      style={[styles.input, styles.textArea]}
+                      placeholder="Why do you need this loan?"
+                      onChangeText={handleChange("purpose")}
+                      onBlur={handleBlur("purpose")}
+                      value={values.purpose}
+                      multiline
+                    />
+                    {errors.purpose && touched.purpose && (
+                      <Text style={styles.errorText}>{errors.purpose}</Text>
+                    )}
+
+                    <Text style={styles.fieldLabel}>
+                      Repayment Period (months)
+                    </Text>
+                    <TextInput
+                      style={styles.input}
+                      keyboardType="numeric"
+                      placeholder="Enter number of months"
+                      onChangeText={handleChange("repaymentPeriod")}
+                      onBlur={handleBlur("repaymentPeriod")}
+                      value={values.repaymentPeriod}
+                      maxLength={2}
+                    />
+                    {errors.repaymentPeriod && touched.repaymentPeriod && (
+                      <Text style={styles.errorText}>
+                        {errors.repaymentPeriod}
+                      </Text>
+                    )}
+
+                    <View style={styles.infoContainer}>
+                      <Ionicons
+                        name="information-circle-outline"
+                        size={16}
+                        color="#8B5CF6"
+                      />
+                      <Text style={styles.infoText}>
+                        By submitting this application, you agree to the terms
+                        and conditions of the Kudumbashree loan program.
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.submitButton}
+                      onPress={() => handleSubmit()}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <Text style={styles.submitButtonText}>
+                          Submit Application
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </Formik>
+            </View>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingBottom:20,
+    paddingBottom: 200,
   },
   scrollContent: {
     flexGrow: 1,
     padding: 20,
   },
   formContainer: {
+    backgroundColor: "#fff",
     borderRadius: 20,
     shadowColor: "#000",
     shadowOffset: {
@@ -430,7 +410,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
-    overflow: "hidden",
+    marginTop: 20,
   },
   borderGradient: {
     borderRadius: 20,
@@ -455,28 +435,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fieldLabel: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 16,
-    color: "white",
-    marginBottom: 5,
-    marginTop: 15,
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    color: "#4B5563",
+    marginBottom: 8,
   },
   input: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    paddingHorizontal: 15,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    width: "100%",
     fontFamily: "Poppins_400Regular",
+    color: "#1F2937",
   },
   textArea: {
     height: 100,
     textAlignVertical: "top",
   },
   pickerContainer: {
-    backgroundColor: "white",
-    borderRadius: 10,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
     overflow: "hidden",
   },
   picker: {
@@ -485,30 +468,30 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontFamily: "Poppins_400Regular",
-    color: "#FECACA",
+    color: "#EF4444",
     fontSize: 12,
-    marginTop: 5,
+    marginTop: 4,
   },
   infoContainer: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 10,
-    padding: 10,
-    marginTop: 20,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 24,
   },
   infoText: {
-    color: "white",
+    color: "#4B5563",
     fontFamily: "Poppins_400Regular",
     fontSize: 12,
-    marginLeft: 5,
+    marginLeft: 8,
     flex: 1,
   },
   submitButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 20,
+    backgroundColor: "#8B5CF6",
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 24,
     alignItems: "center",
   },
   submitButtonText: {
@@ -519,5 +502,69 @@ const styles = StyleSheet.create({
   loadingContainer: {
     justifyContent: "center",
     alignItems: "center",
+  },
+  header: {
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    gap: 12,
+    height: 48,
+  },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 20,
+    color: "#fff",
+    flex: 1,
+  },
+  headerBadge: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  headerSubtitle: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: "#fff",
+  },
+  sectionContainer: {
+    padding: 20,
+  },
+  sectionHeader: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 20,
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 20,
+  },
+  formContent: {
+    gap: 16,
   },
 });

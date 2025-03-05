@@ -38,14 +38,13 @@ import PayWeeklyDueScreen from "./PayWeeklyDueScreen";
 
 const Stack = createStackNavigator<RootStackParamList>();
 
-type MainDetailsScreenNavigationProp = StackNavigationProp<
-  RootStackParamList,
-  "MainDetails"
+// Update the navigation type at the top
+type MainDetailsScreenNavigationProp = NavigationProp<
+  RootStackParamList & KMemberTabsParamList
 >;
 
-// Update MainDetailsScreenProps to include route
 interface MainDetailsScreenProps {
-  navigation: NavigationProp<KMemberTabsParamList>;
+  navigation: MainDetailsScreenNavigationProp;
   route: RouteProp<KMemberTabsParamList, "Details">;
 }
 
@@ -167,44 +166,113 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.header}>
-          <Text style={styles.pageHeading}>{unitData.unitName}</Text>
-          <Text style={styles.unitNumber}>Unit {unitData.unitNumber}</Text>
+        <LinearGradient
+          colors={["#7C3AED", "#C026D3"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <View style={styles.headerIcon}>
+              <Ionicons name="people" size={24} color="#fff" />
+            </View>
+            <Text style={styles.headerTitle}>{unitData.unitName}</Text>
+            <View style={styles.headerBadge}>
+              <Ionicons name="location" size={14} color="#fff" />
+              <Text style={styles.headerSubtitle}>
+                Unit {unitData.unitNumber}
+              </Text>
+            </View>
+          </View>
         </LinearGradient>
 
         <Animated.View style={fadeIn}>
           {/* Quick Actions Section */}
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionHeader}>Quick Actions</Text>
-            <View style={styles.quickActionsContainer}>
-              <TouchableOpacity
-                style={styles.quickActionItem}
-                onPress={() => navigation.navigate("Savings")}
-              >
-                <Ionicons name="wallet-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.quickActionText}>Savings</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.quickActionItem}
-                onPress={() => navigation.navigate("Loan")}
-              >
-                <Ionicons name="cash-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.quickActionText}>Loan</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.quickActionItem}
-                onPress={() => navigation.navigate("Balance")}
-              >
-                <Ionicons name="bar-chart-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.quickActionText}>Balance</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.quickActionItem}
-                onPress={() => navigation.navigate("Pending")}
-              >
-                <Ionicons name="hourglass-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.quickActionText}>Pending</Text>
-              </TouchableOpacity>
+            <View style={styles.cardsGrid}>
+              {[
+                {
+                  title: "Savings",
+                  icon: "wallet",
+                  description: "View savings details",
+                  onPress: () => navigation.navigate("Savings"),
+                  color: "#8B5CF6",
+                },
+                {
+                  title: "Loan",
+                  icon: "cash",
+                  description: "Manage your loans",
+                  onPress: () => navigation.navigate("Loan"),
+                  color: "#EC4899",
+                },
+                {
+                  title: "Balance",
+                  icon: "bar-chart",
+                  description: "Check your balance",
+                  onPress: () => navigation.navigate("Balance"),
+                  color: "#10B981",
+                },
+                {
+                  title: "Pending",
+                  icon: "hourglass",
+                  description: "View pending items",
+                  onPress: () => navigation.navigate("Pending"),
+                  color: "#F59E0B",
+                },
+              ].map((item, index) => (
+                <Animated.View
+                  key={index}
+                  style={[
+                    styles.cardWrapper,
+                    {
+                      transform: [
+                        {
+                          translateY: animation.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [50 * (Math.floor(index / 2) + 1), 0],
+                          }),
+                        },
+                      ],
+                      opacity: animation,
+                    },
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={[styles.card, { borderLeftColor: item.color }]}
+                    onPress={item.onPress}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.cardContent}>
+                      <View style={styles.cardHeader}>
+                        <View
+                          style={[
+                            styles.iconContainer,
+                            { backgroundColor: `${item.color}15` },
+                          ]}
+                        >
+                          <Ionicons
+                            name={`${item.icon}-outline`}
+                            size={22}
+                            color={item.color}
+                          />
+                        </View>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={20}
+                          color={item.color}
+                        />
+                      </View>
+                      <Text style={styles.cardTitle} numberOfLines={1}>
+                        {item.title}
+                      </Text>
+                      <Text style={styles.cardDescription} numberOfLines={2}>
+                        {item.description}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </Animated.View>
+              ))}
             </View>
           </View>
 
@@ -276,13 +344,29 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionHeader}>Linkage Loan</Text>
             <TouchableOpacity
-              style={styles.linkageLoanButton}
+              style={styles.actionCard}
               onPress={() => navigation.navigate("LinkageLoan")}
+              activeOpacity={0.7}
             >
-              <Ionicons name="link-outline" size={24} color="#8B5CF6" />
-              <Text style={styles.linkageLoanText}>
-                View Linkage Loan Details
-              </Text>
+              <View style={styles.actionCardContent}>
+                <View style={styles.actionCardHeader}>
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      { backgroundColor: "#EDE9FE" },
+                    ]}
+                  >
+                    <Ionicons name="link-outline" size={24} color="#8B5CF6" />
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#8B5CF6" />
+                </View>
+                <Text style={styles.actionCardTitle}>
+                  View Linkage Loan Details
+                </Text>
+                <Text style={styles.actionCardDescription}>
+                  Check your linkage loan status and details
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -291,29 +375,74 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
             <Text style={styles.sectionHeader}>Loan Actions</Text>
             <View style={styles.loanActionsContainer}>
               <TouchableOpacity
-                style={styles.loanActionItem}
+                style={styles.actionCard}
                 onPress={() =>
-                  navigation.navigate("ApplyLoan", {
-                    phoneNumber: memberData?.id || route.params?.phoneNumber,
-                  })
+                  (navigation as MainDetailsScreenNavigationProp).navigate(
+                    "ApplyLoan",
+                    {
+                      phoneNumber: memberData?.id || "",
+                    }
+                  )
                 }
+                activeOpacity={0.7}
               >
-                <Ionicons name="add-circle-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.loanActionText}>Apply for New Loan</Text>
+                <View style={styles.actionCardContent}>
+                  <View style={styles.actionCardHeader}>
+                    <View
+                      style={[
+                        styles.iconContainer,
+                        { backgroundColor: "#FCE7F3" },
+                      ]}
+                    >
+                      <Ionicons
+                        name="add-circle-outline"
+                        size={24}
+                        color="#EC4899"
+                      />
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#EC4899"
+                    />
+                  </View>
+                  <Text style={styles.actionCardTitle}>Apply for New Loan</Text>
+                  <Text style={styles.actionCardDescription}>
+                    Submit a new loan application
+                  </Text>
+                </View>
               </TouchableOpacity>
-              {/* <TouchableOpacity
-                style={styles.loanActionItem}
-                onPress={() => navigation.navigate("PayPendingLoan")}
-              >
-                <Ionicons name="card-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.loanActionText}>Pay Pending Loans</Text>
-              </TouchableOpacity> */}
+
               <TouchableOpacity
-                style={styles.loanActionItem}
+                style={styles.actionCard}
                 onPress={handlePayWeeklyDue}
+                activeOpacity={0.7}
               >
-                <Ionicons name="calendar-outline" size={24} color="#8B5CF6" />
-                <Text style={styles.loanActionText}>Pay Weekly Due</Text>
+                <View style={styles.actionCardContent}>
+                  <View style={styles.actionCardHeader}>
+                    <View
+                      style={[
+                        styles.iconContainer,
+                        { backgroundColor: "#ECFDF5" },
+                      ]}
+                    >
+                      <Ionicons
+                        name="calendar-outline"
+                        size={24}
+                        color="#10B981"
+                      />
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#10B981"
+                    />
+                  </View>
+                  <Text style={styles.actionCardTitle}>Pay Weekly Due</Text>
+                  <Text style={styles.actionCardDescription}>
+                    Make your weekly due payment
+                  </Text>
+                </View>
               </TouchableOpacity>
             </View>
           </View>
@@ -386,12 +515,18 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   header: {
-    paddingTop: 10,
-    paddingBottom: 10,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    alignItems: "center",
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
   pageHeading: {
     fontFamily: "Poppins_700Bold",
@@ -411,9 +546,10 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     fontFamily: "Poppins_600SemiBold",
-    fontSize: 18,
-    color: "#333",
-    marginBottom: 10,
+    fontSize: 20,
+    color: "#1F2937",
+    marginBottom: 16,
+    marginTop:10,
   },
   quickActionsContainer: {
     flexDirection: "row",
@@ -492,5 +628,147 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_400Regular",
     color: "#4B5563",
     marginLeft: 10,
+  },
+  cardsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  cardWrapper: {
+    width: "48%",
+    marginBottom: 12,
+  },
+  card: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 16,
+    height: 140, // Increased height
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderLeftWidth: 4,
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: "space-between",
+    height: "100%", // Ensure content takes full height
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14, // Adjust back to original size
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  cardDescription: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12, // Adjust back to original size
+    color: "#6B7280",
+    lineHeight: 16,
+  },
+  actionCard: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: "#8B5CF6",
+    minHeight: 120, // Added minimum height
+  },
+  actionCardContent: {
+    flex: 1,
+    justifyContent: "space-between",
+    height: "100%", // Ensure content takes full height
+  },
+  actionCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  actionCardTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  actionCardDescription: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  headerTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 20,
+    color: "#fff",
+    flex: 1,
+  },
+  headerSubtitle: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#fff",
+  },
+  backButton: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    padding: 8,
+    borderRadius: 12,
+  },
+  headerMain: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+  },
+  badgeIcon: {
+    marginRight: 4,
   },
 });

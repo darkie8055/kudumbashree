@@ -215,14 +215,7 @@ function PresidentStack() {
         name="ScheduleMeeting"
         component={ScheduleMeetingScreen}
         options={{
-          title: "Schedule Meeting",
-          headerStyle: {
-            backgroundColor: "#8B5CF6",
-          },
-          headerTintColor: "#fff",
-          headerTitleStyle: {
-            fontFamily: "Poppins_600SemiBold",
-          },
+          headerShown: false
         }}
       />
       <Stack.Screen

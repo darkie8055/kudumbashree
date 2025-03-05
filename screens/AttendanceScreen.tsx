@@ -271,34 +271,49 @@ export default function AttendanceScreen({ navigation }: { navigation: any }) {
     }
   };
 
-  // Update the meeting card rendering
+  // Update the renderMeetingItem function
   const renderMeetingItem = (meeting: Meeting) => (
     <TouchableOpacity
       key={meeting.id}
       style={styles.meetingCard}
       onPress={() => handleMeetingSelect(meeting)}
+      activeOpacity={0.7}
     >
-      <View style={styles.meetingHeader}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="calendar-outline" size={24} color="#8B5CF6" />
-        </View>
-        <View style={styles.meetingInfo}>
-          <Text style={styles.meetingTitle}>{meeting.title}</Text>
-          <View style={styles.meetingDetails}>
-            <View style={styles.detailItem}>
-              <Ionicons name="time-outline" size={16} color="#6B7280" />
-              <Text style={styles.meetingDate}>
-                {meeting.date.toLocaleDateString()}
-              </Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Ionicons name="location-outline" size={16} color="#6B7280" />
-              <Text style={styles.meetingVenue}>{meeting.venue}</Text>
+      <View style={styles.meetingContent}>
+        <View style={styles.meetingLeftContent}>
+          <View style={styles.dateContainer}>
+            <Text style={styles.dateDay}>
+              {meeting.date.getDate().toString().padStart(2, "0")}
+            </Text>
+            <Text style={styles.dateMonth}>
+              {meeting.date.toLocaleString("default", { month: "short" })}
+            </Text>
+          </View>
+          <View style={styles.meetingInfo}>
+            <Text style={styles.meetingTitle} numberOfLines={1}>
+              {meeting.title}
+            </Text>
+            <View style={styles.meetingDetails}>
+              <View style={styles.detailItem}>
+                <Ionicons name="time-outline" size={16} color="#6B7280" />
+                <Text style={styles.detailText}>
+                  {meeting.date.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Text>
+              </View>
+              <View style={styles.detailItem}>
+                <Ionicons name="location-outline" size={16} color="#6B7280" />
+                <Text style={styles.detailText} numberOfLines={1}>
+                  {meeting.venue}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
         <View style={styles.arrowContainer}>
-          <Ionicons name="chevron-forward" size={24} color="#8B5CF6" />
+          <Ionicons name="chevron-forward" size={20} color="#8B5CF6" />
         </View>
       </View>
     </TouchableOpacity>
@@ -447,7 +462,31 @@ export default function AttendanceScreen({ navigation }: { navigation: any }) {
               <Text style={styles.emptyStateText}>No meetings available</Text>
             </View>
           ) : (
-            meetings.map(renderMeetingItem)
+            <>
+              <View style={styles.meetingsListHeader}>
+                <View style={styles.meetingsHeaderContent}>
+                  <View style={styles.headerIconContainer}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={24}
+                      color="#8B5CF6"
+                    />
+                  </View>
+                  <View>
+                    <Text style={styles.meetingsListTitle}>
+                      Active Meetings
+                    </Text>
+                    <Text style={styles.meetingsListSubtitle}>
+                      Select a meeting to mark attendance
+                    </Text>
+                  </View>
+                </View>
+                {/* <View style={styles.meetingCountBadge}>
+                  <Text style={styles.meetingCountText}>{meetings.length}</Text>
+                </View> */}
+              </View>
+              {meetings.map(renderMeetingItem)}
+            </>
           )}
         </ScrollView>
       )}
@@ -493,7 +532,6 @@ const styles = StyleSheet.create({
   meetingCard: {
     backgroundColor: "white",
     borderRadius: 16,
-    padding: 16,
     marginBottom: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -502,6 +540,7 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderWidth: 1,
     borderColor: "#E5E7EB",
+    overflow: "hidden",
   },
   closeButton: {
     padding: 8,
@@ -741,5 +780,91 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 8,
     gap: 8,
+  },
+  meetingContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+  },
+  meetingLeftContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  dateContainer: {
+    width: 48,
+    height: 56,
+    backgroundColor: "#F5F3FF",
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  dateDay: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 18,
+    color: "#7C3AED",
+  },
+  dateMonth: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 12,
+    color: "#7C3AED",
+    textTransform: "uppercase",
+  },
+  detailText: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  meetingsListHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+    backgroundColor: "white",
+    padding: 10,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    borderLeftWidth: 4,
+    borderLeftColor: "#8B5CF6",
+  },
+  headerIconContainer: {
+    backgroundColor: "#F5F3FF",
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  meetingsListTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 17,
+    color: "#1F2937",
+    marginBottom: 0,
+  },
+  meetingsListSubtitle: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  meetingCountBadge: {
+    backgroundColor: "#F5F3FF",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  meetingCountText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "#8B5CF6",
+  },
+  meetingsHeaderContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
 });

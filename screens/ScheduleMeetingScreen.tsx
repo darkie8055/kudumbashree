@@ -39,6 +39,8 @@ import {
   sendNotificationToAll,
 } from "../utils/notifications";
 import { useUser } from "../contexts/UserContext";
+import { LinearGradient } from "expo-linear-gradient";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 type Meeting = {
   id: string;
@@ -62,7 +64,15 @@ type Notice = {
   venue?: string;
 };
 
-export default function ScheduleMeetingScreen() {
+// Add the navigation type
+type ScheduleMeetingScreenProps = {
+  navigation: NativeStackNavigationProp<any>;
+};
+
+// Update the component definition
+export default function ScheduleMeetingScreen({
+  navigation,
+}: ScheduleMeetingScreenProps) {
   const { userDetails } = useUser();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -349,94 +359,124 @@ export default function ScheduleMeetingScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Schedule Meeting</Text>
+      <LinearGradient
+        colors={["#7C3AED", "#C026D3"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Schedule Meeting</Text>
+          <Text style={styles.headerSubtitle}>
+            Plan and organize unit meetings
+          </Text>
+        </View>
+      </LinearGradient>
 
-        <View style={styles.formContainer}>
-          <Text style={styles.label}>Meeting Title</Text>
-          <TextInput
-            style={styles.input}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Enter meeting title"
-            placeholderTextColor="#9CA3AF"
-          />
-
-          <Text style={styles.label}>Venue</Text>
-          <TextInput
-            style={styles.input}
-            value={venue}
-            onChangeText={setVenue}
-            placeholder="Enter meeting venue"
-            placeholderTextColor="#9CA3AF"
-          />
-
-          <Text style={styles.label}>Description (Optional)</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Enter meeting description"
-            placeholderTextColor="#9CA3AF"
-            multiline
-            numberOfLines={4}
-          />
-
-          <View style={styles.dateTimeContainer}>
-            <TouchableOpacity
-              style={styles.dateTimeButton}
-              onPress={showDatepicker}
-            >
-              <Text style={styles.dateTimeButtonText}>
-                Select Date: {date.toLocaleDateString()}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dateTimeButton}
-              onPress={showTimepicker}
-            >
-              <Text style={styles.dateTimeButtonText}>
-                Select Time:{" "}
-                {date.toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </Text>
-            </TouchableOpacity>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.formCard}>
+          <View style={styles.formHeader}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="calendar-outline" size={32} color="#8B5CF6" />
+            </View>
+            <Text style={styles.formTitle}>Meeting Details</Text>
+            <Text style={styles.formSubtitle}>
+              Fill in the meeting information
+            </Text>
           </View>
 
-          {showDatePicker && Platform.OS === "android" && (
-            <DateTimePicker
-              value={date}
-              mode="date"
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(false);
-                if (selectedDate) {
-                  const currentTime = date;
-                  selectedDate.setHours(currentTime.getHours());
-                  selectedDate.setMinutes(currentTime.getMinutes());
-                  setDate(selectedDate);
-                }
-              }}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Meeting Title</Text>
+            <TextInput
+              style={styles.input}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Enter meeting title"
+              placeholderTextColor="#9CA3AF"
             />
-          )}
+          </View>
 
-          {showTimePicker && Platform.OS === "android" && (
-            <DateTimePicker
-              value={date}
-              mode="time"
-              onChange={(event, selectedDate) => {
-                setShowTimePicker(false);
-                if (selectedDate) {
-                  const newDate = new Date(date);
-                  newDate.setHours(selectedDate.getHours());
-                  newDate.setMinutes(selectedDate.getMinutes());
-                  setDate(newDate);
-                }
-              }}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Venue</Text>
+            <TextInput
+              style={styles.input}
+              value={venue}
+              onChangeText={setVenue}
+              placeholder="Enter meeting venue"
+              placeholderTextColor="#9CA3AF"
             />
-          )}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Description</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Enter meeting description (optional)"
+              placeholderTextColor="#9CA3AF"
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Date & Time</Text>
+            <View style={styles.dateTimeContainer}>
+              <TouchableOpacity
+                style={styles.dateTimeButton}
+                onPress={showDatepicker}
+              >
+                <View style={styles.dateTimeButtonContent}>
+                  <Ionicons name="calendar-outline" size={20} color="#6B7280" />
+                  <Text style={styles.dateTimeButtonText}>
+                    {date.toLocaleDateString()}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.dateTimeButton}
+                onPress={showTimepicker}
+              >
+                <View style={styles.dateTimeButtonContent}>
+                  <Ionicons name="time-outline" size={20} color="#6B7280" />
+                  <Text style={styles.dateTimeButtonText}>
+                    {date.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* Add DateTimePicker components */}
+            {showDatePicker && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                onChange={onDateChange}
+              />
+            )}
+            {showTimePicker && (
+              <DateTimePicker
+                value={date}
+                mode="time"
+                onChange={onTimeChange}
+              />
+            )}
+          </View>
 
           <TouchableOpacity
             style={[styles.scheduleButton, loading && styles.disabledButton]}
@@ -446,17 +486,36 @@ export default function ScheduleMeetingScreen() {
             {loading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.scheduleButtonText}>Schedule Meeting</Text>
+              <>
+                <Ionicons
+                  name="calendar-outline"
+                  size={20}
+                  color="#fff"
+                  style={styles.buttonIcon}
+                />
+                <Text style={styles.scheduleButtonText}>Schedule Meeting</Text>
+              </>
             )}
           </TouchableOpacity>
         </View>
 
         <View style={styles.meetingsContainer}>
-          <Text style={styles.meetingsTitle}>Scheduled Meetings</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="time-outline" size={24} color="#6B7280" />
+            <Text style={styles.meetingsTitle}>Scheduled Meetings</Text>
+          </View>
           {meetings.length > 0 ? (
             meetings.map(renderMeeting)
           ) : (
-            <Text style={styles.emptyText}>No meetings scheduled</Text>
+            <View style={styles.emptyState}>
+              <View style={styles.emptyStateIcon}>
+                <Ionicons name="calendar" size={48} color="#8B5CF6" />
+              </View>
+              <Text style={styles.emptyStateTitle}>No Meetings Scheduled</Text>
+              <Text style={styles.emptyStateText}>
+                Schedule your first meeting using the form above
+              </Text>
+            </View>
           )}
         </View>
       </ScrollView>
@@ -468,9 +527,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F3F4F6",
-  },
-  scrollContent: {
-    padding: 20,
   },
   title: {
     fontSize: 24,
@@ -496,17 +552,22 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: "#F9FAFB",
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 16,
     fontSize: 16,
     fontFamily: "Poppins_400Regular",
-    marginBottom: 16,
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
   textArea: {
     height: 100,
     textAlignVertical: "top",
+  },
+  dateTimeButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
   dateTimeContainer: {
     flexDirection: "row",
@@ -529,9 +590,12 @@ const styles = StyleSheet.create({
   },
   scheduleButton: {
     backgroundColor: "#8B5CF6",
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 16,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
   },
   scheduleButtonText: {
     color: "white",
@@ -640,5 +704,118 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Poppins_600SemiBold",
     marginLeft: 4,
+  },
+  header: {
+    padding: 20,
+    paddingTop: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  backButton: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    padding: 8,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 24,
+    color: "#fff",
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.9)",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+  },
+  formCard: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  iconContainer: {
+    backgroundColor: "#EDE9FE",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 0,
+    alignSelf: "center",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 8,
+  },
+  emptyState: {
+    alignItems: "center",
+    padding: 32,
+  },
+  emptyStateIcon: {
+    backgroundColor: "#EDE9FE",
+    padding: 20,
+    borderRadius: 24,
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 18,
+    color: "#1F2937",
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+  },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  formHeader: {
+    alignItems: "center",
+    marginBottom: 24,
+    backgroundColor: "#F5F3FF",
+    padding: 16,
+    borderRadius: 16,
+  },
+  formTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 20,
+    color: "#1F2937",
+    marginTop: 0,
+  },
+  formSubtitle: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#6B7280",
+    marginTop: 4,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    color: "#4B5563",
+    marginBottom: 8,
   },
 });

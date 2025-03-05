@@ -63,197 +63,307 @@ export default function PresidentDashboardScreen({ navigation }: Props) {
     {
       title: "Manage Members",
       icon: "people",
+      description: "Add and manage unit members",
       onPress: () =>
         navigation.navigate("PresidentStack", { screen: "ApprovedMembers" }),
-      color: "rgb(162,39,142)",
+      color: "#8B5CF6",
     },
     {
       title: "Approve Requests",
       icon: "clipboard",
+      description: "Review member applications",
       onPress: () => navigation.navigate("KMemberApproval"),
-      color: "rgb(162,39,142)",
+      color: "#EC4899",
     },
     {
       title: "Schedule Meetings",
       icon: "calendar",
+      description: "Plan upcoming meetings",
       onPress: () =>
         navigation.navigate("PresidentStack", { screen: "ScheduleMeeting" }),
-      color: "rgb(162,39,142)",
+      color: "#10B981",
     },
     {
       title: "Add Notice/News",
-      icon: "newspaper" as keyof typeof Ionicons.glyphMap,
+      icon: "newspaper",
+      description: "Post updates for members",
       onPress: () =>
         navigation.navigate("PresidentStack", { screen: "AddNoticeNews" }),
-      color: "rgb(162,39,142)",
+      color: "#F59E0B",
     },
     {
       title: "View Reports",
       icon: "bar-chart",
+      description: "Access unit statistics",
       onPress: () => navigation.navigate("ViewReports"),
-      color: "rgb(162,39,142)",
+      color: "#3B82F6",
     },
     {
       title: "Loan Approval",
       icon: "cash",
+      description: "Review loan applications",
       onPress: () => navigation.navigate("LoanApproval"),
-      color: "rgb(162,39,142)",
+      color: "#6366F1",
     },
     {
       title: "Set Weekly Dues",
       icon: "calendar",
+      description: "Manage weekly payments",
       onPress: () => navigation.navigate("WeeklyDueSetup"),
-      color: "rgb(162,39,142)",
+      color: "#14B8A6",
     },
     {
       title: "Product Approval",
       icon: "cart",
+      description: "Review product listings",
       onPress: () => navigation.navigate("ProductApproval"),
-      color: "rgb(162,39,142)",
+      color: "#D946EF",
     },
     {
       title: "Attendance",
       icon: "people",
+      description: "Track meeting attendance",
       onPress: () => navigation.navigate("Attendance"),
-      color: "rgb(162,39,142)",
+      color: "#F43F5E",
     },
   ];
 
   return (
-    <LinearGradient
-      colors={[
-        isPressed ? "rgba(162,39,142,0.03)" : "rgba(162,39,142,0.01)",
-        isPressed ? "rgba(162,39,142,0.08)" : "rgba(162,39,142,0.03)",
-      ]}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
-      <SafeAreaView style={styles.container}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <Animated.View
-            style={[
-              styles.formContainer,
-              { opacity: animation, transform: [{ translateY }] },
-            ]}
+    <SafeAreaView style={styles.container}>
+      <LinearGradient
+        colors={["#7C3AED", "#C026D3"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <Text style={styles.greeting}>DashBoard</Text>
+        </View>
+      </LinearGradient>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.sectionHeaderCard}>
+          <LinearGradient
+            colors={["#F9FAFB", "#FFFFFF"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.sectionHeaderContent}
           >
-            <LinearGradient
-              colors={["rgba(255, 255, 255, 0.3)", "rgba(255, 255, 255, 0.2)"]}
-              style={styles.borderGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            <View style={styles.sectionHeader}>
+              <View style={styles.headerIconContainer}>
+                <Ionicons name="grid-outline" size={24} color="#8B5CF6" />
+              </View>
+              <View>
+                <Text style={styles.sectionHeaderTitle}>Manage Your Unit</Text>
+                <Text style={styles.sectionHeaderSubtitle}>
+                  Access all administrative functions
+                </Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
+
+        <View style={styles.cardsGrid}>
+          {dashboardItems.map((item, index) => (
+            <Animated.View
+              key={index}
+              style={[
+                styles.cardWrapper,
+                {
+                  transform: [
+                    {
+                      translateY: animation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [50 * (Math.floor(index / 2) + 1), 0],
+                      }),
+                    },
+                  ],
+                  opacity: animation,
+                },
+              ]}
             >
-              <LinearGradient
-                colors={["#8B5CF6", "#EC4899"]}
-                style={styles.formGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+              <TouchableOpacity
+                style={[styles.card, { borderLeftColor: item.color }]}
+                onPress={item.onPress}
+                activeOpacity={0.7}
               >
-                <Text style={styles.title}>Dashboard</Text>
-                <View style={styles.cardContainer}>
-                  {dashboardItems.map((item, index) => (
-                    <View key={index} style={styles.cardWrapper}>
-                      <LinearGradient
-                        colors={[
-                          "rgba(139, 92, 246, 0.8)",
-                          "rgba(236, 72, 153, 0.8)",
-                        ]}
-                        style={styles.cardGradientBorder}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                      >
-                        <TouchableOpacity
-                          style={styles.card}
-                          onPress={item.onPress}
-                          onPressIn={() => setIsPressed(true)}
-                          onPressOut={() => setIsPressed(false)}
-                        >
-                          <Ionicons
-                            name={
-                              (item.icon +
-                                "-outline") as keyof typeof Ionicons.glyphMap
-                            }
-                            size={40}
-                            color={item.color}
-                          />
-                          <Text style={styles.cardTitle}>{item.title}</Text>
-                        </TouchableOpacity>
-                      </LinearGradient>
+                <View style={styles.cardContent}>
+                  <View style={styles.cardHeader}>
+                    <View
+                      style={[
+                        styles.iconContainer,
+                        { backgroundColor: `${item.color}15` },
+                      ]}
+                    >
+                      <Ionicons
+                        name={
+                          (item.icon +
+                            "-outline") as keyof typeof Ionicons.glyphMap
+                        }
+                        size={22}
+                        color={item.color}
+                      />
                     </View>
-                  ))}
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={item.color}
+                    />
+                  </View>
+                  <Text style={styles.cardTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={styles.cardDescription} numberOfLines={2}>
+                    {item.description}
+                  </Text>
                 </View>
-              </LinearGradient>
-            </LinearGradient>
-          </Animated.View>
-        </ScrollView>
-      </SafeAreaView>
-    </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#F9FAFB",
   },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 20,
-  },
-  formContainer: {
-    borderRadius: 20,
+  header: {
+    paddingTop: 0,
+    paddingBottom: 7,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-    overflow: "hidden",
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  borderGradient: {
-    borderRadius: 20,
-    padding: 2,
+  headerContent: {
+    paddingHorizontal: 24,
+    paddingTop: 5,
   },
-  formGradient: {
-    padding: 20,
-    borderRadius: 18,
-  },
-  title: {
+  greeting: {
     fontFamily: "Poppins_700Bold",
-    fontSize: 32,
-    color: "white",
-    textAlign: "center",
-    marginBottom: 30,
+    fontSize: 30,
+    color: "#fff",
+    marginBottom: 0,
+    paddingBottom: 0,
+    alignSelf: "center",
   },
-  cardContainer: {
+  subtitle: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.9)",
+    letterSpacing: 0.5,
+    left: 5,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16, // Reduced from 24
+    paddingBottom: 32,
+  },
+  sectionHeaderCard: {
+    marginHorizontal: -16, // Extend beyond padding
+    marginBottom: 20,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  sectionHeaderContent: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    paddingTop:0,
+  },
+  sectionHeader: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
+    alignItems: "center",
     gap: 16,
   },
-  cardWrapper: {
-    width: "47%",
-    marginBottom: 16,
-    aspectRatio: 1,
+  headerIconContainer: {
+    backgroundColor: "#F5F3FF",
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  cardGradientBorder: {
-    borderRadius: 15,
-    padding: 2,
+  sectionHeaderTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 20,
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  sectionHeaderSubtitle: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  cardsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  cardWrapper: {
+    width: "48%",
+    marginBottom: 12,
   },
   card: {
     backgroundColor: "white",
-    borderRadius: 13,
-    padding: 20,
+    borderRadius: 16,
+    padding: 16,
+    height: 140,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderLeftWidth: 4,
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: "space-between",
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 12,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     justifyContent: "center",
-    height: "100%",
+    alignItems: "center",
   },
   cardTitle: {
     fontFamily: "Poppins_600SemiBold",
-    fontSize: 16,
-    color: "rgb(162,39,142)",
-    marginTop: 10,
-    textAlign: "center",
+    fontSize: 15,
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  cardDescription: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: "#6B7280",
+    lineHeight: 16,
   },
 });

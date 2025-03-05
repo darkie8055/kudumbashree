@@ -346,11 +346,12 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 20,
-    paddingTop: 20,
+    paddingTop: 10,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     flexDirection: "row",
     alignItems: "center",
+    paddingBottom:12,
   },
   backButton: {
     backgroundColor: "rgba(255,255,255,0.2)",
@@ -370,7 +371,7 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_400Regular",
     fontSize: 14,
     color: "rgba(255, 255, 255, 0.8)",
-    marginTop: 4,
+    marginTop: 0,
   },
   content: {
     flex: 1,
