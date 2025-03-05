@@ -39,6 +39,7 @@ import { Formik, FormikHelpers } from "formik";
 import { Picker } from "@react-native-picker/picker";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../types/navigation";
+import { getAuth } from "firebase/auth";
 
 type ApplyLoanScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -116,28 +117,33 @@ export default function ApplyLoanScreen({ navigation, route }: Props) {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const phoneNumber = route.params?.phoneNumber;
-        console.log("Phone number from params:", phoneNumber); // Debug log
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+
+        if (!currentUser) {
+          Alert.alert("Error", "Please login to apply for loan");
+          navigation.navigate("Login");
+          return;
+        }
+
+        const phoneNumber = currentUser.phoneNumber?.replace("+91", "");
 
         if (!phoneNumber) {
-          Alert.alert("Error", "Phone number not found");
+          Alert.alert("Error", "Invalid user data");
           navigation.goBack();
           return;
         }
 
-        // Get Firestore reference
         const db = getFirestore();
         const userDocRef = doc(db, "K-member", phoneNumber);
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
           const data = userDocSnap.data();
-          console.log("Fetched user data:", data); // Debug log
-
           setUserData({
             firstName: data.firstName,
             lastName: data.lastName,
-            phone: phoneNumber, // Use the phone number from params
+            phone: phoneNumber,
             unitName: data.unitName,
             unitNumber: data.unitNumber,
             status: data.status,
@@ -162,15 +168,19 @@ export default function ApplyLoanScreen({ navigation, route }: Props) {
       duration: 1000,
       useNativeDriver: true,
     }).start();
-  }, [route.params?.phoneNumber]); // Add dependency
+  }, []); // Remove route.params?.phoneNumber dependency
 
   // Update handleSubmit to use userData directly
   const handleSubmit = async (
     values: FormValues,
     { resetForm }: FormikHelpers<FormValues>
   ) => {
-    if (!userData) {
-      Alert.alert("Error", "Missing required data");
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+
+    if (!currentUser || !userData) {
+      Alert.alert("Error", "Please login to submit application");
+      navigation.navigate("Login");
       return;
     }
 
@@ -235,6 +245,7 @@ export default function ApplyLoanScreen({ navigation, route }: Props) {
     ],
   };
 
+  // Update the component structure
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -249,18 +260,21 @@ export default function ApplyLoanScreen({ navigation, route }: Props) {
               <Ionicons name="cash" size={24} color="#fff" />
             </View>
             <Text style={styles.headerTitle}>Apply for Loan</Text>
-            <View style={styles.headerBadge}>
+            {/* <View style={styles.headerBadge}>
               <Text style={styles.headerSubtitle}>New</Text>
-            </View>
+            </View> */}
           </View>
         </SafeAreaView>
       </LinearGradient>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.mainContainer}
+        style={styles.contentContainer}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <Animated.View style={[styles.formContainer, fadeIn]}>
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionHeader}>Loan Details</Text>
@@ -393,8 +407,13 @@ export default function ApplyLoanScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingBottom: 200,
+    backgroundColor: "#F9FAFB",
+    paddingBottom: 80,
   },
+  contentContainer: {
+    flex: 1,
+  },
+  // ... keep other existing styles ...
   scrollContent: {
     flexGrow: 1,
     padding: 20,
@@ -520,23 +539,18 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center", // Add this
     paddingHorizontal: 16,
     gap: 12,
     height: 48,
-  },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   headerTitle: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 20,
     color: "#fff",
     flex: 1,
+    textAlign: "center", // Add this
+    right: 12,
   },
   headerBadge: {
     backgroundColor: "rgba(255, 255, 255, 0.2)",

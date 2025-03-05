@@ -384,6 +384,44 @@ export default function HomeScreen({ navigation }: Props) {
     };
   }, []); // Empty dependency array means this runs once when component mounts
 
+  // Add this effect hook after your other useEffect hooks
+  useEffect(() => {
+    const auth = getAuth();
+    const db = getFirestore();
+
+    // Listen for auth state changes
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const phoneNumber = user.phoneNumber?.replace("+91", "") || "";
+          const collections = ["K-member", "normal", "president"];
+
+          // Check each collection for user data
+          for (const collection of collections) {
+            const userDocRef = doc(db, collection, phoneNumber);
+            const userDoc = await getDoc(userDocRef);
+
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              // Check both firstName and FirstName fields
+              const name = userData.firstName || userData.FirstName || "User";
+              setFirstName(name);
+              break; // Exit loop once user is found
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+          setFirstName("User");
+        }
+      } else {
+        setFirstName("User");
+      }
+    });
+
+    // Cleanup subscription
+    return () => unsubscribe();
+  }, []); // Empty dependency array means this runs once when component mounts
+
   if (!fontsLoaded) {
     return null;
   }
@@ -806,7 +844,7 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   sectionContainer: {
-    marginTop:20,
+    marginTop: 20,
     marginBottom: 25,
     paddingHorizontal: 20,
   },

@@ -19,7 +19,6 @@ import {
   getDocs,
   Timestamp,
 } from "firebase/firestore";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const INITIAL_BALANCE = 20000;
 
@@ -33,6 +32,7 @@ interface ActiveLoan {
   paidMonths: number;
   totalMonths: number;
   createdAt: Date;
+  unitId: string;
 }
 
 interface BalanceState {
@@ -70,36 +70,13 @@ export default function BalanceScreen({ navigation }) {
       setLoading(true);
       const db = getFirestore();
 
-      const phoneNumber = await AsyncStorage.getItem("userPhoneNumber");
-      console.log("Phone number:", phoneNumber);
-
-      // First get member details
-      const memberQuery = query(
-        collection(db, "K-member"),
-        where("phone", "==", phoneNumber?.replace("+91", ""))
-      );
-      const memberSnap = await getDocs(memberQuery);
-      console.log("Member docs found:", memberSnap.docs.length);
-
-      const memberData = memberSnap.docs[0]?.data();
-      const unitId = memberData?.unitNumber;
-      console.log("Unit ID:", unitId);
-
-      if (!unitId) {
-        Alert.alert("Error", "Could not find unit information");
-        return;
-      }
-
-      // Update the loans query to use exact unitId from database
+      // Fetch all approved loans without auth check
       const loansQuery = query(
         collection(db, "loanApplications"),
-        where("unitId", "==", `Kudu-${unitId}`), // Add "Kudu-" prefix
         where("status", "==", "approved")
       );
 
-      console.log("Fetching loans for unitId:", `Kudu-${unitId}`);
       const loansSnap = await getDocs(loansQuery);
-      console.log("Loans found:", loansSnap.docs.length);
 
       let totalLoansAmount = 0;
       let activeLoansCount = 0;
@@ -107,12 +84,6 @@ export default function BalanceScreen({ navigation }) {
 
       loansSnap.docs.forEach((doc) => {
         const loan = doc.data();
-        console.log("Processing loan:", {
-          id: doc.id,
-          amount: loan.amount,
-          status: loan.status,
-          memberName: loan.memberName,
-        });
 
         const baseAmount = loan.amount || 0;
         const interestAmount = baseAmount * 0.03;
@@ -121,13 +92,6 @@ export default function BalanceScreen({ navigation }) {
         const paidMonths = loan.paidMonths || [];
         const paidAmount = paidMonths.length * monthlyAmount;
         const remainingAmount = totalAmount - paidAmount;
-
-        console.log("Loan calculations:", {
-          baseAmount,
-          totalAmount,
-          paidAmount,
-          remainingAmount,
-        });
 
         if (remainingAmount > 0) {
           activeLoansCount++;
@@ -141,22 +105,20 @@ export default function BalanceScreen({ navigation }) {
             paidMonths: paidMonths.length,
             totalMonths: loan.repaymentPeriod || 12,
             createdAt: loan.createdAt?.toDate() || new Date(),
+            unitId: loan.unitId,
           });
         }
 
-        totalLoansAmount += totalAmount;
-      });
-
-      console.log("Final calculations:", {
-        activeLoansCount,
-        totalLoansAmount,
-        activeLoansList: activeLoansList.length,
+        totalLoansAmount += baseAmount;
       });
 
       const availableBalance =
         INITIAL_BALANCE -
         totalLoansAmount +
-        activeLoansList.reduce((sum, loan) => sum + loan.paidAmount, 0);
+        activeLoansList.reduce((sum, loan) => {
+          const paidBaseAmount = loan.paidAmount / 1.03;
+          return sum + paidBaseAmount;
+        }, 0);
 
       setBalanceData({
         totalBalance: INITIAL_BALANCE,
@@ -235,7 +197,12 @@ export default function BalanceScreen({ navigation }) {
             {balanceData.activeLoansList.map((loan) => (
               <View key={loan.id} style={styles.activeLoanItem}>
                 <View style={styles.activeLoanHeader}>
-                  <Text style={styles.activeLoanMember}>{loan.memberName}</Text>
+                  <View>
+                    <Text style={styles.activeLoanMember}>
+                      {loan.memberName}
+                    </Text>
+                    <Text style={styles.unitId}>Unit: {loan.unitId}</Text>
+                  </View>
                   <Text style={styles.activeLoanType}>{loan.loanType}</Text>
                 </View>
                 <View style={styles.activeLoanDetails}>
@@ -485,5 +452,11 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
     padding: 24,
+  },
+  unitId: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 2,
   },
 });

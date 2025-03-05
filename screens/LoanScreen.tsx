@@ -25,12 +25,15 @@ import {
   query,
   where,
   getDocs,
+  doc,
+  getDoc,
 } from "firebase/firestore";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { format } from "date-fns";
 import * as FileSystem from "expo-file-system";
 import { StorageAccessFramework } from "expo-file-system";
+import { getAuth } from "firebase/auth";
 
 interface LoanApplication {
   id: string;
@@ -45,6 +48,12 @@ interface LoanApplication {
 interface FilterOptions {
   sortBy: "date" | "amount" | "status";
   order: "asc" | "desc";
+}
+
+interface UserData {
+  phone: string;
+  firstName: string;
+  lastName: string;
 }
 
 export default function LoanScreen({ navigation }) {
@@ -62,40 +71,78 @@ export default function LoanScreen({ navigation }) {
   });
   const [sortedLoans, setSortedLoans] = useState<LoanApplication[]>([]);
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [userData, setUserData] = useState<UserData | null>(null);
 
   useEffect(() => {
-    fetchLoans();
+    const checkAuthAndFetchLoans = async () => {
+      try {
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+
+        if (!currentUser) {
+          Alert.alert("Error", "Please login to view loans");
+          navigation.navigate("Login");
+          return;
+        }
+
+        const phoneNumber = currentUser.phoneNumber?.replace("+91", "");
+
+        if (!phoneNumber) {
+          Alert.alert("Error", "Invalid user data");
+          navigation.goBack();
+          return;
+        }
+
+        // Fetch user data
+        const db = getFirestore();
+        const userDocRef = doc(db, "K-member", phoneNumber);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          const data = userDocSnap.data();
+          setUserData({
+            phone: phoneNumber,
+            firstName: data.firstName,
+            lastName: data.lastName,
+          });
+
+          // Fetch loans with the correct phone number
+          const q = query(
+            collection(db, "loanApplications"),
+            where("memberId", "==", phoneNumber)
+          );
+
+          const querySnapshot = await getDocs(q);
+          const loanData = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate() || new Date(),
+          })) as LoanApplication[];
+
+          setLoans(
+            loanData.sort(
+              (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+            )
+          );
+        } else {
+          Alert.alert("Error", "Member data not found");
+          navigation.goBack();
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        Alert.alert("Error", "Failed to load loan data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuthAndFetchLoans();
   }, []);
 
   useEffect(() => {
     const sorted = sortLoans(loans);
     setSortedLoans(sorted);
   }, [loans, filterOptions]);
-
-  const fetchLoans = async () => {
-    try {
-      const db = getFirestore();
-      const q = query(
-        collection(db, "loanApplications"),
-        where("memberId", "==", "9747424242")
-      );
-
-      const querySnapshot = await getDocs(q);
-      const loanData = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-      })) as LoanApplication[];
-
-      setLoans(
-        loanData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      );
-    } catch (error) {
-      console.error("Error fetching loans:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -150,6 +197,9 @@ export default function LoanScreen({ navigation }) {
         </head>
         <body>
           <h1>Loan Applications History</h1>
+          <p style="color: #6B7280; margin-bottom: 20px;">
+            Member: ${userData?.firstName} ${userData?.lastName}
+          </p>
           <table>
             <thead>
               <tr>
@@ -268,7 +318,9 @@ export default function LoanScreen({ navigation }) {
             <TouchableOpacity
               style={styles.applyButton}
               onPress={() =>
-                navigation.navigate("ApplyLoan", { phoneNumber: "9747424242" })
+                navigation.navigate("ApplyLoan", {
+                  phoneNumber: userData?.phone,
+                })
               }
             >
               <Text style={styles.applyButtonText}>Apply for a Loan</Text>
