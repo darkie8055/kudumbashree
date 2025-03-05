@@ -55,6 +55,7 @@ export type RootStackParamList = {
       | "ProductApproval";
   };
   Attendance: undefined;
+  LawsAndRegulations: undefined;
 };
 
 // President stack

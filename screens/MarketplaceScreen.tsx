@@ -67,7 +67,6 @@ interface CartItem {
   quantity: number;
 }
 
-// Add missing constants
 const categories = [
   "All",
   "Food",
@@ -78,7 +77,6 @@ const categories = [
 ];
 const sortOptions = ["name", "priceLow", "priceHigh", "location"];
 
-// Update Props interface
 interface Props {
   navigation: StackNavigationProp<RootStackParamList>;
   route?: {
@@ -87,36 +85,6 @@ interface Props {
     };
   };
 }
-
-const sampleProducts: Product[] = [
-  {
-    id: "1",
-    name: "Lavender Bliss Handmade Soap",
-    price: 150,
-    imageUrl:
-      "https://www.quickpantry.in/cdn/shop/products/dabur-honey-bottle-quick-pantry-1.jpg?v=1710538000&width=750",
-    unit: "Ernakulam Kudumbashree",
-    phone: "9876543210",
-    description:
-      "A calming lavender-scented handmade soap enriched with natural oils.",
-    category: "Beauty",
-    location: "Ernakulam",
-  },
-  {
-    id: "2",
-    name: "Pure Kerala Organic Honey",
-    price: 250,
-    imageUrl:
-      "https://www.quickpantry.in/cdn/shop/products/dabur-honey-bottle-quick-pantry-1.jpg?v=1710538000&width=750",
-    unit: "Kozhikode Kudumbashree",
-    phone: "9876543211",
-    description:
-      "Fresh, organic honey sourced directly from Kerala's local beekeepers.",
-    category: "Food",
-    location: "Kozhikode",
-  },
-  // ... other sample products
-];
 
 const { width } = Dimensions.get("window");
 const ITEM_WIDTH = width * 0.44;
@@ -163,6 +131,35 @@ export default function MarketplaceScreen({ navigation, route }) {
   const [recommendations, setRecommendations] = useState<Product[]>([]);
   const [lastDoc, setLastDoc] = useState(null);
   const [hasMore, setHasMore] = useState(true);
+
+  // Add this ref for the recommendations FlatList
+  const recommendationsRef = useRef<FlatList>(null);
+  const [currentRecommendationIndex, setCurrentRecommendationIndex] = useState(0);
+
+  // Add this useEffect for auto-scrolling
+  useEffect(() => {
+    let scrollTimer: NodeJS.Timeout;
+    
+    if (recommendations.length > 0) {
+      scrollTimer = setInterval(() => {
+        if (recommendationsRef.current && recommendations.length > 0) {
+          const nextIndex = (currentRecommendationIndex + 1) % recommendations.length;
+          recommendationsRef.current.scrollToIndex({
+            index: nextIndex,
+            animated: true,
+            viewPosition: 0.5
+          });
+          setCurrentRecommendationIndex(nextIndex);
+        }
+      }, 3000); // Scroll every 3 seconds
+    }
+
+    return () => {
+      if (scrollTimer) {
+        clearInterval(scrollTimer);
+      }
+    };
+  }, [currentRecommendationIndex, recommendations.length]);
 
   useEffect(() => {
     if (!route?.params?.cart) {
@@ -488,6 +485,7 @@ export default function MarketplaceScreen({ navigation, route }) {
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionHeader}>Recommended for You</Text>
         <FlatList
+          ref={recommendationsRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           data={recommendations}
@@ -511,10 +509,27 @@ export default function MarketplaceScreen({ navigation, route }) {
               <Text style={styles.recommendedPrice}>₹{item.price}</Text>
             </TouchableOpacity>
           )}
+          onScrollToIndexFailed={(info) => {
+            const wait = new Promise(resolve => setTimeout(resolve, 500));
+            wait.then(() => {
+              if (recommendationsRef.current) {
+                recommendationsRef.current.scrollToIndex({
+                  index: info.index,
+                  animated: true,
+                  viewPosition: 0.5
+                });
+              }
+            });
+          }}
+          getItemLayout={(data, index) => ({
+            length: 100 + 8, // Item width + margin
+            offset: (100 + 8) * index,
+            index,
+          })}
         />
       </View>
     );
-  }, [recommendations, handleProductPress]);
+  }, [recommendations, handleProductPress, currentRecommendationIndex]);
 
   // Add a function to calculate total cart items
   const getTotalCartItems = useCallback(() => {
@@ -1018,11 +1033,14 @@ const styles = StyleSheet.create({
   recommendedItem: {
     width: 100,
     marginRight: 8,
+    opacity: 1, // Add this for smooth transitions
+    transform: [{ scale: 1 }], // Add this for smooth transitions
   },
   recommendedImage: {
     width: 100,
     height: 100,
     borderRadius: 8,
+    backgroundColor: '#f0f0f0', // Add placeholder color
   },
   recommendedName: {
     fontSize: 12,

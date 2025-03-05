@@ -6,6 +6,7 @@ import ScreenWithFloatingButton from "../components/ScreenWithFloatingButton"
 import OnboardingScreen from "../screens/OnboardingScreen"
 import HomeScreen from "../screens/HomeScreen"
 import ProfileScreen from "../screens/KMemberProfileScreen"
+import LawsAndRegulationsScreen from '../screens/LawsAndRegulationsScreen'
 // ... import other screens
 
 const Stack = createStackNavigator()
@@ -31,11 +32,12 @@ const AppNavigator = () => {
             </ScreenWithFloatingButton>
           )}
         />
+        <Stack.Screen 
+          name="LawsAndRegulations" 
+          component={LawsAndRegulationsScreen}
+          options={{ headerShown: false }}
+        />
         {/* Add other screens here, wrapped with ScreenWithFloatingButton */}
       </Stack.Navigator>
     </NavigationContainer>
   )
-}
-
-export default AppNavigator
-
