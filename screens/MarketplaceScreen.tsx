@@ -522,36 +522,30 @@ export default function MarketplaceScreen({ navigation, route }) {
   }, [cart]);
 
   const renderHeader = useCallback(() => {
-    const headerTranslate = scrollY.interpolate({
-      inputRange: [0, 100],
-      outputRange: [0, -50],
-      extrapolate: "clamp",
-    });
-
     return (
-      <Animated.View
-        style={[
-          styles.header,
-          { transform: [{ translateY: headerTranslate }] },
-        ]}
-      >
+      <View>
         <LinearGradient
-          colors={["#8B5CF6", "#EC4899"]}
-          style={styles.gradientHeader}
+          colors={["#7C3AED", "#C026D3"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
         >
-          <Text style={styles.pageHeading}>K-MART</Text>
-
-          <TouchableOpacity
-            style={styles.sellButton}
-            onPress={goToProductManagement}
-          >
-            <View style={styles.sellButtonContent}>
-              <Ionicons name="add-circle" size={16} color="#fff" />
-              <Text style={styles.sellButtonText}>Sell Product</Text>
+          <View style={styles.headerContent}>
+            <View style={styles.headerIcon}>
+              <Ionicons name="storefront" size={24} color="#fff" />
             </View>
-          </TouchableOpacity>
+            <Text style={styles.headerTitle}>K-MART</Text>
+            <TouchableOpacity
+              style={styles.headerBadge}
+              onPress={goToProductManagement}
+            >
+              <Ionicons name="add" size={20} color="#fff" />
+              <Text style={styles.headerSubtitle}>Sell Product</Text>
+            </TouchableOpacity>
+          </View>
         </LinearGradient>
 
+        {/* Search and other sections */}
         <View style={styles.searchContainer}>
           <Ionicons
             name="search"
@@ -626,13 +620,12 @@ export default function MarketplaceScreen({ navigation, route }) {
         </View>
 
         {renderRecommendations()}
-      </Animated.View>
+      </View>
     );
   }, [
     selectedCategory,
     cart,
     debouncedSearch,
-    scrollY,
     sortOption,
     goToCart,
     recommendations,
@@ -816,47 +809,64 @@ const styles = StyleSheet.create({
     paddingBottom: 90,
   },
   header: {
-    padding: 16,
-    backgroundColor: "#fff",
-    zIndex: 1,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  gradientHeader: {
-    padding: 16,
-    borderRadius: 8,
+  headerContent: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    gap: 12,
+    height: 48,
+  },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
     alignItems: "center",
   },
-  pageHeading: {
-    fontSize: 24,
-    fontWeight: "bold",
+  headerTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 20,
     color: "#fff",
+    flex: 1,
   },
-  sellButton: {
+  headerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     paddingHorizontal: 12,
     paddingVertical: 6,
-    marginTop: 1,
     borderRadius: 20,
+    gap: 4,
   },
-  sellButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  sellButtonText: {
-    color: "#fff",
-    marginLeft: 4,
-    fontWeight: "bold",
+  headerSubtitle: {
+    fontFamily: "Poppins_400Regular",
     fontSize: 14,
+    color: "#fff",
+    fontWeight:"bold",
   },
   searchContainer: {
     marginTop: 16,
-    paddingHorizontal: 10,
+    marginHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#f0f0f0",
-    borderRadius: 8,
+    borderRadius: 12,
     paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   searchInput: {
     flex: 1,
