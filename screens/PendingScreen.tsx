@@ -80,16 +80,27 @@ export default function PendingScreen({ navigation }: PendingScreenProps) {
   useEffect(() => {
     if (isFocused) {
       setLoading(true);
-      fetchPendingData("9747424242"); // Directly pass the memberId
+      fetchLoggedInUserLoans();
     }
   }, [isFocused]);
 
-  // Update fetchPendingData to also fetch member details
+  const fetchLoggedInUserLoans = async () => {
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      if (userId) {
+        await fetchPendingData(userId);
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      setLoading(false);
+    }
+  };
+
   const fetchPendingData = async (memberId: string) => {
     try {
       const db = getFirestore();
 
-      // Fetch member details
+      // Fetch member details first
       const memberDoc = await getDoc(doc(db, "K-member", memberId));
       if (memberDoc.exists()) {
         const data = memberDoc.data();
@@ -99,7 +110,7 @@ export default function PendingScreen({ navigation }: PendingScreenProps) {
         });
       }
 
-      // Fetch loans directly using memberId
+      // Fetch approved loan applications for the member
       const loansQuery = query(
         collection(db, "loanApplications"),
         where("memberId", "==", memberId),
@@ -109,7 +120,7 @@ export default function PendingScreen({ navigation }: PendingScreenProps) {
       const loansSnapshot = await getDocs(loansQuery);
       const loans = loansSnapshot.docs.map((doc) => {
         const data = doc.data();
-        const baseAmount = data.amount;
+        const baseAmount = data.amount || 0;
         const interestRate = 0.03; // 3% interest
         const totalAmount = baseAmount + baseAmount * interestRate;
         const paidMonths = data.paidMonths || [];
@@ -117,25 +128,22 @@ export default function PendingScreen({ navigation }: PendingScreenProps) {
 
         return {
           id: doc.id,
-          amount: totalAmount, // This is now base amount + 3%
-          purpose: data.purpose,
-          loanType: data.loanType,
-          startDate: data.createdAt?.toDate() || new Date(),
+          amount: totalAmount,
+          purpose: data.purpose || "",
+          loanType: data.loanType || "personal",
+          startDate: data.approvedAt?.toDate() || new Date(),
           repaymentPeriod: data.repaymentPeriod || 12,
           monthlyDue: Math.ceil(totalAmount / (data.repaymentPeriod || 12)),
-          paidMonths: data.paidMonths || [],
-          totalMonths: data.repaymentPeriod || 12,
-          memberName: data.memberName,
-          unitId: data.unitId,
+          paidMonths: paidMonths,
+          totalMonths: totalMonths,
+          memberName: data.memberName || "",
+          unitId: data.unitId || "",
           pendingAmount:
             totalAmount -
-            Math.ceil(totalAmount / (data.repaymentPeriod || 12)) *
-              (data.paidMonths?.length || 0),
-          progress:
-            ((data.paidMonths?.length || 0) / (data.repaymentPeriod || 12)) *
-            100,
-          baseAmount: baseAmount, // Original loan amount
-          interestAmount: baseAmount * interestRate, // Interest amount
+            Math.ceil(totalAmount / totalMonths) * paidMonths.length,
+          progress: (paidMonths.length / totalMonths) * 100,
+          baseAmount: baseAmount,
+          interestAmount: baseAmount * interestRate,
           status: paidMonths.length >= totalMonths ? "completed" : "pending",
         };
       }) as PendingLoan[];
