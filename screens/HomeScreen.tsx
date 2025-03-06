@@ -439,7 +439,7 @@ export default function HomeScreen({ navigation }: Props) {
   };
 
   const renderNotice = (notice: Notice) => {
-    if (!notice) return null; // Add this check
+    if (!notice) return null;
 
     return (
       <View key={notice.id} style={styles.boardItem}>
@@ -449,32 +449,38 @@ export default function HomeScreen({ navigation }: Props) {
             setExpandedNotice(expandedNotice === notice.id ? null : notice.id)
           }
         >
-          <Ionicons
-            name={
-              notice?.type === "meeting"
-                ? "calendar-outline"
-                : "notifications-outline"
-            }
-            size={20}
-            color="#8B5CF6"
-            style={styles.boardIcon}
-          />
-          <View style={styles.headerContent}>
-            <Text style={styles.boardText}>{notice.title}</Text>
-            {notice.date && (
-              <Text style={styles.noticeDate}>
-                {notice.date.toLocaleDateString()}
-              </Text>
-            )}
-            {notice.venue && (
-              <Text style={styles.venueText}>Venue: {notice.venue}</Text>
-            )}
+          <View style={styles.noticeHeaderContent}>
+            <View style={styles.noticeIconContainer}>
+              <Ionicons
+                name={
+                  notice?.type === "meeting"
+                    ? "calendar-outline"
+                    : "notifications-outline"
+                }
+                size={20}
+                color="#8B5CF6"
+              />
+            </View>
+            <View style={styles.noticeTextContent}>
+              <Text style={styles.noticeTitle}>{notice.title}</Text>
+              {notice.date && (
+                <Text style={styles.noticeDate}>
+                  {notice.date.toLocaleDateString()}
+                </Text>
+              )}
+              {notice.venue && (
+                <Text style={styles.venueText}>Venue: {notice.venue}</Text>
+              )}
+            </View>
+            <Ionicons
+              name={
+                expandedNotice === notice.id ? "chevron-up" : "chevron-down"
+              }
+              size={20}
+              color="#8B5CF6"
+              style={styles.expandIcon}
+            />
           </View>
-          <Ionicons
-            name={expandedNotice === notice.id ? "chevron-up" : "chevron-down"}
-            size={20}
-            color="#8B5CF6"
-          />
         </TouchableOpacity>
 
         {expandedNotice === notice.id && notice.description && (
@@ -793,9 +799,9 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: 20,
-    paddingBottom: 16,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingBottom: 8,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -878,14 +884,17 @@ const styles = StyleSheet.create({
     color: "#4B5563",
   },
   boardContainer: {
-    padding: 15,
-    borderRadius: 10,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: "rgba(139, 92, 246, 0.05)",
   },
   boardItem: {
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
-    borderRadius: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    borderRadius: 12,
     marginBottom: 8,
-    padding: 8,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.1)",
   },
   boardIcon: {
     marginRight: 10,
@@ -980,32 +989,56 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
   },
   noticeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
+    padding: 12,
   },
-  // headerContent: {
-  //   flex: 1,
-  //   marginRight: 10,
-  // },
-  expandedContent: {
-    paddingLeft: 34, // Aligns with the text after icon
-    paddingTop: 8,
-    paddingBottom: 8,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(139, 92, 246, 0.1)",
+  noticeHeaderContent: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  noticeIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  noticeTextContent: {
+    flex: 1,
+    marginRight: 8,
+  },
+  noticeTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: "#1F2937",
+    marginBottom: 4,
   },
   noticeDate: {
     fontFamily: "Poppins_400Regular",
     fontSize: 12,
     color: "#6B7280",
-    marginTop: 2,
+    marginBottom: 2,
+  },
+  venueText: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  expandIcon: {
+    marginTop: 6,
+  },
+  expandedContent: {
+    padding: 12,
+    paddingTop: 10,
+    backgroundColor: "rgba(139, 92, 246, 0.05)",
+    marginTop: 4,
   },
   noticeDescription: {
     fontFamily: "Poppins_400Regular",
-    fontSize: 14,
+    fontSize: 13,
     color: "#4B5563",
-    marginTop: 4,
+    lineHeight: 20,
   },
   emptyNotice: {
     fontFamily: "Poppins_400Regular",
@@ -1031,12 +1064,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-  },
-  venueText: {
-    fontSize: 14,
-    fontFamily: "Poppins_400Regular",
-    color: "#6B7280",
-    marginTop: 2,
   },
   noticeNavigation: {
     flexDirection: "row",
@@ -1072,7 +1099,7 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderRadius: 16,
     padding: 16,
-    height: 120,
+    height: 130,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -1110,7 +1137,7 @@ const styles = StyleSheet.create({
   },
   cardDescription: {
     fontFamily: "Poppins_400Regular",
-    fontSize: 12,
+    fontSize: 14,
     color: "#6B7280",
     lineHeight: 16,
   },

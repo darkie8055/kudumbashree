@@ -822,12 +822,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
     paddingBottom: 90,
+    fontFamily: "Poppins_600SemiBold",
   },
   header: {
     paddingTop: 20,
-    paddingBottom: 16,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingBottom: 8,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -927,6 +928,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
+    fontFamily: "Poppins_600SemiBold",
   },
   productImage: {
     width: "100%",
@@ -941,9 +943,9 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   productPrice: {
-    fontSize: 16,
+    fontSize: 13.5,
     fontWeight: "bold",
-    color: "#ff0000",
+    color: "#69C779",
     marginBottom: 8,
     marginLeft: 8,
   },
