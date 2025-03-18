@@ -35,6 +35,9 @@ import * as FileSystem from "expo-file-system";
 import { StorageAccessFramework } from "expo-file-system";
 import { getAuth } from "firebase/auth";
 
+const DEBUG_MODE = true;
+const DEBUG_PHONE = "8891115593";
+
 interface LoanApplication {
   id: string;
   amount: number;
@@ -79,34 +82,37 @@ export default function LoanScreen({ navigation }) {
         const auth = getAuth();
         const currentUser = auth.currentUser;
 
-        if (!currentUser) {
+        // Use debug phone number in debug mode
+        let phoneNumber = DEBUG_MODE ? DEBUG_PHONE : currentUser?.phoneNumber;
+
+        if (!phoneNumber) {
+          console.log("No phone number available");
           Alert.alert("Error", "Please login to view loans");
           navigation.navigate("Login");
           return;
         }
 
-        const phoneNumber = currentUser.phoneNumber?.replace("+91", "");
-
-        if (!phoneNumber) {
-          Alert.alert("Error", "Invalid user data");
-          navigation.goBack();
-          return;
-        }
+        // Clean up phone number format
+        phoneNumber = phoneNumber.replace("+91", "").trim();
+        console.log("Using phone number:", phoneNumber);
 
         // Fetch user data
         const db = getFirestore();
         const userDocRef = doc(db, "K-member", phoneNumber);
+        console.log("Fetching K-member document:", phoneNumber);
+
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
           const data = userDocSnap.data();
+          console.log("Found user data:", JSON.stringify(data, null, 2));
           setUserData({
             phone: phoneNumber,
-            firstName: data.firstName,
-            lastName: data.lastName,
+            firstName: data.firstName || "",
+            lastName: data.lastName || "",
           });
 
-          // Fetch loans with the correct phone number
+          // Fetch loans
           const q = query(
             collection(db, "loanApplications"),
             where("memberId", "==", phoneNumber)
@@ -119,18 +125,33 @@ export default function LoanScreen({ navigation }) {
             createdAt: doc.data().createdAt?.toDate() || new Date(),
           })) as LoanApplication[];
 
+          console.log("Loans found:", loanData.length); // Add logging
+
           setLoans(
             loanData.sort(
               (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
             )
           );
         } else {
-          Alert.alert("Error", "Member data not found");
-          navigation.goBack();
+          console.log("No user document found"); // Add logging
+          Alert.alert(
+            "Error",
+            "Member data not found. Please ensure you're registered.",
+            [
+              {
+                text: "OK",
+                onPress: () => navigation.goBack(),
+              },
+            ]
+          );
         }
       } catch (error) {
-        console.error("Error fetching data:", error);
-        Alert.alert("Error", "Failed to load loan data");
+        console.error("Error fetching data:", error); // Improved error logging
+        Alert.alert(
+          "Error",
+          "Failed to load loan data: " +
+            (error instanceof Error ? error.message : "Unknown error")
+        );
       } finally {
         setLoading(false);
       }

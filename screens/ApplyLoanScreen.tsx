@@ -41,6 +41,9 @@ import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../types/navigation";
 import { getAuth } from "firebase/auth";
 
+const DEBUG_MODE = true;
+const DEBUG_PHONE = "8891115593";
+
 type ApplyLoanScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
   "ApplyLoan"
@@ -120,37 +123,44 @@ export default function ApplyLoanScreen({ navigation, route }: Props) {
         const auth = getAuth();
         const currentUser = auth.currentUser;
 
-        if (!currentUser) {
+        // Use debug phone number in debug mode
+        let phoneNumber = DEBUG_MODE
+          ? DEBUG_PHONE
+          : currentUser?.phoneNumber?.replace("+91", "");
+
+        if (!phoneNumber) {
+          console.log("No phone number available");
           Alert.alert("Error", "Please login to apply for loan");
           navigation.navigate("Login");
           return;
         }
 
-        const phoneNumber = currentUser.phoneNumber?.replace("+91", "");
-
-        if (!phoneNumber) {
-          Alert.alert("Error", "Invalid user data");
-          navigation.goBack();
-          return;
-        }
+        console.log("Using phone number:", phoneNumber);
 
         const db = getFirestore();
         const userDocRef = doc(db, "K-member", phoneNumber);
+        console.log("Fetching K-member document:", phoneNumber);
+
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
           const data = userDocSnap.data();
+          console.log("Found user data:", JSON.stringify(data, null, 2));
           setUserData({
-            firstName: data.firstName,
-            lastName: data.lastName,
+            firstName: data.firstName || "",
+            lastName: data.lastName || "",
             phone: phoneNumber,
-            unitName: data.unitName,
-            unitNumber: data.unitNumber,
-            status: data.status,
+            unitName: data.unitName || "",
+            unitNumber: data.unitNumber || "",
+            status: data.status || "active",
           });
         } else {
-          Alert.alert("Error", "Member data not found");
-          navigation.goBack();
+          console.log("No user document found");
+          Alert.alert(
+            "Error",
+            "Member data not found. Please ensure you're registered.",
+            [{ text: "OK", onPress: () => navigation.goBack() }]
+          );
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -175,10 +185,8 @@ export default function ApplyLoanScreen({ navigation, route }: Props) {
     values: FormValues,
     { resetForm }: FormikHelpers<FormValues>
   ) => {
-    const auth = getAuth();
-    const currentUser = auth.currentUser;
-
-    if (!currentUser || !userData) {
+    // Use debug phone number in debug mode
+    if (!userData) {
       Alert.alert("Error", "Please login to submit application");
       navigation.navigate("Login");
       return;
