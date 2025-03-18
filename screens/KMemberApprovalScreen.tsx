@@ -1,89 +1,124 @@
-import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, Linking } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
-import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
-import { firebase } from "../firebase"
-import { collection, query, where, getDocs, doc, updateDoc, getDoc } from "firebase/firestore"
-import { auth } from "../firebase"
+import { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  Linking,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
+import { firebase } from "../firebase";
+import { getAuth } from "firebase/auth";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  updateDoc,
+  getDoc,
+} from "firebase/firestore";
+import * as FileSystem from "expo-file-system";
 
 interface KMember {
-  id: string
-  firstName: string
-  lastName: string
-  phone: string
-  status: "pending" | "approved" | "rejected"
-  aadhar: string
-  rationCard: string
-  economicStatus: string
-  category: string
-  unitNumber: string
-  aadharDocumentUrl: string
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  status: "pending" | "approved" | "rejected";
+  aadhar: string;
+  rationCard: string;
+  economicStatus: string;
+  category: string;
+  unitNumber: string;
+  aadharDocumentUrl: string;
+  rationCardDocumentUrl: string;
+  unitName: string;
+  presidentId: string;
 }
 
 export default function KMemberApprovalScreen({ navigation }) {
-  const [kMembers, setKMembers] = useState<KMember[]>([])
-  const [loading, setLoading] = useState(true)
+  const [kMembers, setKMembers] = useState<KMember[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
     Poppins_700Bold,
-  })
+  });
 
-  useEffect(() => {
-    fetchKMembers()
-  }, [])
-
+  // Move fetchKMembers outside of useEffect and make it a function of the component
   const fetchKMembers = async () => {
     try {
-      const kMemberCollection = collection(firebase, "K-member")
-      const q = query(kMemberCollection, where("status", "==", "pending"))
-      const querySnapshot = await getDocs(q)
-      const members: KMember[] = []
-      querySnapshot.forEach((doc) => {
-        members.push({ id: doc.id, ...doc.data() } as KMember)
-      })
-      setKMembers(members)
-      setLoading(false)
-    } catch (error) {
-      console.error("Error fetching K-members:", error)
-      Alert.alert("Error", "Failed to fetch K-members. Please try again.")
-      setLoading(false)
-    }
-  }
+      setLoading(true);
+      const user = getAuth().currentUser;
 
+      if (!user) {
+        Alert.alert("Error", "Not authenticated");
+        return;
+      }
+
+      console.log("Current president phone:", user.phoneNumber);
+
+      const kMembersRef = collection(firebase, "K-member");
+      // Query for pending members matching president's phone number
+      const q = query(
+        kMembersRef,
+        where("presidentId", "==", "9072160767"), // Use exact match for presidentId
+        where("status", "==", "pending")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const members: KMember[] = [];
+
+      console.log("Found pending members:", querySnapshot.size);
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        console.log("Member data:", data);
+        members.push({
+          id: doc.id,
+          ...data,
+        } as KMember);
+      });
+
+      setKMembers(members);
+    } catch (error) {
+      console.error("Error fetching members:", error);
+      Alert.alert("Error", "Failed to fetch members");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchKMembers();
+  }, []);
+
+  // Update handleApprove to use firebase instead of db
   const handleApprove = async (phone: string) => {
     try {
-      // First get the K-member's unit number
       const kmemberDoc = await getDoc(doc(firebase, "K-member", phone));
       if (!kmemberDoc.exists()) {
         Alert.alert("Error", "Member data not found");
         return;
       }
-      const kmemberData = kmemberDoc.data();
-      const unitNumber = kmemberData.unitNumber;
 
-      // Find president with matching unit number
-      const presidentsRef = collection(firebase, "president");
-      const q = query(presidentsRef, where("unitNumber", "==", unitNumber));
-      const presidentSnapshot = await getDocs(q);
-
-      if (presidentSnapshot.empty) {
-        Alert.alert("Error", "No president found for this unit");
-        return;
-      }
-
-      const presidentData = presidentSnapshot.docs[0].data();
-
-      // Update K-member status
       await updateDoc(doc(firebase, "K-member", phone), {
         status: "approved",
-        unitName: presidentData.unitName
       });
-      
-      fetchKMembers();
+
+      fetchKMembers(); // Refresh the list
       Alert.alert("Success", "Member approved successfully");
     } catch (error) {
       console.error("Error approving member:", error);
@@ -91,19 +126,57 @@ export default function KMemberApprovalScreen({ navigation }) {
     }
   };
 
+  const handleReject = async (phone: string) => {
+    try {
+      const kmemberDoc = await getDoc(doc(firebase, "K-member", phone));
+      if (!kmemberDoc.exists()) {
+        Alert.alert("Error", "Member data not found");
+        return;
+      }
+
+      await updateDoc(doc(firebase, "K-member", phone), {
+        status: "rejected",
+      });
+
+      fetchKMembers();
+      Alert.alert("Success", "Member rejected successfully");
+    } catch (error) {
+      console.error("Error rejecting member:", error);
+      Alert.alert("Error", "Failed to reject member");
+    }
+  };
+
   if (!fontsLoaded) {
-    return null
+    return null;
   }
+
+  const handleDocumentView = async (
+    documentUrl: string,
+    documentType: string
+  ) => {
+    try {
+      if (!documentUrl) {
+        Alert.alert("Error", `No ${documentType} document available`);
+        return;
+      }
+
+      // Directly open the URL since we have unrestricted access
+      await Linking.openURL(documentUrl);
+    } catch (error) {
+      console.error(`Error viewing ${documentType}:`, error);
+      Alert.alert("Error", `Unable to open ${documentType} document`);
+    }
+  };
 
   const renderItem = ({ item }: { item: KMember }) => (
     <LinearGradient
-      colors={['rgba(139, 92, 246, 0.05)', 'rgba(236, 72, 153, 0.05)']}
+      colors={["rgba(139, 92, 246, 0.05)", "rgba(236, 72, 153, 0.05)"]}
       style={styles.memberItem}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
     >
       <View style={styles.memberDetails}>
-        <Text style={styles.memberName}>{`${item.firstName} ${item.lastName}`}</Text>
+        <Text
+          style={styles.memberName}
+        >{`${item.firstName} ${item.lastName}`}</Text>
         <View style={styles.infoContainer}>
           <Text style={styles.infoLabel}>Phone:</Text>
           <Text style={styles.infoValue}>{item.phone}</Text>
@@ -125,21 +198,52 @@ export default function KMemberApprovalScreen({ navigation }) {
           <Text style={styles.infoValue}>{item.category}</Text>
         </View>
         <View style={styles.infoContainer}>
+          <Text style={styles.infoLabel}>Unit Name:</Text>
+          <Text style={styles.infoValue}>{item.unitName}</Text>
+        </View>
+        <View style={styles.infoContainer}>
           <Text style={styles.infoLabel}>Unit Number:</Text>
           <Text style={styles.infoValue}>{item.unitNumber}</Text>
         </View>
-        
-        {item.aadharDocumentUrl && (
-          <TouchableOpacity 
-            style={styles.viewDocButton}
-            onPress={() => Linking.openURL(item.aadharDocumentUrl)}
-          >
-            <Ionicons name="document-text-outline" size={20} color="white" />
-            <Text style={styles.viewDocText}>View Document</Text>
-          </TouchableOpacity>
-        )}
+
+        <View style={styles.documentSection}>
+          <Text style={styles.sectionTitle}>Documents</Text>
+          <View style={styles.documentButtons}>
+            {item.aadharDocumentUrl && (
+              <TouchableOpacity
+                style={styles.viewDocButton}
+                onPress={() =>
+                  handleDocumentView(item.aadharDocumentUrl, "Aadhar")
+                }
+              >
+                <Ionicons
+                  name="document-text-outline"
+                  size={20}
+                  color="white"
+                />
+                <Text style={styles.viewDocText}>View Aadhar</Text>
+              </TouchableOpacity>
+            )}
+
+            {item.rationCardDocumentUrl && (
+              <TouchableOpacity
+                style={styles.viewDocButton}
+                onPress={() =>
+                  handleDocumentView(item.rationCardDocumentUrl, "RationCard")
+                }
+              >
+                <Ionicons
+                  name="document-text-outline"
+                  size={20}
+                  color="white"
+                />
+                <Text style={styles.viewDocText}>View Ration Card</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
       </View>
-      
+
       <View style={styles.actionButtons}>
         <TouchableOpacity
           style={[styles.actionButton, styles.approveButton]}
@@ -149,18 +253,21 @@ export default function KMemberApprovalScreen({ navigation }) {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, styles.rejectButton]}
-          onPress={() => handleApprove(item.phone)}
+          onPress={() => handleReject(item.phone)} // Changed from handleApprove
         >
           <Ionicons name="close-outline" size={24} color="white" />
         </TouchableOpacity>
       </View>
     </LinearGradient>
-  )
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color="#8B5CF6" />
         </TouchableOpacity>
         <Text style={styles.title}>K-Member Approvals</Text>
@@ -178,21 +285,21 @@ export default function KMemberApprovalScreen({ navigation }) {
         <Text style={styles.noMembersText}>No pending approvals</Text>
       )}
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(139, 92, 246, 0.1)',
+    borderBottomColor: "rgba(139, 92, 246, 0.1)",
   },
   backButton: {
     marginRight: 16,
@@ -209,7 +316,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -230,12 +337,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   infoContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 4,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(139, 92, 246, 0.1)',
+    borderBottomColor: "rgba(139, 92, 246, 0.1)",
   },
   infoLabel: {
     fontFamily: "Poppins_600SemiBold",
@@ -249,7 +356,7 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: "row",
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
     marginTop: 16,
     gap: 8,
   },
@@ -281,14 +388,32 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 20,
   },
+  documentSection: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(139, 92, 246, 0.1)",
+    paddingTop: 16,
+  },
+  sectionTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "#8B5CF6",
+    marginBottom: 8,
+  },
+  documentButtons: {
+    flexDirection: "row",
+    gap: 12,
+    flexWrap: "wrap",
+  },
   viewDocButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#8B5CF6',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#8B5CF6",
     padding: 12,
     borderRadius: 8,
-    marginTop: 12,
-    alignSelf: 'flex-start',
+    flex: 1,
+    minWidth: 150,
+    justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -304,5 +429,11 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
   },
-})
-
+  noDocText: {
+    fontFamily: "Poppins_400Regular",
+    color: "#9CA3AF",
+    fontSize: 14,
+    flex: 1,
+    textAlign: "center",
+  },
+});

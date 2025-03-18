@@ -39,16 +39,17 @@ import {
 } from "firebase/firestore";
 import { useRoute } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
+import axios from "axios";
+import * as DocumentPicker from "expo-document-picker";
+import { RouteProp } from "@react-navigation/native";
+import { handleAadhaarUpload } from "../utils/documentUpload";
+import { uploadDocument } from "../utils/documentUpload";
 import {
   getStorage,
   ref as storageRef,
   uploadBytes,
   getDownloadURL,
 } from "firebase/storage";
-import axios from "axios";
-import * as DocumentPicker from "expo-document-picker";
-import { RouteProp } from "@react-navigation/native";
-import { handleAadhaarUpload } from '../utils/documentUpload';
 
 type SignUpScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -109,6 +110,8 @@ export default function SignUpScreen({ navigation }: Props) {
   const [isPressed, setIsPressed] = useState(false);
   const [isRationCardUploading, setIsRationCardUploading] = useState(false);
   const [rationCardDocumentUrl, setRationCardDocumentUrl] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     Animated.timing(animation, {
@@ -164,41 +167,32 @@ export default function SignUpScreen({ navigation }: Props) {
   const handleDocumentUpload = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          "application/pdf",
-          "application/msword",
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ],
+        type: ["application/pdf"],
         copyToCacheDirectory: true,
       });
 
       if (result.assets && result.assets[0]) {
         setIsLoading(true);
-        const storage = getStorage(app);
-        const fileRef = storageRef(
-          storage,
-          `aadhar-documents/${formData.phone}-${Date.now()}.pdf`
+        const downloadUrl = await uploadDocument(
+          result,
+          formData.phone,
+          "aadhar"
         );
 
-        const response = await fetch(result.assets[0].uri);
-        const blob = await response.blob();
-
-        const metadata = {
-          contentType: result.assets[0].mimeType || "application/pdf",
-        };
-
-        await uploadBytes(fileRef, blob, metadata);
-        const downloadUrl = await getDownloadURL(fileRef);
-
         setAadharDocumentUrl(downloadUrl);
-        setFormData({ ...formData, documentUploaded: true });
-        setIsLoading(false);
+        setFormData((prev) => ({
+          ...prev,
+          aadharDocumentUrl: downloadUrl,
+          documentUploaded: true,
+        }));
+
         Alert.alert("Success", "Document uploaded successfully");
       }
     } catch (error) {
       console.error("Error uploading document:", error);
-      setIsLoading(false);
       Alert.alert("Error", "Failed to upload document");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -224,19 +218,25 @@ export default function SignUpScreen({ navigation }: Props) {
 
       if (!result.canceled) {
         setIsPhotoUploading(true);
-        const storage = getStorage(app);
-        const photoRef = storageRef(
-          storage,
-          `profile-photos/${formData.phone}-${Date.now()}.jpg`
-        );
 
+        // Initialize storage
+        const app = initializeApp(firebaseConfig);
+        const storage = getStorage(app);
+        const timestamp = new Date().getTime();
+
+        // Create reference
+        const path = `profile-photos/${formData.phone}-${timestamp}.jpg`;
+        const photoRef = storageRef(storage, path);
+
+        // Upload photo
         const response = await fetch(result.assets[0].uri);
         const blob = await response.blob();
-
         await uploadBytes(photoRef, blob);
-        const downloadUrl = await getDownloadURL(photoRef);
 
-        setFormData({ ...formData, profilePhotoUrl: downloadUrl });
+        // Construct URL manually to match working example
+        const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/kudumbashree-0.firebasestorage.app/o/profile-photos%2F${formData.phone}-${timestamp}.jpg?alt=media`;
+
+        setFormData((prev) => ({ ...prev, profilePhotoUrl: downloadUrl }));
         Alert.alert("Success", "Profile photo uploaded successfully");
       }
     } catch (error) {
@@ -250,41 +250,31 @@ export default function SignUpScreen({ navigation }: Props) {
   const handleRationCardDocumentUpload = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          "application/pdf",
-          "application/msword",
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ],
+        type: ["application/pdf"],
         copyToCacheDirectory: true,
       });
 
       if (result.assets && result.assets[0]) {
         setIsRationCardUploading(true);
-        const storage = getStorage(app);
-        const fileRef = storageRef(
-          storage,
-          `ration-card-documents/${formData.phone}-${Date.now()}.pdf`
+        const downloadUrl = await uploadDocument(
+          result,
+          formData.phone,
+          "ration-card"
         );
 
-        const response = await fetch(result.assets[0].uri);
-        const blob = await response.blob();
+        setRationCardDocumentUrl(downloadUrl);
+        setFormData((prev) => ({
+          ...prev,
+          rationCardDocumentUrl: downloadUrl,
+        }));
 
-        const metadata = {
-          contentType: result.assets[0].mimeType || "application/pdf",
-        };
-
-        await uploadBytes(fileRef, blob, metadata);
-        const downloadUrl = await getDownloadURL(fileRef);
-
-        setRationCardDocumentUrl(downloadUrl); // Update the local state
-        setFormData(prev => ({ ...prev, rationCardDocumentUrl: downloadUrl })); // Update formData
-        setIsRationCardUploading(false);
         Alert.alert("Success", "Ration card document uploaded successfully");
       }
     } catch (error) {
-      console.error("Error uploading ration card document:", error);
-      setIsRationCardUploading(false);
+      console.error("Error uploading document:", error);
       Alert.alert("Error", "Failed to upload ration card document");
+    } finally {
+      setIsRationCardUploading(false);
     }
   };
 
@@ -628,6 +618,7 @@ export default function SignUpScreen({ navigation }: Props) {
                       </View>
                     </View>
                   </LinearGradient>
+                  {/* Password Input */}
                   <LinearGradient
                     colors={[
                       "rgba(139, 92, 246, 0.8)",
@@ -652,10 +643,23 @@ export default function SignUpScreen({ navigation }: Props) {
                         onChangeText={(text) =>
                           setFormData({ ...formData, password: text })
                         }
-                        secureTextEntry
+                        secureTextEntry={!showPassword}
                       />
+                      <TouchableOpacity
+                        onPress={() => setShowPassword(!showPassword)}
+                      >
+                        <Ionicons
+                          name={
+                            showPassword ? "eye-outline" : "eye-off-outline"
+                          }
+                          size={24}
+                          color="rgb(162,39,142)"
+                        />
+                      </TouchableOpacity>
                     </View>
                   </LinearGradient>
+
+                  {/* Confirm Password Input */}
                   <LinearGradient
                     colors={[
                       "rgba(139, 92, 246, 0.8)",
@@ -680,8 +684,23 @@ export default function SignUpScreen({ navigation }: Props) {
                         onChangeText={(text) =>
                           setFormData({ ...formData, confirmPassword: text })
                         }
-                        secureTextEntry
+                        secureTextEntry={!showConfirmPassword}
                       />
+                      <TouchableOpacity
+                        onPress={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
+                      >
+                        <Ionicons
+                          name={
+                            showConfirmPassword
+                              ? "eye-outline"
+                              : "eye-off-outline"
+                          }
+                          size={24}
+                          color="rgb(162,39,142)"
+                        />
+                      </TouchableOpacity>
                     </View>
                   </LinearGradient>
                   <LinearGradient
@@ -693,12 +712,17 @@ export default function SignUpScreen({ navigation }: Props) {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                   >
-                    <View style={styles.inputContainer}>
+                    <View
+                      style={[
+                        styles.inputContainer,
+                        styles.multilineInputContainer,
+                      ]}
+                    >
                       <Ionicons
                         name="home-outline"
                         size={24}
                         color="rgb(162,39,142)"
-                        style={styles.inputIcon}
+                        style={styles.multilineInputIcon} // Use multilineInputIcon for address
                       />
                       <TextInput
                         style={[styles.input, styles.multilineInput]}
@@ -708,8 +732,8 @@ export default function SignUpScreen({ navigation }: Props) {
                         onChangeText={(text) =>
                           setFormData({ ...formData, address: text })
                         }
-                        multiline
-                        numberOfLines={3}
+                        multiline={true}
+                        numberOfLines={4}
                       />
                     </View>
                   </LinearGradient>
@@ -1169,44 +1193,44 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderRadius: 25,
     paddingHorizontal: 15,
-  },
-  inputIcon: {
-    marginRight: 10,
-    color: "rgb(162,39,142)",
+    minHeight: 50,
+    paddingVertical: 5,
   },
   input: {
     flex: 1,
     fontFamily: "Poppins_400Regular",
     color: "rgb(162,39,142)",
     fontSize: 16,
-    padding: 15,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    textAlignVertical: "center",
   },
-  phoneInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  phonePrefix: {
-    fontFamily: "Poppins_400Regular",
-    color: "rgb(162,39,142)",
-    fontSize: 16,
-    marginRight: 5,
-  },
-  phoneInput: {
-    flex: 1,
-    fontFamily: "Poppins_400Regular",
-    color: "white",
-    fontSize: 16,
-    padding: 15,
+  multilineInputContainer: {
+    minHeight: 100,
+    alignItems: "flex-start",
+    paddingVertical: 10,
   },
   multilineInput: {
     height: 100,
     textAlignVertical: "top",
+    paddingTop: 8,
+  },
+  inputIcon: {
+    marginRight: 10,
+    color: "rgb(162,39,142)",
+    alignSelf: "center",
+    marginTop: 0,
+  },
+  multilineInputIcon: {
+    marginRight: 10,
+    color: "rgb(162,39,142)",
+    marginTop: 12,
   },
   pickerContainer: {
     backgroundColor: "white",
     borderRadius: 25,
     overflow: "hidden",
+    paddingVertical: 5, // Added padding
   },
   label: {
     fontFamily: "Poppins_400Regular",
@@ -1214,9 +1238,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingHorizontal: 15,
     paddingTop: 10,
+    paddingBottom: 5, // Added bottom padding
   },
   picker: {
     color: "rgb(162,39,142)",
+    height: 50, // Fixed height
+    marginTop: -10, // Adjust vertical position
+  },
+  phoneInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    height: 50, // Fixed height
+  },
+  phonePrefix: {
+    fontFamily: "Poppins_400Regular",
+    color: "rgb(162,39,142)",
+    fontSize: 16,
+    paddingVertical: 10, // Added padding
   },
   pickerGradientBorder: {
     borderRadius: 25,
