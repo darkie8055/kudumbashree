@@ -28,6 +28,7 @@ import {
   PhoneAuthProvider,
   signInWithCredential,
 } from "firebase/auth";
+import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
 import { LogBox } from "react-native";
 
 LogBox.ignoreLogs([
@@ -40,8 +41,6 @@ LogBox.ignoreLogs([
 
 // Import your Firebase configuration
 import { firebaseConfig } from "../firebase"; // Ensure you export this in firebase.js
-
-const TEST_VERIFICATION_ID = "test-verification-id";
 
 type VerificationScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -100,23 +99,35 @@ export default function VerificationScreen({ navigation }: Props) {
   const sendVerificationCode = async () => {
     try {
       setLoading(true);
+      const auth = getAuth();
+      const phoneProvider = new PhoneAuthProvider(auth);
       const formattedPhoneNumber = "+91" + phoneNumber;
 
-      // Simulate verification process
-      setTimeout(() => {
-        setVerificationId(TEST_VERIFICATION_ID);
-        Alert.alert(
-          "Success",
-          "Verification code has been sent to your phone."
-        );
-        setLoading(false);
-      }, 1000);
-    } catch (err) {
-      console.error(err);
-      Alert.alert(
-        "Error",
-        "Failed to send verification code. Please try again."
+      const verificationId = await phoneProvider.verifyPhoneNumber(
+        formattedPhoneNumber,
+        recaptchaVerifier.current
       );
+      setVerificationId(verificationId);
+      Alert.alert("Success", "Verification code has been sent to your phone.");
+    } catch (err: any) {
+      // Don't log the error but show the alert
+      if (
+        err?.message === "Cancelled by user" ||
+        err?.code === "auth/cancelled-popup-request" ||
+        err?.code === "auth/popup-closed-by-user"
+      ) {
+        Alert.alert(
+          "Cancelled",
+          "Verification was cancelled. Please try again."
+        );
+      } else {
+        console.error(err);
+        Alert.alert(
+          "Error",
+          "Failed to send verification code. Please try again."
+        );
+      }
+    } finally {
       setLoading(false);
     }
   };
@@ -125,26 +136,20 @@ export default function VerificationScreen({ navigation }: Props) {
   const confirmCode = async () => {
     try {
       setLoading(true);
-
-      // Simulate verification - accept any 6-digit code
-      if (code.length === 6) {
-        setTimeout(() => {
-          Alert.alert("Success", "Phone number verified successfully!", [
-            {
-              text: "Continue",
-              onPress: () =>
-                navigation.navigate("SignUp", { phoneNumber: phoneNumber }),
-            },
-          ]);
-          setLoading(false);
-        }, 1000);
-      } else {
-        Alert.alert("Error", "Please enter a 6-digit code.");
-        setLoading(false);
-      }
+      const auth = getAuth();
+      const credential = PhoneAuthProvider.credential(verificationId, code);
+      await signInWithCredential(auth, credential);
+      Alert.alert("Success", "Phone number verified successfully!", [
+        {
+          text: "Continue",
+          onPress: () =>
+            navigation.navigate("SignUp", { phoneNumber: phoneNumber }),
+        },
+      ]);
     } catch (err) {
       console.error(err);
       Alert.alert("Error", "Invalid verification code. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
@@ -327,6 +332,11 @@ export default function VerificationScreen({ navigation }: Props) {
           </Animated.View>
         </KeyboardAvoidingView>
       </SafeAreaView>
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={firebaseConfig}
+        attemptInvisibleVerification={false}
+      />
     </LinearGradient>
   );
 }
