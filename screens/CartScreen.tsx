@@ -266,7 +266,7 @@ export default function CartScreen({ navigation, route }) {
           <Text style={styles.emptyCartText}>Your cart is empty</Text>
           <TouchableOpacity
             style={styles.continueShopping}
-            onPress={() => navigation.navigate("Marketplace")}
+            onPress={() => navigation.navigate("KMemberTabs", { screen: "Market" })}
           >
             <Text style={styles.continueShoppingText}>Continue Shopping</Text>
           </TouchableOpacity>

@@ -76,3 +76,4 @@ yarn-error.*
 *.tsbuildinfo
 
 # @end expo-cli
+.qodo
