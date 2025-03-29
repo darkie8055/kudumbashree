@@ -31,6 +31,13 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { RootStackParamList } from "../types/navigation";
+
+type Props = {
+  route: any;
+  navigation: StackNavigationProp<RootStackParamList, "KMemberProfile">;
+};
 
 const auth = getAuth();
 
@@ -51,7 +58,7 @@ interface KMemberDetails {
   createdAt?: string; // Optional field for registration date
 }
 
-export default function KMemberProfileScreen({ route }) {
+export default function KMemberProfileScreen({ route, navigation }: Props) {
   const phoneNumber = route?.params?.phoneNumber || "";
   const [isEditing, setIsEditing] = useState(false);
   const [userDetails, setUserDetails] = useState<KMemberDetails | null>(null);
@@ -131,6 +138,16 @@ export default function KMemberProfileScreen({ route }) {
   const handleChange = (field: keyof KMemberDetails, value: string) => {
     if (userDetails) {
       setUserDetails({ ...userDetails, [field]: value });
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      navigation.replace("Login");
+    } catch (error) {
+      console.error("Error logging out:", error);
+      Alert.alert("Error", "Failed to log out");
     }
   };
 
@@ -273,6 +290,23 @@ export default function KMemberProfileScreen({ route }) {
             <Text style={styles.editButtonText}>
               {isEditing ? "Save Changes" : "Edit Profile"}
             </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Logout Button */}
+        <TouchableOpacity
+          style={styles.logoutButtonContainer}
+          onPress={handleLogout}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={["#EF4444", "#DC2626"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.logoutButton}
+          >
+            <MaterialCommunityIcons name="logout" size={20} color="#fff" />
+            <Text style={styles.logoutButtonText}>Logout</Text>
           </LinearGradient>
         </TouchableOpacity>
 
@@ -470,6 +504,31 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   editButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Poppins_600SemiBold",
+  },
+  logoutButtonContainer: {
+    marginHorizontal: 20,
+    marginTop: 0,
+    marginBottom: 0,
+    borderRadius: 25,
+    overflow: "hidden",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  logoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    gap: 8,
+  },
+  logoutButtonText: {
     color: "#fff",
     fontSize: 16,
     fontFamily: "Poppins_600SemiBold",
