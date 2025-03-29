@@ -1,12 +1,36 @@
-import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, Image, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
-import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from "@expo-google-fonts/poppins"
-import { firebase } from "../firebase"
-import { doc, getDoc, updateDoc } from "firebase/firestore"
-import { getAuth } from "firebase/auth"
+import { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  Animated,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
+import { firebase } from "../firebase";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  Timestamp,
+  getFirestore,
+  serverTimestamp,
+} from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 const auth = getAuth();
 
@@ -24,14 +48,16 @@ interface KMemberDetails {
   memberSince: string;
   role: string;
   profilePhotoUrl: string;
+  createdAt?: string; // Optional field for registration date
 }
 
-
 export default function KMemberProfileScreen({ route }) {
-  const phoneNumber = route?.params?.phoneNumber || '';
+  const phoneNumber = route?.params?.phoneNumber || "";
   const [isEditing, setIsEditing] = useState(false);
   const [userDetails, setUserDetails] = useState<KMemberDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [scrollY] = useState(new Animated.Value(0));
+  const [membershipDays, setMembershipDays] = useState(0);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -43,19 +69,22 @@ export default function KMemberProfileScreen({ route }) {
     const fetchUserData = async () => {
       try {
         if (phoneNumber) {
-          console.log("Using phone number from params:", phoneNumber);
-          const userDoc = await getDoc(doc(firebase, "K-member", phoneNumber));
-          
+          const db = getFirestore();
+          const userDoc = await getDoc(doc(db, "K-member", phoneNumber));
+
           if (userDoc.exists()) {
             const data = userDoc.data();
-            console.log("Fetched data:", data);
+            if (!data.createdAt) {
+              // Use current date if createdAt doesn't exist
+              data.createdAt = new Date().toISOString();
+              // Update the document with the creation date
+              await updateDoc(doc(db, "K-member", phoneNumber), {
+                createdAt: data.createdAt,
+              });
+            }
             data.role = "K-member";
             setUserDetails(data as KMemberDetails);
-          } else {
-            console.log("No document found for phone:", phoneNumber);
           }
-        } else {
-          console.log("No phone number in params");
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -68,15 +97,26 @@ export default function KMemberProfileScreen({ route }) {
     fetchUserData();
   }, [phoneNumber]);
 
+  useEffect(() => {
+    if (userDetails) {
+      const today = new Date();
+      const registrationDate = new Date(userDetails.createdAt || today);
+
+      const diffTime = Math.abs(today.getTime() - registrationDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      setMembershipDays(Math.max(1, diffDays));
+    }
+  }, [userDetails]); // Add userDetails as dependency
+
   const handleEditButton = async () => {
     if (isEditing && userDetails) {
       try {
         const user = auth.currentUser;
         if (user?.phoneNumber) {
-          const formattedPhone = user.phoneNumber.replace('+91', '');
+          const formattedPhone = user.phoneNumber.replace("+91", "");
           // Only update the address field
           await updateDoc(doc(firebase, "K-member", formattedPhone), {
-            address: userDetails.address
+            address: userDetails.address,
           });
           Alert.alert("Success", "Address updated successfully");
         }
@@ -112,93 +152,172 @@ export default function KMemberProfileScreen({ route }) {
 
   // Define fields in specific order matching signup page
   const relevantFields = [
-    'phone',
-    'address',
-    'aadhar',
-    'rationCard',
-    'economicStatus',
-    'category',
-    'unitNumber',
-    'unitName',
-    'memberSince'
+    "phone",
+    "address",
+    "aadhar",
+    "rationCard",
+    "economicStatus",
+    "category",
+    "unitNumber",
+    "unitName",
+    "memberSince",
   ];
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <LinearGradient colors={["#8B5CF6", "#EC4899"]} style={styles.header}>
-          <View style={styles.profileContainer}>
+      <Animated.ScrollView
+        contentContainerStyle={styles.scrollContent}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+      >
+        <LinearGradient
+          colors={["#7C3AED", "#C026D3"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          <Animated.View
+            style={[
+              styles.profileContainer,
+              {
+                transform: [
+                  {
+                    scale: scrollY.interpolate({
+                      inputRange: [-100, 0, 100],
+                      outputRange: [1.2, 1, 0.8],
+                      extrapolate: "clamp",
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <Image
-              source={{ uri: userDetails.profilePhotoUrl }} // Replace with user's actual profile picture
+              source={{ uri: userDetails.profilePhotoUrl }}
               style={styles.profileImage}
             />
-            <Text style={styles.profileName}>{`${userDetails.firstName} ${userDetails.lastName}`}</Text>
-          </View>
+            <Text style={styles.profileName}>
+              {`${userDetails.firstName} ${userDetails.lastName}`}
+            </Text>
+            <View style={styles.membershipBadge}>
+              <MaterialCommunityIcons
+                name="shield-star"
+                size={16}
+                color="#FFD700"
+              />
+              <Text style={styles.membershipText}>
+                {`${membershipDays} Days as Member`}
+              </Text>
+            </View>
+          </Animated.View>
         </LinearGradient>
 
-        {/* Role, Unit Number, and Unit Name Section */}
-        <View style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <View style={styles.infoItem}>
-              <Ionicons name="person-outline" size={24} color="#8B5CF6" />
-              <Text style={styles.infoLabel}>Role</Text>
-              <Text style={styles.infoValue}>{userDetails.role}</Text>
-            </View>
-            <View style={styles.infoItem}>
-              <Ionicons name="home-outline" size={24} color="#8B5CF6" />
-              <Text style={styles.infoLabel}>Unit Number</Text>
-              <Text style={styles.infoValue}>{userDetails.unitNumber}</Text>
-            </View>
-            <View style={styles.infoItem}>
-              <Ionicons name="people-outline" size={24} color="#8B5CF6" />
-              <Text style={styles.infoLabel}>Unit Name</Text>
-              <Text style={styles.infoValue}>{userDetails.unitName}</Text>
-            </View>
-          </View>
+        {/* Stats Cards */}
+        <View style={styles.statsContainer}>
+          {[
+            {
+              icon: "bank",
+              label: "Unit",
+              value: userDetails.unitName,
+              color: "#8B5CF6",
+            },
+            {
+              icon: "card-account-details",
+              label: "Category",
+              value: userDetails.category,
+              color: "#EC4899",
+            },
+            {
+              icon: "wallet",
+              label: "Status",
+              value: userDetails.economicStatus,
+              color: "#10B981",
+            },
+          ].map((stat, index) => (
+            <LinearGradient
+              key={index}
+              colors={[`${stat.color}15`, `${stat.color}05`]}
+              style={styles.statCard}
+            >
+              <MaterialCommunityIcons
+                name={stat.icon}
+                size={24}
+                color={stat.color}
+              />
+              <Text style={styles.statLabel}>{stat.label}</Text>
+              <Text style={styles.statValue}>{stat.value}</Text>
+            </LinearGradient>
+          ))}
         </View>
 
-        {/* Edit Profile Button */}
-        <TouchableOpacity style={styles.editButton} onPress={handleEditButton}>
-          <Text style={styles.editButtonText}>{isEditing ? "Save Changes" : "Edit Profile"}</Text>
+        {/* Edit Profile Button with Animation */}
+        <TouchableOpacity
+          style={styles.editButtonContainer}
+          onPress={handleEditButton}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={["#8B5CF6", "#C026D3"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.editButton}
+          >
+            <MaterialCommunityIcons
+              name={isEditing ? "content-save" : "account-edit"}
+              size={20}
+              color="#fff"
+            />
+            <Text style={styles.editButtonText}>
+              {isEditing ? "Save Changes" : "Edit Profile"}
+            </Text>
+          </LinearGradient>
         </TouchableOpacity>
 
-        {/* User Details Section */}
+        {/* Personal Details Section */}
         <View style={styles.detailsContainer}>
-          <Text style={styles.sectionHeader}>Personal Details</Text>
+          <Text style={styles.sectionHeader}>Personal Information</Text>
           <LinearGradient
             colors={["rgba(139, 92, 246, 0.1)", "rgba(236, 72, 153, 0.1)"]}
             style={[styles.detailsBox, isEditing && styles.editableBox]}
           >
-            {Object.entries(userDetails).map(([key, value]) => {
-              // Skip if not in our ordered list
-              if (!relevantFields.includes(key)) return null;
-              
-              return (
-                <View key={key} style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>{key.charAt(0).toUpperCase() + key.slice(1)}:</Text>
-                  {isEditing && key === 'address' ? (
-                    <TextInput
-                      style={styles.detailInput}
-                      value={value.toString()}
-                      onChangeText={(text) => handleChange(key as keyof KMemberDetails, text)}
-                    />
-                  ) : (
-                    <Text style={styles.detailText}>{value}</Text>
-                  )}
-                </View>
-              );
-            }).sort((a, b) => {
-              if (!a || !b) return 0;
-              const indexA = relevantFields.indexOf(a.key);
-              const indexB = relevantFields.indexOf(b.key);
-              return indexA - indexB;
-            })}
+            {Object.entries(userDetails)
+              .map(([key, value]) => {
+                // Skip if not in our ordered list
+                if (!relevantFields.includes(key)) return null;
+
+                return (
+                  <View key={key} style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>
+                      {key.charAt(0).toUpperCase() + key.slice(1)}:
+                    </Text>
+                    {isEditing && key === "address" ? (
+                      <TextInput
+                        style={styles.detailInput}
+                        value={value.toString()}
+                        onChangeText={(text) =>
+                          handleChange(key as keyof KMemberDetails, text)
+                        }
+                      />
+                    ) : (
+                      <Text style={styles.detailText}>{value}</Text>
+                    )}
+                  </View>
+                );
+              })
+              .sort((a, b) => {
+                if (!a || !b) return 0;
+                const indexA = relevantFields.indexOf(a.key);
+                const indexB = relevantFields.indexOf(b.key);
+                return indexA - indexB;
+              })}
           </LinearGradient>
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -211,82 +330,164 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   header: {
-    paddingTop: 40,
-    paddingBottom: 20,
+    paddingTop: 10, // Reduced from 20
+    paddingBottom: 25, // Reduced from 40
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  headerContent: {
     alignItems: "center",
+    paddingHorizontal: 16,
   },
   profileContainer: {
     alignItems: "center",
+    marginTop: 10, // Reduced from 20
   },
   profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 4,
-    borderColor: "#fff",
+    width: 120, // Reduced from 120
+    height: 120, // Reduced from 120
+    borderRadius: 60, // Adjusted for new size
+    borderWidth: 3, // Reduced from 4
+    borderColor: "rgba(255, 255, 255, 0.8)",
   },
   profileName: {
-    marginTop: 10,
-    fontSize: 24,
+    marginTop: 8, // Reduced from 16
+    fontSize: 24, // Reduced from 24
     fontFamily: "Poppins_700Bold",
     color: "#fff",
   },
+  membershipBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 12, // Reduced from 12
+    paddingVertical: 6, // Reduced from 6
+    borderRadius: 20, // Reduced from 20
+    marginTop: 6, // Reduced from 8
+  },
+  membershipText: {
+    color: "#fff",
+    marginLeft: 4, // Reduced from 6
+    fontFamily: "Poppins_400Regular",
+    fontSize: 11, // Reduced from 12
+  },
   infoCard: {
     backgroundColor: "#fff",
-    borderRadius: 15,
+    borderRadius: 16,
     padding: 20,
     marginTop: -30,
     marginHorizontal: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
   },
   infoItem: {
     alignItems: "center",
   },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
   infoLabel: {
-    marginTop: 5,
     fontSize: 12,
     fontFamily: "Poppins_400Regular",
     color: "#6B7280",
+    marginBottom: 4,
   },
   infoValue: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: "Poppins_600SemiBold",
     color: "#1F2937",
   },
+  statsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginTop: -20, // Adjusted to move cards up
+  },
+  statCard: {
+    flex: 1,
+    margin: 4,
+    padding: 12,
+    borderRadius: 16,
+    alignItems: "center",
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    fontFamily: "Poppins_400Regular",
+    color: "#6B7280",
+    marginTop: 4,
+  },
+  statValue: {
+    fontSize: 14,
+    fontFamily: "Poppins_600SemiBold",
+    color: "#1F2937",
+    marginTop: 2,
+  },
+  editButtonContainer: {
+    marginHorizontal: 20,
+    marginVertical: 20,
+    borderRadius: 25,
+    overflow: "hidden",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
   editButton: {
-    backgroundColor: "#8B5CF6",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 8,
-    alignSelf: "center",
-    marginVertical: 20,
+    gap: 8,
   },
   editButtonText: {
     color: "#fff",
     fontSize: 16,
     fontFamily: "Poppins_600SemiBold",
   },
+  sectionHeader: {
+    fontSize: 18,
+    fontFamily: "Poppins_600SemiBold",
+    color: "#333",
+    marginBottom: 12,
+  },
   detailsContainer: {
     paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    fontSize: 20,
-    fontFamily: "Poppins_700Bold",
-    color: "#1F2937",
-    marginBottom: 10,
+    marginTop: 20,
   },
   detailsBox: {
-    padding: 15,
-    borderRadius: 10,
+    borderRadius: 16,
+    padding: 16,
+    backgroundColor: "rgba(139, 92, 246, 0.05)",
   },
   editableBox: {
     backgroundColor: "rgba(243, 244, 246, 0.8)",
@@ -295,8 +496,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
-    paddingVertical: 5,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(209, 213, 219, 0.5)",
   },
@@ -315,26 +515,28 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_400Regular",
     color: "#1F2937",
     borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    borderColor: "#8B5CF6",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     minWidth: 120,
+    backgroundColor: "#fff",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#fff",
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#fff",
   },
   errorText: {
-    fontSize: 18,
-    color: "#FF0000",
+    fontSize: 16,
+    color: "#EF4444",
     fontFamily: "Poppins_600SemiBold",
   },
-})
-
+});

@@ -30,6 +30,7 @@ import {
 } from "firebase/auth";
 import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
 import { LogBox } from "react-native";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
 
 LogBox.ignoreLogs([
   "Warning: FirebaseRecaptcha: Support for defaultProps will be removed from function components in a future major release.",
@@ -95,31 +96,74 @@ export default function VerificationScreen({ navigation }: Props) {
     }).start();
   }, [animation]);
 
+  const checkExistingUser = async (phone: string) => {
+    try {
+      const db = getFirestore();
+
+      // Check in K-member collection
+      const kMemberRef = doc(db, "K-member", phone);
+      const kMemberDoc = await getDoc(kMemberRef);
+
+      // Check in president collection
+      const presidentRef = doc(db, "president", phone);
+      const presidentDoc = await getDoc(presidentRef);
+
+      // Check in normal collection
+      const normalRef = doc(db, "normal", phone);
+      const normalDoc = await getDoc(normalRef);
+
+      return kMemberDoc.exists() || presidentDoc.exists() || normalDoc.exists();
+    } catch (err) {
+      console.error("Error checking user:", err);
+      return false;
+    }
+  };
+
   // Send verification code
   const sendVerificationCode = async () => {
     try {
       setLoading(true);
+
+      // Check if user exists first
+      const userExists = await checkExistingUser(phoneNumber);
+      if (userExists) {
+        Alert.alert(
+          "Account Exists",
+          "This phone number is already registered.",
+          [
+            {
+              text: "Login Instead",
+              onPress: () => navigation.navigate("Login"),
+            },
+            {
+              text: "Try Different Number",
+              onPress: () => setPhoneNumber(""),
+            },
+          ]
+        );
+        return;
+      }
+
       const auth = getAuth();
       const phoneProvider = new PhoneAuthProvider(auth);
       const formattedPhoneNumber = "+91" + phoneNumber;
+
+      if (!recaptchaVerifier.current) {
+        throw new Error("reCAPTCHA not initialized");
+      }
 
       const verificationId = await phoneProvider.verifyPhoneNumber(
         formattedPhoneNumber,
         recaptchaVerifier.current
       );
+
       setVerificationId(verificationId);
       Alert.alert("Success", "Verification code has been sent to your phone.");
     } catch (err: any) {
-      // Don't log the error but show the alert
-      if (
-        err?.message === "Cancelled by user" ||
-        err?.code === "auth/cancelled-popup-request" ||
-        err?.code === "auth/popup-closed-by-user"
-      ) {
-        Alert.alert(
-          "Cancelled",
-          "Verification was cancelled. Please try again."
-        );
+      if (err?.message?.includes("too-many-requests")) {
+        Alert.alert("Error", "Too many attempts. Please try again later.");
+      } else if (err?.message?.includes("invalid-phone-number")) {
+        Alert.alert("Error", "Please enter a valid phone number.");
       } else {
         console.error(err);
         Alert.alert(
@@ -132,23 +176,52 @@ export default function VerificationScreen({ navigation }: Props) {
     }
   };
 
-  // Confirm OTP entered by user
+  // Update the confirmCode function
   const confirmCode = async () => {
     try {
       setLoading(true);
+
+      // Double check user doesn't exist
+      const userExists = await checkExistingUser(phoneNumber);
+      if (userExists) {
+        Alert.alert(
+          "Account Exists",
+          "This phone number is already registered.",
+          [
+            {
+              text: "Login Instead",
+              onPress: () => navigation.navigate("Login"),
+            },
+          ]
+        );
+        return;
+      }
+
+      if (!verificationId || !code) {
+        throw new Error("Missing verification details");
+      }
+
       const auth = getAuth();
       const credential = PhoneAuthProvider.credential(verificationId, code);
+
       await signInWithCredential(auth, credential);
+
       Alert.alert("Success", "Phone number verified successfully!", [
         {
           text: "Continue",
-          onPress: () =>
-            navigation.navigate("SignUp", { phoneNumber: phoneNumber }),
+          onPress: () => navigation.navigate("SignUp", { phoneNumber }),
         },
       ]);
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Invalid verification code. Please try again.");
+    } catch (err: any) {
+      if (err?.message?.includes("invalid-verification-code")) {
+        Alert.alert(
+          "Error",
+          "Invalid verification code. Please check and try again."
+        );
+      } else {
+        console.error(err);
+        Alert.alert("Error", "Verification failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -336,6 +409,8 @@ export default function VerificationScreen({ navigation }: Props) {
         ref={recaptchaVerifier}
         firebaseConfig={firebaseConfig}
         attemptInvisibleVerification={false}
+        title="Verify Phone Number"
+        cancelLabel="Cancel"
       />
     </LinearGradient>
   );
