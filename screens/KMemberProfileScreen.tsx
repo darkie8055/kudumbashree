@@ -142,13 +142,28 @@ export default function KMemberProfileScreen({ route, navigation }: Props) {
   };
 
   const handleLogout = async () => {
-    try {
-      await auth.signOut();
-      navigation.replace("Login");
-    } catch (error) {
-      console.error("Error logging out:", error);
-      Alert.alert("Error", "Failed to log out");
-    }
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
+        {
+          text: "No",
+          style: "cancel"
+        },
+        {
+          text: "Yes",
+          onPress: async () => {
+            try {
+              await auth.signOut();
+              navigation.replace("Login");
+            } catch (error) {
+              console.error("Error logging out:", error);
+              Alert.alert("Error", "Failed to log out");
+            }
+          }
+        }
+      ]
+    );
   };
 
   if (!fontsLoaded || loading) {
