@@ -35,10 +35,9 @@ import {
   getFirestore,
   doc,
   getDoc,
-  onSnapshot,
 } from "firebase/firestore";
 import { firebase } from "../firebase";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">;
 
@@ -187,6 +186,39 @@ export default function HomeScreen({ navigation }: Props) {
     }
   };
 
+  const fetchUserName = async () => {
+    try {
+      setIsLoading(true);
+      const phoneNumber = await AsyncStorage.getItem("userPhoneNumber");
+
+      if (phoneNumber) {
+        const db = getFirestore();
+        const collections = ["K-member", "normal", "president"];
+
+        for (const collection of collections) {
+          const userDocRef = doc(
+            db,
+            collection,
+            phoneNumber.replace("+91", "")
+          );
+          const userDoc = await getDoc(userDocRef);
+
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const name = userData.firstName || userData.FirstName || "User";
+            setFirstName(name);
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user name:", error);
+      setFirstName("User");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -204,6 +236,10 @@ export default function HomeScreen({ navigation }: Props) {
 
   useEffect(() => {
     fetchNews();
+  }, []);
+
+  useEffect(() => {
+    fetchUserName();
   }, []);
 
   useEffect(() => {
@@ -324,103 +360,6 @@ export default function HomeScreen({ navigation }: Props) {
     },
     [handleHover, scaleAnimations]
   );
-
-  useEffect(() => {
-    const auth = getAuth();
-    const db = getFirestore();
-
-    // Listen for auth state changes
-    const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          setIsLoading(true);
-          const phoneNumber = user.phoneNumber?.replace("+91", "") || "";
-          const collections = ["K-member", "normal", "president"];
-
-          // Set up real-time listeners for each possible collection
-          const unsubscribers = collections.map((collectionName) => {
-            const userDocRef = doc(db, collectionName, phoneNumber);
-            return onSnapshot(userDocRef, (docSnapshot) => {
-              if (docSnapshot.exists()) {
-                const userData = docSnapshot.data();
-                const name = userData.firstName || userData.FirstName || "User";
-                setFirstName(name);
-                setIsLoading(false);
-              }
-            });
-          });
-
-          // Initial check for user data
-          for (const collection of collections) {
-            const docRef = doc(db, collection, phoneNumber);
-            const userDoc = await getDoc(docRef);
-            if (userDoc.exists()) {
-              const userData = userDoc.data();
-              const name = userData.firstName || userData.FirstName || "User";
-              setFirstName(name);
-              break;
-            }
-          }
-
-          return () => {
-            // Cleanup all collection listeners
-            unsubscribers.forEach((unsubscribe) => unsubscribe());
-          };
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-          setFirstName("User");
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
-        setFirstName("User");
-        setIsLoading(false);
-      }
-    });
-
-    // Cleanup auth listener
-    return () => {
-      authUnsubscribe();
-    };
-  }, []); // Empty dependency array means this runs once when component mounts
-
-  // Add this effect hook after your other useEffect hooks
-  useEffect(() => {
-    const auth = getAuth();
-    const db = getFirestore();
-
-    // Listen for auth state changes
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const phoneNumber = user.phoneNumber?.replace("+91", "") || "";
-          const collections = ["K-member", "normal", "president"];
-
-          // Check each collection for user data
-          for (const collection of collections) {
-            const userDocRef = doc(db, collection, phoneNumber);
-            const userDoc = await getDoc(userDocRef);
-
-            if (userDoc.exists()) {
-              const userData = userDoc.data();
-              // Check both firstName and FirstName fields
-              const name = userData.firstName || userData.FirstName || "User";
-              setFirstName(name);
-              break; // Exit loop once user is found
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-          setFirstName("User");
-        }
-      } else {
-        setFirstName("User");
-      }
-    });
-
-    // Cleanup subscription
-    return () => unsubscribe();
-  }, []); // Empty dependency array means this runs once when component mounts
 
   if (!fontsLoaded) {
     return null;
