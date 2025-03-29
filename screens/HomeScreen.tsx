@@ -590,37 +590,43 @@ export default function HomeScreen({ navigation }: Props) {
 
         {/* Quick Actions Section */}
         <View style={styles.sectionContainer}>
+          <Text style={styles.sectionHeader}>Quick Actions</Text>
           <View style={styles.cardsGrid}>
             {[
               {
                 title: "Activities",
-                icon: "list",
+                icon: "layers",
                 description: "View all activities",
                 color: "#8B5CF6",
+                onPress: () => navigation.navigate("Activities"),
               },
               {
                 title: "Rules & RGL",
                 icon: "book",
                 description: "Check guidelines",
                 color: "#EC4899",
+                onPress: () => navigation.navigate("RulesAndRegulations"),
               },
               {
                 title: "Upcoming",
                 icon: "calendar",
                 description: "View schedule",
                 color: "#10B981",
+                onPress: () => navigation.navigate("Upcoming"),
               },
               {
                 title: "Today's Story",
                 icon: "document-text",
                 description: "Daily updates",
                 color: "#F59E0B",
+                onPress: () => navigation.navigate("TodayStory"),
               },
             ].map((item, index) => (
               <View key={index} style={styles.cardWrapper}>
                 <TouchableOpacity
                   style={[styles.card, { borderLeftColor: item.color }]}
                   activeOpacity={0.7}
+                  onPress={item.onPress}
                 >
                   <View style={styles.cardContent}>
                     <View style={styles.cardHeader}>
@@ -850,7 +856,7 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   sectionContainer: {
-    marginTop: 20,
+    marginTop: 10,
     marginBottom: 25,
     paddingHorizontal: 20,
   },

@@ -49,6 +49,10 @@ import PayLoanDueScreen from "./screens/PayLoanDueScreen";
 import ViewReportsScreen from "./screens/ViewReportsScreen";
 import ProductApprovalScreen from "./screens/ProductApprovalScreen";
 import AttendanceScreen from "./screens/AttendanceScreen";
+import ActivitiesScreen from "./screens/ActivitiesScreen"; // New import
+import RulesAndRegulationsScreen from "./screens/RulesAndRegulationsScreen"; // New import
+import UpcomingScreen from "./screens/UpcomingScreen"; // New import
+import TodayStoryScreen from "./screens/TodayStoryScreen"; // New import
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -102,19 +106,19 @@ function KMemberTabs({ route }) {
         },
       })}
     >
-      <Tab.Screen 
-        name="Home" 
-        component={HomeScreen} 
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
         initialParams={{ phoneNumber }}
       />
-      <Tab.Screen 
-        name="Details" 
-        component={KudumbashreeDetailsScreen} 
+      <Tab.Screen
+        name="Details"
+        component={KudumbashreeDetailsScreen}
         initialParams={{ phoneNumber }}
       />
-      <Tab.Screen 
-        name="Market" 
-        component={MarketplaceScreen} 
+      <Tab.Screen
+        name="Market"
+        component={MarketplaceScreen}
         initialParams={{ cart: [] }}
       />
       <Tab.Screen
@@ -168,9 +172,9 @@ function NormalUserTabs({ route }) {
         },
       })}
     >
-      <Tab.Screen 
-        name="Market" 
-        component={MarketplaceScreen} 
+      <Tab.Screen
+        name="Market"
+        component={MarketplaceScreen}
         initialParams={{ cart: [] }}
       />
       <Tab.Screen
@@ -215,7 +219,7 @@ function PresidentStack() {
         name="ScheduleMeeting"
         component={ScheduleMeetingScreen}
         options={{
-          headerShown: false
+          headerShown: false,
         }}
       />
       <Stack.Screen
@@ -449,6 +453,30 @@ export default function App() {
                 fontFamily: "Poppins_600SemiBold",
               },
             }}
+          />
+          <Stack.Screen
+            name="Activities"
+            component={ActivitiesScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="RulesAndRegulations"
+            component={RulesAndRegulationsScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="Upcoming"
+            component={UpcomingScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="TodayStory"
+            component={TodayStoryScreen}
+            options={{ headerShown: false }}
           />
         </Stack.Navigator>
       </NavigationContainer>
