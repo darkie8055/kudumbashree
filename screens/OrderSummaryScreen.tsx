@@ -1,11 +1,31 @@
 "use client"
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Image, Modal, ActivityIndicator } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import QRCode from 'react-native-qrcode-svg'
 import Toast from 'react-native-toast-message'
+
+// Create a separate Timer component outside the main component
+const TimerComponent = ({ seconds, onTimeout }) => {
+  useEffect(() => {
+    const interval = setInterval(() => {
+      seconds > 0 && onTimeout(seconds - 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [seconds]);
+
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+
+  return (
+    <Text style={styles.timerText}>
+      Time remaining: {minutes}:{remainingSeconds.toString().padStart(2, '0')}
+    </Text>
+  );
+};
 
 export default function OrderSummaryScreen({ navigation, route }) {
   const { 
@@ -29,7 +49,6 @@ export default function OrderSummaryScreen({ navigation, route }) {
   const [paymentSuccess, setPaymentSuccess] = useState(false)
   const [appliedDiscount, setAppliedDiscount] = useState(0)
   const [promoApplied, setPromoApplied] = useState(false)
-  const timerRef = useRef(null);
 
   const subtotal = cart.reduce((total, item) => total + item.product.price * item.quantity, 0)
   const discount = promoApplied ? (subtotal * 0.99) : 9.5
@@ -40,50 +59,109 @@ export default function OrderSummaryScreen({ navigation, route }) {
     return `upi://pay?pa=gamestriker8055@okaxis&pn=Kudumbashree&am=${total.toFixed(2)}&cu=INR`;
   }, [total]);
 
-  const timerDisplay = useMemo(() => {
-    const minutes = Math.floor(paymentTimer / 60);
-    const seconds = paymentTimer % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  }, [paymentTimer]);
+  // Memoize QR code component to prevent re-renders
+  const QRCodeComponent = useMemo(() => {
+    return (
+      <View style={[styles.qrContainer, styles.qrShadow]}>
+        <QRCode
+          value={qrValue}
+          size={200}
+          quietZone={10}
+          backgroundColor="#fff"
+          color="#000"
+          ecl="H"
+          logo={require('../assets/icon.png')}
+          logoSize={50}
+          logoBackgroundColor="white"
+        />
+      </View>
+    );
+  }, [qrValue]);
 
-  const startPaymentTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-
-    timerRef.current = setInterval(() => {
-      setPaymentTimer((prev) => {
-        if (prev <= 1) {
-          if (timerRef.current) {
-            clearInterval(timerRef.current);
-          }
-          setIsPaymentTimedOut(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      setPaymentTimer(300);
-      setIsPaymentTimedOut(false);
-      setShowPaymentQR(false);
-    };
-  }, []);
+  // Update PaymentQRModal to use TimerComponent
+  const PaymentQRModal = useMemo(() => {
+    return () => (
+      <Modal
+        animationType="none"
+        transparent={true}
+        visible={showPaymentQR}
+        onRequestClose={() => !isProcessingPayment && setShowPaymentQR(false)}
+        statusBarTranslucent
+      >
+        <View style={[styles.modalContainer, StyleSheet.absoluteFill]}>
+          <View style={styles.modalContent}>
+            {paymentSuccess ? (
+              <>
+                <View style={styles.successIcon}>
+                  <Ionicons name="checkmark-circle" size={60} color="#69C779" />
+                </View>
+                <Text style={styles.successTitle}>Payment Successful!</Text>
+                <TouchableOpacity 
+                  style={styles.doneButton}
+                  onPress={handleDone}
+                >
+                  <Text style={styles.doneButtonText}>Done</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Scan to Pay</Text>
+                {QRCodeComponent}
+                <TimerComponent
+                  seconds={paymentTimer}
+                  onTimeout={setPaymentTimer}
+                />
+                {isPaymentTimedOut ? (
+                  <Text style={styles.timeoutText}>Payment timed out. Please try again.</Text>
+                ) : (
+                  <TouchableOpacity 
+                    style={[styles.verifyPaymentButton, isProcessingPayment && styles.processingButton]}
+                    onPress={handlePaymentVerification}
+                    disabled={isProcessingPayment}
+                  >
+                    {isProcessingPayment ? (
+                      <View style={styles.processingContainer}>
+                        <ActivityIndicator color="#fff" />
+                        <Text style={[styles.verifyPaymentButtonText, styles.processingText]}>
+                          Processing...
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.verifyPaymentButtonText}>
+                        I have made the payment
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+                {!isProcessingPayment && (
+                  <TouchableOpacity 
+                    style={styles.cancelButton}
+                    onPress={() => {
+                      setShowPaymentQR(false);
+                      setPaymentTimer(300);
+                      setIsPaymentTimedOut(false);
+                    }}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+    );
+  }, [showPaymentQR, isProcessingPayment, paymentSuccess, QRCodeComponent, paymentTimer, isPaymentTimedOut]);
 
   const handlePlaceOrder = useCallback(() => {
     if (paymentMethod.type === 'upi') {
+      setPaymentTimer(300);
+      setIsPaymentTimedOut(false);
       setShowPaymentQR(true);
-      startPaymentTimer();
     } else {
       proceedWithOrder();
     }
-  }, [paymentMethod, startPaymentTimer]);
+  }, [paymentMethod]);
 
   const proceedWithOrder = () => {
     const orderId = Math.floor(Math.random() * 90000) + 10000
@@ -109,9 +187,6 @@ export default function OrderSummaryScreen({ navigation, route }) {
     setPaymentSuccess(false);
     setPaymentTimer(300);
     setIsPaymentTimedOut(false);
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
     proceedWithOrder();
   };
 
@@ -275,92 +350,6 @@ export default function OrderSummaryScreen({ navigation, route }) {
       )}
     </View>
   );
-
-  const PaymentQRModal = useMemo(() => {
-    return () => (
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={showPaymentQR}
-        onRequestClose={() => !isProcessingPayment && setShowPaymentQR(false)}
-        statusBarTranslucent
-        hardwareAccelerated={true}
-      >
-        <View style={[styles.modalContainer, StyleSheet.absoluteFill]}>
-          <View style={styles.modalContent}>
-            {paymentSuccess ? (
-              <>
-                <View style={styles.successIcon}>
-                  <Ionicons name="checkmark-circle" size={60} color="#69C779" />
-                </View>
-                <Text style={styles.successTitle}>Payment Successful!</Text>
-                <TouchableOpacity 
-                  style={styles.doneButton}
-                  onPress={handleDone}
-                >
-                  <Text style={styles.doneButtonText}>Done</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <Text style={styles.modalTitle}>Scan to Pay</Text>
-                <View style={[styles.qrContainer, styles.qrShadow]}>
-                  <QRCode
-                    value={qrValue}
-                    size={200}
-                    quietZone={10}
-                    backgroundColor="#fff"
-                    color="#000"
-                    ecl="H"
-                  />
-                </View>
-                <Text style={styles.timerText}>
-                  Time remaining: {timerDisplay}
-                </Text>
-                {isPaymentTimedOut ? (
-                  <Text style={styles.timeoutText}>Payment timed out. Please try again.</Text>
-                ) : (
-                  <TouchableOpacity 
-                    style={[styles.verifyPaymentButton, isProcessingPayment && styles.processingButton]}
-                    onPress={handlePaymentVerification}
-                    disabled={isProcessingPayment}
-                  >
-                    {isProcessingPayment ? (
-                      <View style={styles.processingContainer}>
-                        <ActivityIndicator color="#fff" />
-                        <Text style={[styles.verifyPaymentButtonText, styles.processingText]}>
-                          Processing...
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.verifyPaymentButtonText}>
-                        I have made the payment
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                )}
-                {!isProcessingPayment && (
-                  <TouchableOpacity 
-                    style={styles.cancelButton}
-                    onPress={() => {
-                      setShowPaymentQR(false);
-                      if (timerRef.current) {
-                        clearInterval(timerRef.current);
-                      }
-                      setPaymentTimer(300);
-                      setIsPaymentTimedOut(false);
-                    }}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                )}
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
-    );
-  }, [showPaymentQR, qrValue, timerDisplay, isPaymentTimedOut, isProcessingPayment, paymentSuccess]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -691,6 +680,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   qrShadow: {
     shadowColor: "#000",
