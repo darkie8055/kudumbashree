@@ -6,6 +6,8 @@ import {
   ScrollView,
   Animated,
   Easing,
+  BackHandler,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -16,8 +18,8 @@ import {
   Poppins_600SemiBold,
   Poppins_700Bold,
 } from "@expo-google-fonts/poppins";
-import { useNavigation } from "@react-navigation/native";
-import { useState, useEffect } from "react";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import React, { useState, useEffect } from "react";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../types/navigation";
 import LoanApprovalScreen from "./LoanApprovalScreen";
@@ -40,6 +42,41 @@ export default function PresidentDashboardScreen({ navigation }: Props) {
     Poppins_600SemiBold,
     Poppins_700Bold,
   });
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        return true; // Prevent going back
+      };
+
+      BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      navigation.setOptions({
+        gestureEnabled: false,
+      });
+
+      return () =>
+        BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+    }, [navigation])
+  );
+
+  const handleLogout = () => {
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: () => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Login" }],
+          });
+        },
+      },
+    ]);
+  };
 
   useEffect(() => {
     Animated.timing(animation, {
@@ -138,6 +175,9 @@ export default function PresidentDashboardScreen({ navigation }: Props) {
       >
         <View style={styles.headerContent}>
           <Text style={styles.greeting}>DashBoard</Text>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={24} color="#fff" />
+          </TouchableOpacity>
         </View>
       </LinearGradient>
 
@@ -250,8 +290,16 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   headerContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 24,
     paddingTop: 5,
+  },
+  logoutButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   greeting: {
     fontFamily: "Poppins_700Bold",
@@ -286,7 +334,7 @@ const styles = StyleSheet.create({
   sectionHeaderContent: {
     paddingVertical: 16,
     paddingHorizontal: 20,
-    paddingTop:0,
+    paddingTop: 0,
   },
   sectionHeader: {
     flexDirection: "row",

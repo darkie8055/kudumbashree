@@ -15,6 +15,7 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
+  BackHandler,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -38,6 +39,7 @@ import {
 } from "firebase/firestore";
 import { firebase } from "../firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">;
 
@@ -299,6 +301,28 @@ export default function HomeScreen({ navigation }: Props) {
 
     return () => clearInterval(interval);
   }, [notices.length, expandedNotice, pauseScroll]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        // Prevent going back
+        return true;
+      };
+
+      // Add back button listener
+      BackHandler.addEventListener("hardwareBackPress", onBackPress);
+
+      // Disable gesture navigation
+      navigation.setOptions({
+        gestureEnabled: false,
+      });
+
+      // Cleanup
+      return () => {
+        BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+      };
+    }, [navigation])
+  );
 
   const scrollLeft = () => {
     if (newsListRef.current) {

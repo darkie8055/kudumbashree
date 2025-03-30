@@ -199,7 +199,10 @@ function PresidentStack() {
       <Stack.Screen
         name="PresidentDashboard"
         component={PresidentDashboardScreen}
-        options={{ headerShown: false }}
+        options={{
+          headerShown: false,
+          gestureEnabled: false,
+        }}
       />
       <Stack.Screen
         name="ApprovedMembers"
@@ -337,6 +340,7 @@ export default function App() {
             name="PresidentDashboard"
             component={PresidentDashboardScreen}
             options={{
+              headerShown: false,
               gestureEnabled: false,
             }}
           />
@@ -452,6 +456,14 @@ export default function App() {
               headerTitleStyle: {
                 fontFamily: "Poppins_600SemiBold",
               },
+            }}
+          />
+          <Stack.Screen
+            name="Home"
+            component={HomeScreen}
+            options={{
+              headerShown: false,
+              gestureEnabled: false, // Disable gesture navigation
             }}
           />
           <Stack.Screen
