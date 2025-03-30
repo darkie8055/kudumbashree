@@ -3,11 +3,14 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   Animated,
   ScrollView,
   Dimensions,
   Alert,
+  Linking,
+  Platform,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { createStackNavigator } from "@react-navigation/stack";
@@ -85,6 +88,96 @@ interface UnitDetails {
   secretaryDetails: { name: string; phone?: string; role: string };
 }
 
+interface ContactOptionsProps {
+  visible: boolean;
+  onClose: () => void;
+  name: string;
+  phone: string;
+}
+
+const ContactOptions: React.FC<ContactOptionsProps> = ({
+  visible,
+  onClose,
+  name,
+  phone,
+}) => {
+  return (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <View style={styles.modalContainer}>
+          <LinearGradient
+            colors={["#7C3AED", "#C026D3"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.modalHeader}
+          >
+            <Text style={styles.modalTitle}>Contact {name}</Text>
+          </LinearGradient>
+
+          <View style={styles.modalContent}>
+            <Pressable
+              style={styles.contactOption}
+              onPress={() => {
+                onClose();
+                Linking.openURL(`tel:${phone}`);
+              }}
+            >
+              <View style={[styles.optionIcon, { backgroundColor: "#EDE9FE" }]}>
+                <Ionicons name="call" size={24} color="#8B5CF6" />
+              </View>
+              <View style={styles.optionText}>
+                <Text style={styles.optionTitle}>Call</Text>
+                <Text style={styles.optionDescription}>{phone}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#8B5CF6" />
+            </Pressable>
+
+            <Pressable
+              style={styles.contactOption}
+              onPress={() => {
+                onClose();
+                const url = `whatsapp://send?phone=91${phone}`;
+                Linking.canOpenURL(url).then((supported) => {
+                  if (supported) {
+                    return Linking.openURL(url);
+                  }
+                  Alert.alert(
+                    "WhatsApp not installed",
+                    "Please install WhatsApp to use this feature"
+                  );
+                });
+              }}
+            >
+              <View style={[styles.optionIcon, { backgroundColor: "#DCFCE7" }]}>
+                <Ionicons name="logo-whatsapp" size={24} color="#10B981" />
+              </View>
+              <View style={styles.optionText}>
+                <Text style={styles.optionTitle}>WhatsApp</Text>
+                <Text style={styles.optionDescription}>Send a message</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#10B981" />
+            </Pressable>
+          </View>
+
+          <LinearGradient
+            colors={["rgba(139, 92, 246, 0.1)", "rgba(236, 72, 153, 0.1)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.cancelButton}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </LinearGradient>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+};
+
 // Update to get data from the tab navigator
 function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
   const [animation] = useState(new Animated.Value(0));
@@ -97,6 +190,8 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
   const [loading, setLoading] = useState(true);
   const [memberData, setMemberData] = useState<MemberData | null>(null);
   const [unitDetails, setUnitDetails] = useState<UnitDetails | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [currentContact, setCurrentContact] = useState({ name: "", phone: "" });
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -171,6 +266,11 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
       useNativeDriver: true,
     }).start();
   }, []);
+
+  const handleContactPress = (name: string, phone: string) => {
+    setCurrentContact({ name, phone });
+    setModalVisible(true);
+  };
 
   if (!fontsLoaded) {
     return null;
@@ -281,10 +381,9 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
                     },
                   ]}
                 >
-                  <TouchableOpacity
+                  <Pressable
                     style={[styles.card, { borderLeftColor: item.color }]}
                     onPress={item.onPress}
-                    activeOpacity={0.7}
                   >
                     <View style={styles.cardContent}>
                       <View style={styles.cardHeader}>
@@ -313,7 +412,7 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
                         {item.description}
                       </Text>
                     </View>
-                  </TouchableOpacity>
+                  </Pressable>
                 </Animated.View>
               ))}
             </View>
@@ -328,7 +427,20 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
               end={{ x: 1, y: 1 }}
               style={styles.detailsContainer}
             >
-              <View style={styles.detailItem}>
+              {/* President Details */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.detailItem,
+                  pressed && styles.detailItemPressed,
+                ]}
+                onPress={() =>
+                  handleContactPress(
+                    unitDetails?.presidentDetails?.name || "",
+                    unitDetails?.presidentDetails?.phone || ""
+                  )
+                }
+                android_ripple={{ color: "rgba(139, 92, 246, 0.1)" }}
+              >
                 <View style={styles.detailIconContainer}>
                   <Ionicons name="person-outline" size={18} color="#8B5CF6" />
                 </View>
@@ -338,14 +450,29 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
                     <Text style={styles.detailName}>
                       {unitDetails?.presidentDetails?.name || "Loading..."}
                     </Text>
-                    <Text style={styles.detailPhone}>
-                      {unitDetails?.presidentDetails?.phone}
-                    </Text>
+                    <View style={styles.phoneWrapper}>
+                      <Text style={styles.detailPhone}>
+                        {unitDetails?.presidentDetails?.phone}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+              </Pressable>
 
-              <View style={styles.detailItem}>
+              {/* Secretary Details */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.detailItem,
+                  pressed && styles.detailItemPressed,
+                ]}
+                onPress={() =>
+                  handleContactPress(
+                    unitDetails?.secretaryDetails?.name || "",
+                    unitDetails?.secretaryDetails?.phone || ""
+                  )
+                }
+                android_ripple={{ color: "rgba(139, 92, 246, 0.1)" }}
+              >
                 <View style={styles.detailIconContainer}>
                   <Ionicons name="people-outline" size={18} color="#8B5CF6" />
                 </View>
@@ -355,16 +482,32 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
                     <Text style={styles.detailName}>
                       {unitDetails?.secretaryDetails?.name || "Loading..."}
                     </Text>
-                    <Text style={styles.detailPhone}>
-                      {unitDetails?.secretaryDetails?.phone}
-                    </Text>
+                    <View style={styles.phoneWrapper}>
+                      <Text style={styles.detailPhone}>
+                        {unitDetails?.secretaryDetails?.phone}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+              </Pressable>
 
+              {/* Committee Details */}
               {Object.entries(unitDetails?.committees || {}).map(
                 ([name, details]) => (
-                  <View key={name} style={styles.detailItem}>
+                  <Pressable
+                    key={name}
+                    style={({ pressed }) => [
+                      styles.detailItem,
+                      pressed && styles.detailItemPressed,
+                    ]}
+                    onPress={() =>
+                      handleContactPress(
+                        details.coordinator || "",
+                        details.coordinatorPhone || ""
+                      )
+                    }
+                    android_ripple={{ color: "rgba(139, 92, 246, 0.1)" }}
+                  >
                     <View style={styles.detailIconContainer}>
                       <Ionicons
                         name={getCommitteeIcon(name)}
@@ -380,12 +523,14 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
                         <Text style={styles.detailName}>
                           {details.coordinator || "Not assigned"}
                         </Text>
-                        <Text style={styles.detailPhone}>
-                          {details.coordinatorPhone}
-                        </Text>
+                        <View style={styles.phoneWrapper}>
+                          <Text style={styles.detailPhone}>
+                            {details.coordinatorPhone}
+                          </Text>
+                        </View>
                       </View>
                     </View>
-                  </View>
+                  </Pressable>
                 )
               )}
             </LinearGradient>
@@ -394,10 +539,9 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
           {/* Linkage Loan Section */}
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionHeader}>Linkage Loan</Text>
-            <TouchableOpacity
+            <Pressable
               style={styles.actionCard}
               onPress={() => navigation.navigate("LinkageLoan")}
-              activeOpacity={0.7}
             >
               <View style={styles.actionCardContent}>
                 <View style={styles.actionCardHeader}>
@@ -418,14 +562,14 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
                   Check your linkage loan status and details
                 </Text>
               </View>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Loan Actions Section */}
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionHeader}>Loan Actions</Text>
             <View style={styles.loanActionsContainer}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.actionCard}
                 onPress={() =>
                   (navigation as MainDetailsScreenNavigationProp).navigate(
@@ -435,7 +579,6 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
                     }
                   )
                 }
-                activeOpacity={0.7}
               >
                 <View style={styles.actionCardContent}>
                   <View style={styles.actionCardHeader}>
@@ -462,13 +605,9 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
                     Submit a new loan application
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
-                style={styles.actionCard}
-                onPress={handlePayWeeklyDue}
-                activeOpacity={0.7}
-              >
+              <Pressable style={styles.actionCard} onPress={handlePayWeeklyDue}>
                 <View style={styles.actionCardContent}>
                   <View style={styles.actionCardHeader}>
                     <View
@@ -494,11 +633,17 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
                     Make your weekly due payment
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </Animated.View>
       </ScrollView>
+      <ContactOptions
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        name={currentContact.name}
+        phone={currentContact.phone}
+      />
     </SafeAreaView>
   );
 }
@@ -579,7 +724,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom:70,
+    paddingBottom: 70,
   },
   header: {
     paddingTop: 20,
@@ -655,9 +800,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 12,
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(139, 92, 246, 0.1)",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.1)",
+  },
+  detailItemPressed: {
+    backgroundColor: "rgba(139, 92, 246, 0.05)",
+    transform: [{ scale: 0.98 }],
   },
   detailIconContainer: {
     width: 36,
@@ -688,12 +840,22 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_400Regular",
     fontSize: 12,
     color: "#6B7280",
+    textDecorationLine: "underline",
   },
   namePhoneContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     flex: 1,
+  },
+  phoneWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(139, 92, 246, 0.08)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
   },
   linkageLoanButton: {
     flexDirection: "row",
@@ -874,5 +1036,80 @@ const styles = StyleSheet.create({
   },
   badgeIcon: {
     marginRight: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContainer: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 20,
+    maxHeight: "50%",
+  },
+  modalHeader: {
+    padding: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  modalTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 18,
+    color: "#fff",
+  },
+  modalContent: {
+    padding: 16,
+  },
+  contactOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  optionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  optionText: {
+    flex: 1,
+  },
+  optionTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "#1F2937",
+    marginBottom: 2,
+  },
+  optionDescription: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  cancelButton: {
+    marginTop: 8,
+    marginHorizontal: 16,
+    padding: 16,
+    borderRadius: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  cancelButtonText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "#8B5CF6",
+    letterSpacing: 0.5,
   },
 });
