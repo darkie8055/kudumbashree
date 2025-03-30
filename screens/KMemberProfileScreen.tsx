@@ -105,15 +105,49 @@ export default function KMemberProfileScreen({ route, navigation }: Props) {
   }, [phoneNumber]);
 
   useEffect(() => {
-    if (userDetails) {
-      const today = new Date();
-      const registrationDate = new Date(userDetails.createdAt || today);
+    const calculateMembershipDays = async () => {
+      try {
+        if (userDetails) {
+          const db = getFirestore();
+          const unitDoc = await getDoc(
+            doc(db, "unitDetails", userDetails.unitNumber)
+          );
 
-      const diffTime = Math.abs(today.getTime() - registrationDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      setMembershipDays(Math.max(1, diffDays));
-    }
-  }, [userDetails]); // Add userDetails as dependency
+          if (unitDoc.exists()) {
+            const unitData = unitDoc.data();
+            const memberInfo = unitData.members?.find(
+              (member: any) => member.phone === phoneNumber
+            );
+
+            const today = new Date();
+            let startDate;
+
+            if (memberInfo?.joinedAt) {
+              // Use member's joinedAt date if available
+              startDate = new Date(memberInfo.joinedAt);
+            } else {
+              // Use March 1st, 2025 as fallback
+              startDate = new Date("2025-03-01T00:00:00.000Z");
+            }
+
+            const diffTime = Math.abs(today.getTime() - startDate.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            setMembershipDays(Math.max(1, diffDays));
+          }
+        }
+      } catch (error) {
+        console.error("Error calculating membership days:", error);
+        // Use March 1st, 2025 as fallback if there's an error
+        const today = new Date();
+        const startDate = new Date("2025-03-01T00:00:00.000Z");
+        const diffTime = Math.abs(today.getTime() - startDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        setMembershipDays(Math.max(1, diffDays));
+      }
+    };
+
+    calculateMembershipDays();
+  }, [userDetails, phoneNumber]);
 
   const handleEditButton = async () => {
     if (isEditing && userDetails) {
@@ -142,28 +176,24 @@ export default function KMemberProfileScreen({ route, navigation }: Props) {
   };
 
   const handleLogout = async () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        {
-          text: "No",
-          style: "cancel"
-        },
-        {
-          text: "Yes",
-          onPress: async () => {
-            try {
-              await auth.signOut();
-              navigation.replace("Login");
-            } catch (error) {
-              console.error("Error logging out:", error);
-              Alert.alert("Error", "Failed to log out");
-            }
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      {
+        text: "No",
+        style: "cancel",
+      },
+      {
+        text: "Yes",
+        onPress: async () => {
+          try {
+            await auth.signOut();
+            navigation.replace("Login");
+          } catch (error) {
+            console.error("Error logging out:", error);
+            Alert.alert("Error", "Failed to log out");
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
   if (!fontsLoaded || loading) {
@@ -373,10 +403,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingBottom: 90,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 90,
   },
   header: {
     paddingTop: 10, // Reduced from 20

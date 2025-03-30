@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   },
   learnMoreContainer: {
     marginTop: 8,
-    marginBottom: 24,
+    marginBottom: 40,
   },
   learnMoreWrapper: {
     borderRadius: 16,

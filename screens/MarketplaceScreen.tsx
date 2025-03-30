@@ -821,7 +821,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingBottom: 90,
+    paddingBottom: 30,
     fontFamily: "Poppins_600SemiBold",
   },
   header: {

@@ -488,18 +488,19 @@ export default function App() {
 const styles = StyleSheet.create({
   tabBar: {
     position: "absolute",
-    backgroundColor: "rgba(255, 255, 255, 1)",
-    elevation: 0,
+    backgroundColor: "#FFFFFF",
+    elevation: 8,
     borderTopWidth: 0,
-    height: 0,
-    bottom: 70,
+    height: 70,
+    bottom: 0,
     left: 20,
     right: 20,
-    borderRadius: 30,
+    borderRadius: 0,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
+    paddingBottom: 10,
   },
   tabCircle: {
     width: 50,
@@ -511,6 +512,9 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     backgroundColor: "#8B5CF6",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
   inactiveTab: {
     backgroundColor: "transparent",

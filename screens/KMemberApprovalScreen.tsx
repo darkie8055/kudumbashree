@@ -28,6 +28,9 @@ import {
   doc,
   updateDoc,
   getDoc,
+  arrayUnion,
+  writeBatch,
+  getFirestore,
 } from "firebase/firestore";
 import * as FileSystem from "expo-file-system";
 
@@ -58,24 +61,16 @@ export default function KMemberApprovalScreen({ navigation }) {
     Poppins_700Bold,
   });
 
-  // Move fetchKMembers outside of useEffect and make it a function of the component
   const fetchKMembers = async () => {
     try {
       setLoading(true);
-      const user = getAuth().currentUser;
+      const db = getFirestore();
+      const kMembersRef = collection(db, "K-member");
 
-      if (!user) {
-        Alert.alert("Error", "Not authenticated");
-        return;
-      }
-
-      console.log("Current president phone:", user.phoneNumber);
-
-      const kMembersRef = collection(firebase, "K-member");
       // Query for pending members matching president's phone number
       const q = query(
         kMembersRef,
-        where("presidentId", "==", "9072160767"), // Use exact match for presidentId
+        where("presidentId", "==", "9072160767"),
         where("status", "==", "pending")
       );
 
@@ -105,21 +100,110 @@ export default function KMemberApprovalScreen({ navigation }) {
     fetchKMembers();
   }, []);
 
-  // Update handleApprove to use firebase instead of db
   const handleApprove = async (phone: string) => {
     try {
-      const kmemberDoc = await getDoc(doc(firebase, "K-member", phone));
+      const db = getFirestore();
+      const batch = writeBatch(db);
+
+      // First, get the member document
+      const kmemberDoc = await getDoc(doc(db, "K-member", phone));
       if (!kmemberDoc.exists()) {
         Alert.alert("Error", "Member data not found");
         return;
       }
 
-      await updateDoc(doc(firebase, "K-member", phone), {
+      const memberData = kmemberDoc.data();
+      const unitNumber = memberData.unitNumber;
+
+      // Update K-member status
+      const kmemberRef = doc(db, "K-member", phone);
+      batch.update(kmemberRef, {
         status: "approved",
       });
 
-      fetchKMembers(); // Refresh the list
-      Alert.alert("Success", "Member approved successfully");
+      // Update unit details with new member
+      const unitRef = doc(db, "unitDetails", unitNumber);
+      const memberInfo = {
+        phone: phone,
+        name: `${memberData.firstName} ${memberData.lastName}`,
+        joinedAt: new Date().toISOString(),
+        role: "Member",
+        committee: memberData.committee || "general", // Add committee if specified
+      };
+
+      // First check if unitDetails document exists
+      const unitDoc = await getDoc(unitRef);
+      if (unitDoc.exists()) {
+        // Get the existing data
+        const unitData = unitDoc.data();
+
+        // If committee is specified, add member to committee members array
+        if (
+          memberData.committee &&
+          unitData.committees?.[memberData.committee]
+        ) {
+          batch.update(unitRef, {
+            [`committees.${memberData.committee}.members`]: arrayUnion(
+              memberData.firstName + " " + memberData.lastName
+            ),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+
+        // Add member to general members list
+        batch.update(unitRef, {
+          members: arrayUnion(memberInfo),
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        // If unit doesn't exist, create new with basic structure
+        batch.set(unitRef, {
+          unitNumber: unitNumber,
+          unitName: memberData.unitName,
+          members: [memberInfo],
+          committees: {
+            samatheeka: {
+              coordinator: "",
+              members: [],
+            },
+            adisthana: {
+              coordinator: "",
+              members: [],
+            },
+            vidyabhyasa: {
+              coordinator: "",
+              members: [],
+            },
+            upjeevana: {
+              coordinator: "",
+              members: [],
+            },
+          },
+          meetings: {
+            frequency: "Weekly",
+            day: "Sunday",
+            time: "4:00 PM",
+          },
+          presidentDetails: {
+            name: "Pending",
+            phone: memberData.presidentId,
+            role: "President",
+          },
+          secretaryDetails: {
+            name: "Pending",
+            role: "Secretary",
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
+      // Commit the batch
+      await batch.commit();
+
+      // Refresh the members list
+      fetchKMembers();
+      Alert.alert("Success", "Member approved and added to unit successfully");
     } catch (error) {
       console.error("Error approving member:", error);
       Alert.alert("Error", "Failed to approve member");

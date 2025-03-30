@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F3F4F6",
-    paddingBottom:80,
+    paddingBottom:70,
   },
   header: {
     padding: 20,
@@ -426,6 +426,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    marginBottom:50,
+    paddingBottom:0,
   },
   statGrid: {
     flexDirection: "row",

@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F3F4F6",
-    paddingBottom: 80,
+    paddingBottom: 70,
   },
   loader: {
     flex: 1,
@@ -376,6 +376,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 3,
+    marginBottom:50,
   },
   sectionTitle: {
     fontFamily: "Poppins_600SemiBold",

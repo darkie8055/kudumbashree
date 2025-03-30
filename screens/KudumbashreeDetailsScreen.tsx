@@ -58,6 +58,33 @@ interface MemberData {
   id: string;
 }
 
+interface UnitDetails {
+  committees: {
+    samatheeka: {
+      coordinator: string;
+      members: string[];
+      coordinatorPhone?: string;
+    };
+    adisthana: {
+      coordinator: string;
+      members: string[];
+      coordinatorPhone?: string;
+    };
+    vidyabhyasa: {
+      coordinator: string;
+      members: string[];
+      coordinatorPhone?: string;
+    };
+    upjeevana: {
+      coordinator: string;
+      members: string[];
+      coordinatorPhone?: string;
+    };
+  };
+  presidentDetails: { name: string; phone: string; role: string };
+  secretaryDetails: { name: string; phone?: string; role: string };
+}
+
 // Update to get data from the tab navigator
 function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
   const [animation] = useState(new Animated.Value(0));
@@ -69,12 +96,25 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
   });
   const [loading, setLoading] = useState(true);
   const [memberData, setMemberData] = useState<MemberData | null>(null);
+  const [unitDetails, setUnitDetails] = useState<UnitDetails | null>(null);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
     Poppins_700Bold,
   });
+
+  const fetchUnitDetails = async (unitNumber: string) => {
+    try {
+      const db = getFirestore();
+      const unitDoc = await getDoc(doc(db, "unitDetails", unitNumber));
+      if (unitDoc.exists()) {
+        setUnitDetails(unitDoc.data() as UnitDetails);
+      }
+    } catch (error) {
+      console.error("Error fetching unit details:", error);
+    }
+  };
 
   useEffect(() => {
     const fetchMemberData = async () => {
@@ -107,6 +147,9 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
             presidentName: data.presidentName || "",
             secretaryName: data.secretaryName || "",
           });
+
+          // Fetch unit details after getting member data
+          await fetchUnitDetails(data.unitNumber);
         } else {
           console.warn("Member document not found");
         }
@@ -280,63 +323,71 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionHeader}>Unit Details</Text>
             <LinearGradient
-              colors={["rgba(139, 92, 246, 0.1)", "rgba(236, 72, 153, 0.1)"]}
+              colors={["rgba(139, 92, 246, 0.08)", "rgba(236, 72, 153, 0.08)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={styles.detailsContainer}
             >
               <View style={styles.detailItem}>
-                <Ionicons
-                  name="person-outline"
-                  size={20}
-                  color="#8B5CF6"
-                  style={styles.detailIcon}
-                />
-                <Text style={styles.detailText}>President</Text>
+                <View style={styles.detailIconContainer}>
+                  <Ionicons name="person-outline" size={18} color="#8B5CF6" />
+                </View>
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailRole}>President</Text>
+                  <View style={styles.namePhoneContainer}>
+                    <Text style={styles.detailName}>
+                      {unitDetails?.presidentDetails?.name || "Loading..."}
+                    </Text>
+                    <Text style={styles.detailPhone}>
+                      {unitDetails?.presidentDetails?.phone}
+                    </Text>
+                  </View>
+                </View>
               </View>
+
               <View style={styles.detailItem}>
-                <Ionicons
-                  name="people-outline"
-                  size={20}
-                  color="#8B5CF6"
-                  style={styles.detailIcon}
-                />
-                <Text style={styles.detailText}>Secretary</Text>
+                <View style={styles.detailIconContainer}>
+                  <Ionicons name="people-outline" size={18} color="#8B5CF6" />
+                </View>
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailRole}>Secretary</Text>
+                  <View style={styles.namePhoneContainer}>
+                    <Text style={styles.detailName}>
+                      {unitDetails?.secretaryDetails?.name || "Loading..."}
+                    </Text>
+                    <Text style={styles.detailPhone}>
+                      {unitDetails?.secretaryDetails?.phone}
+                    </Text>
+                  </View>
+                </View>
               </View>
-              <View style={styles.detailItem}>
-                <Ionicons
-                  name="book-outline"
-                  size={20}
-                  color="#8B5CF6"
-                  style={styles.detailIcon}
-                />
-                <Text style={styles.detailText}>Samatheeka</Text>
-              </View>
-              <View style={styles.detailItem}>
-                <Ionicons
-                  name="business-outline"
-                  size={20}
-                  color="#8B5CF6"
-                  style={styles.detailIcon}
-                />
-                <Text style={styles.detailText}>Adisthana</Text>
-              </View>
-              <View style={styles.detailItem}>
-                <Ionicons
-                  name="school-outline"
-                  size={20}
-                  color="#8B5CF6"
-                  style={styles.detailIcon}
-                />
-                <Text style={styles.detailText}>Vidyabhyasa</Text>
-              </View>
-              <View style={styles.detailItem}>
-                <Ionicons
-                  name="leaf-outline"
-                  size={20}
-                  color="#8B5CF6"
-                  style={styles.detailIcon}
-                />
-                <Text style={styles.detailText}>Upjeevana</Text>
-              </View>
+
+              {Object.entries(unitDetails?.committees || {}).map(
+                ([name, details]) => (
+                  <View key={name} style={styles.detailItem}>
+                    <View style={styles.detailIconContainer}>
+                      <Ionicons
+                        name={getCommitteeIcon(name)}
+                        size={18}
+                        color="#8B5CF6"
+                      />
+                    </View>
+                    <View style={styles.detailContent}>
+                      <Text style={styles.detailRole}>
+                        {capitalizeFirst(name)}
+                      </Text>
+                      <View style={styles.namePhoneContainer}>
+                        <Text style={styles.detailName}>
+                          {details.coordinator || "Not assigned"}
+                        </Text>
+                        <Text style={styles.detailPhone}>
+                          {details.coordinatorPhone}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )
+              )}
             </LinearGradient>
           </View>
 
@@ -452,6 +503,21 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
   );
 }
 
+// Add these helper functions at the file level
+const getCommitteeIcon = (committee: string): string => {
+  const icons = {
+    samatheeka: "book-outline",
+    adisthana: "business-outline",
+    vidyabhyasa: "school-outline",
+    upjeevana: "leaf-outline",
+  };
+  return icons[committee as keyof typeof icons] || "people-outline";
+};
+
+const capitalizeFirst = (str: string): string => {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
 // Main Navigator for all screens (unchanged)
 export default function KudumbashreeDetailsScreen() {
   return (
@@ -509,10 +575,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingBottom: 90,
+    paddingBottom: 0,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom:70,
   },
   header: {
     paddingTop: 20,
@@ -549,7 +616,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: "#1F2937",
     marginBottom: 16,
-    marginTop:10,
+    marginTop: 10,
   },
   quickActionsContainer: {
     flexDirection: "row",
@@ -575,20 +642,57 @@ const styles = StyleSheet.create({
     color: "#4B5563",
   },
   detailsContainer: {
-    padding: 15,
-    borderRadius: 10,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   detailItem: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 12,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(139, 92, 246, 0.1)",
   },
-  detailIcon: {
-    marginRight: 10,
+  detailIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
   },
-  detailText: {
+  detailContent: {
+    flex: 1,
+  },
+  detailRole: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 11,
+    color: "#6B7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  detailName: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: "#1F2937",
+  },
+  detailPhone: {
     fontFamily: "Poppins_400Regular",
-    color: "#4B5563",
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  namePhoneContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     flex: 1,
   },
   linkageLoanButton: {
