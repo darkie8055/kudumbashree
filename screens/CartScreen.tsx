@@ -45,7 +45,9 @@ export default function CartScreen({ navigation, route }) {
       return cartItem;
     }).filter(Boolean) as CartItem[];
 
-    updateCartItem(updatedCart);
+    if (onCartUpdate) {
+      onCartUpdate(updatedCart);
+    }
   };
 
   const getTotalAmount = () => {
@@ -56,7 +58,19 @@ export default function CartScreen({ navigation, route }) {
   };
 
   const clearCart = () => {
-    updateCartItem([]);
+    if (onCartUpdate) {
+      onCartUpdate([]);
+      Toast.show({
+        type: 'success',
+        text1: 'Cart Cleared',
+        text2: 'Your cart has been cleared successfully',
+        visibilityTime: TOAST_DURATION,
+        autoHide: true,
+        topOffset: 40,
+        bottomOffset: 100,
+        position: 'bottom',
+      });
+    }
   };
 
   useEffect(() => {
@@ -178,17 +192,20 @@ export default function CartScreen({ navigation, route }) {
     const existingItemIndex = cart.findIndex(
       (item) => item.product.id === product.id
     );
+    let updatedCart;
     if (existingItemIndex !== -1) {
-      const updatedCart = [...cart];
+      updatedCart = [...cart];
       const updatedItem = { 
         ...updatedCart[existingItemIndex],
         quantity: updatedCart[existingItemIndex].quantity + 1
       };
       updatedCart[existingItemIndex] = updatedItem;
-      updateCartItem(updatedCart);
     } else {
-      const updatedCart = [...cart, { product, quantity: 1 }];
-      updateCartItem(updatedCart);
+      updatedCart = [...cart, { product, quantity: 1 }];
+    }
+    
+    if (onCartUpdate) {
+      onCartUpdate(updatedCart);
     }
     
     // Show toast message
@@ -293,7 +310,10 @@ export default function CartScreen({ navigation, route }) {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.clearCartButton}
-              onPress={clearCart}
+              onPress={() => {
+                clearCart();
+                navigation.setParams({ cart: [] });
+              }}
             >
               <Text style={styles.clearCartText}>Clear Cart</Text>
             </TouchableOpacity>
