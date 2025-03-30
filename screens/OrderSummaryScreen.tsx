@@ -5,6 +5,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Image,
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import QRCode from 'react-native-qrcode-svg'
+import Toast from 'react-native-toast-message'
 
 export default function OrderSummaryScreen({ navigation, route }) {
   const { 
@@ -26,10 +27,12 @@ export default function OrderSummaryScreen({ navigation, route }) {
   const [isPaymentTimedOut, setIsPaymentTimedOut] = useState(false)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
+  const [appliedDiscount, setAppliedDiscount] = useState(0)
+  const [promoApplied, setPromoApplied] = useState(false)
   const timerRef = useRef(null);
 
   const subtotal = cart.reduce((total, item) => total + item.product.price * item.quantity, 0)
-  const discount = 9.5
+  const discount = promoApplied ? (subtotal * 0.99) : 9.5
   const deliveryCharge = 5.0
   const total = subtotal - discount + deliveryCharge
 
@@ -110,6 +113,29 @@ export default function OrderSummaryScreen({ navigation, route }) {
       clearInterval(timerRef.current);
     }
     proceedWithOrder();
+  };
+
+  const handleApplyCoupon = () => {
+    setIsApplyingCoupon(true);
+    setTimeout(() => {
+      if (couponCode.toUpperCase() === 'OFF99') {
+        setAppliedDiscount(99);
+        setPromoApplied(true);
+        Toast.show({
+          type: 'success',
+          text1: 'Promo Code Applied!',
+          text2: '99% discount has been applied to your order',
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Invalid Promo Code',
+          text2: 'Please enter a valid promo code',
+        });
+      }
+      setIsApplyingCoupon(false);
+      setCouponCode('');
+    }, 1000);
   };
 
   const renderPaymentMethod = () => {
@@ -208,6 +234,47 @@ export default function OrderSummaryScreen({ navigation, route }) {
       </View>
     );
   };
+
+  const renderPromoCode = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Promo Code</Text>
+      <View style={styles.couponContainer}>
+        <TextInput
+          style={[styles.couponInput, promoApplied && styles.disabledInput]}
+          placeholder="Enter promo code"
+          value={couponCode}
+          onChangeText={setCouponCode}
+          editable={!promoApplied}
+        />
+        {promoApplied ? (
+          <TouchableOpacity
+            style={styles.removeButton}
+            onPress={() => {
+              setPromoApplied(false);
+              setAppliedDiscount(0);
+            }}
+          >
+            <Text style={styles.removeButtonText}>Remove</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.applyButton, (!couponCode || isApplyingCoupon) && styles.disabledButton]}
+            disabled={!couponCode || isApplyingCoupon}
+            onPress={handleApplyCoupon}
+          >
+            <Text style={styles.applyButtonText}>
+              {isApplyingCoupon ? "Applying..." : "Apply"}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {promoApplied && (
+        <Text style={styles.discountApplied}>
+          99% discount applied!
+        </Text>
+      )}
+    </View>
+  );
 
   const PaymentQRModal = useMemo(() => {
     return () => (
@@ -308,31 +375,7 @@ export default function OrderSummaryScreen({ navigation, route }) {
         {renderAddress()}
         {renderPaymentMethod()}
         {renderOrderItems()}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Promo Code</Text>
-          <View style={styles.couponContainer}>
-            <TextInput
-              style={styles.couponInput}
-              placeholder="Enter promo code"
-              value={couponCode}
-              onChangeText={setCouponCode}
-            />
-            <TouchableOpacity
-              style={[styles.applyButton, (!couponCode || isApplyingCoupon) && styles.disabledButton]}
-              disabled={!couponCode || isApplyingCoupon}
-              onPress={() => {
-                setIsApplyingCoupon(true)
-                setTimeout(() => {
-                  setIsApplyingCoupon(false)
-                  setCouponCode("")
-                }, 1000)
-              }}
-            >
-              <Text style={styles.applyButtonText}>{isApplyingCoupon ? "Applying..." : "Apply"}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        {renderPromoCode()}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Price Details</Text>
@@ -739,5 +782,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-})
+  disabledInput: {
+    backgroundColor: '#f5f5f5',
+    borderColor: '#ccc',
+  },
+  removeButton: {
+    backgroundColor: '#ff4444',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  removeButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  discountApplied: {
+    color: '#69C779',
+    fontSize: 14,
+    marginTop: 8,
+    fontWeight: '500',
+  },
+});
 
