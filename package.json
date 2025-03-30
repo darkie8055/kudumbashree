@@ -26,6 +26,7 @@
     "axios": "^1.7.9",
     "date-fns": "^4.1.0",
     "expo": "~52.0.36",
+    "expo-asset": "~11.0.5",
     "expo-constants": "~17.0.7",
     "expo-dev-client": "~5.0.12",
     "expo-device": "~7.0.2",

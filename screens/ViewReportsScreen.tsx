@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -36,8 +37,8 @@ import { format } from "date-fns";
 import { Platform } from "react-native";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../types/navigation";
+import kudumbashreeLogo from "../assets/kudumbashreelogo.jpg";
 
-// Replace the StorageAccessFramework import with this
 const StorageAccessFramework = FileSystem.StorageAccessFramework;
 
 interface MemberReport {
@@ -76,18 +77,15 @@ interface LoanReport {
   totalPaid: number;
 }
 
-// Update the SORT_OPTIONS constant at the top of the file
 const SORT_OPTIONS = ["date", "amount", "status"] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
 
-// Add these constants at the top with other interfaces
 const ORDER_OPTIONS = ["asc", "desc"] as const;
 type OrderOption = (typeof ORDER_OPTIONS)[number];
 
 const STATUS_OPTIONS = ["all", "pending", "approved", "rejected"] as const;
 type StatusOption = (typeof STATUS_OPTIONS)[number];
 
-// Add this type definition at the top with other interfaces
 type StatusOrderType = {
   [key: string]: number;
   approved: number;
@@ -95,7 +93,6 @@ type StatusOrderType = {
   rejected: number;
 };
 
-// Update the FilterOptions interface
 interface FilterOptions {
   sortBy: SortOption;
   order: OrderOption;
@@ -106,7 +103,6 @@ type ViewReportsScreenProps = {
   navigation: StackNavigationProp<RootStackParamList, "ViewReports">;
 };
 
-// Add this utility function near the top of the file
 const formatCurrency = (amount: number): string => {
   return Math.floor(amount).toLocaleString("en-IN");
 };
@@ -138,24 +134,13 @@ export default function ViewReportsScreen({
     fetchLoans();
   }, [currentMonth]);
 
-  // Update the fetchReports function to correctly calculate weekly dues
   const fetchReports = async () => {
     setLoading(true);
     try {
       const db = getFirestore();
 
-      // Get weekly due settings for amount
       const settingsDoc = await getDoc(doc(db, "weeklyDueSettings", "config"));
       const weeklyAmount = settingsDoc.exists() ? settingsDoc.data().amount : 0;
-
-      // Start date for weekly dues (February 1st, 2025)
-      const startDate = new Date("2025-02-01");
-      const now = new Date();
-
-      // Calculate total weeks from start date till now
-      const totalWeeks = Math.ceil(
-        (now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)
-      );
 
       const membersSnapshot = await getDocs(
         query(collection(db, "K-member"), where("status", "==", "approved"))
@@ -167,7 +152,23 @@ export default function ViewReportsScreen({
           memberData.lastName || ""
         }`.trim();
 
-        // Get weekly dues payments
+        const unitDoc = await getDoc(
+          doc(db, "unitDetails", memberData.unitNumber)
+        );
+        const unitData = unitDoc.data();
+        const memberJoinDate = unitData?.members?.find(
+          (m) => m.phone === memberDoc.id
+        )?.joinedAt;
+
+        const startDate = memberJoinDate
+          ? new Date(memberJoinDate)
+          : new Date("2025-03-01");
+        const now = new Date();
+
+        const totalWeeks = Math.ceil(
+          (now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)
+        );
+
         const duesDoc = await getDoc(
           doc(db, "weeklyDuePayments", memberDoc.id)
         );
@@ -175,12 +176,10 @@ export default function ViewReportsScreen({
         const paidWeeks = paidWeeksData?.paidWeeks || [];
         const paidDates = paidWeeksData?.paidDates || {};
 
-        // Calculate pending amount
         const totalDueAmount = weeklyAmount * totalWeeks;
         const paidAmount = weeklyAmount * paidWeeks.length;
         const pendingAmount = totalDueAmount - paidAmount;
 
-        // Get loan information
         const loansQuery = query(
           collection(db, "loanApplications"),
           where("memberId", "==", memberDoc.id),
@@ -188,18 +187,18 @@ export default function ViewReportsScreen({
         );
         const loansSnapshot = await getDocs(loansQuery);
 
-        let loansTotalAmount = 0; // Changed variable name to avoid conflict
+        let loansTotalAmount = 0;
         let pendingAmountLoans = 0;
 
         loansSnapshot.docs.forEach((loanDoc) => {
           const loanData = loanDoc.data();
           const baseAmount = loanData.amount || 0;
-          const interestRate = 0.03; // 3% interest
+          const interestRate = 0.03;
           const totalAmount = baseAmount + baseAmount * interestRate;
           const paidMonths = loanData.paidMonths || [];
           const monthlyAmount = totalAmount / (loanData.repaymentPeriod || 12);
 
-          loansTotalAmount += totalAmount; // Use total amount with interest
+          loansTotalAmount += totalAmount;
           pendingAmountLoans += totalAmount - monthlyAmount * paidMonths.length;
         });
 
@@ -222,7 +221,7 @@ export default function ViewReportsScreen({
           },
           loans: {
             active: loansSnapshot.size,
-            totalAmount: loansTotalAmount, // Use the accumulated total
+            totalAmount: loansTotalAmount,
             pendingAmount: pendingAmountLoans,
           },
         };
@@ -238,15 +237,13 @@ export default function ViewReportsScreen({
     }
   };
 
-  // Update the getLoanPendingAmount function
   const getLoanPendingAmount = (loanAmount: number, paidMonths: number[]) => {
-    const totalAmount = loanAmount + loanAmount * 0.03; // Add 3% interest
-    const monthlyAmount = totalAmount / 12; // Assuming 12 months repayment period
+    const totalAmount = loanAmount + loanAmount * 0.03;
+    const monthlyAmount = totalAmount / 12;
     const paidAmount = monthlyAmount * (paidMonths?.length || 0);
     return Math.floor(Math.max(0, totalAmount - paidAmount));
   };
 
-  // Update the fetchLoans function to include payment information
   const fetchLoans = async () => {
     try {
       const db = getFirestore();
@@ -333,25 +330,22 @@ export default function ViewReportsScreen({
       });
 
       Alert.alert("Success", "Loan status updated successfully");
-      fetchLoans(); // Refresh the loans list
+      fetchLoans();
     } catch (error) {
       console.error("Error updating loan status:", error);
       Alert.alert("Error", "Failed to update loan status");
     }
   };
 
-  // First, update the getSortedLoans function
   const getSortedLoans = () => {
     let filteredLoans = [...loans];
 
-    // First apply status filter
     if (filterOptions.status !== "all") {
       filteredLoans = filteredLoans.filter(
         (loan) => loan.status === filterOptions.status
       );
     }
 
-    // Then apply sorting
     return filteredLoans.sort((a, b) => {
       switch (filterOptions.sortBy) {
         case "date":
@@ -360,7 +354,7 @@ export default function ViewReportsScreen({
           return filterOptions.order === "desc" ? dateB - dateA : dateA - dateB;
 
         case "amount":
-          const amountA = a.amount + a.amount * 0.03; // Include 3% interest
+          const amountA = a.amount + a.amount * 0.03;
           const amountB = b.amount + b.amount * 0.03;
           return filterOptions.order === "desc"
             ? amountB - amountA
@@ -389,7 +383,6 @@ export default function ViewReportsScreen({
 
           if (permissions.granted) {
             try {
-              // Create file in the selected directory with proper path handling
               const destinationUri =
                 await StorageAccessFramework.createFileAsync(
                   permissions.directoryUri,
@@ -397,12 +390,10 @@ export default function ViewReportsScreen({
                   "application/pdf"
                 );
 
-              // Read the source file
               const fileContent = await FileSystem.readAsStringAsync(uri, {
                 encoding: FileSystem.EncodingType.Base64,
               });
 
-              // Write to the destination
               await FileSystem.writeAsStringAsync(destinationUri, fileContent, {
                 encoding: FileSystem.EncodingType.Base64,
               });
@@ -447,7 +438,10 @@ export default function ViewReportsScreen({
         (sum, loan) => sum + loan.amount,
         0
       );
-      const totalAmount = baseAmount * 1.03; // Including 3% interest
+      const totalAmount = baseAmount * 1.03;
+
+      const logoSource = Image.resolveAssetSource(kudumbashreeLogo);
+      const logoUrl = logoSource.uri;
 
       const htmlContent = `
         <!DOCTYPE html>
@@ -455,49 +449,126 @@ export default function ViewReportsScreen({
           <head>
             <meta charset="UTF-8">
             <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              h1 { color: #8B5CF6; text-align: center; }
-              .summary { margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; }
-              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-              th { background-color: #8B5CF6; color: white; }
-              .status-approved { color: #10B981; }
-              .status-rejected { color: #EF4444; }
-              .status-pending { color: #F59E0B; }
-              .amount-detail { color: #6B7280; font-size: 0.9em; }
+              body { 
+                font-family: Arial, sans-serif; 
+                padding: 40px;
+                color: #1F2937;
+              }
+              .header {
+                text-align: center;
+                margin-bottom: 40px;
+              }
+              .logo {
+                width: 120px;
+                margin-bottom: 20px;
+              }
+              h1 { 
+                color: #7C3AED; 
+                margin: 0;
+                font-size: 28px;
+              }
+              .date {
+                color: #6B7280;
+                margin-top: 8px;
+              }
+              .summary { 
+                margin: 32px 0; 
+                padding: 24px; 
+                background: #F9FAFB; 
+                border-radius: 12px;
+                border: 1px solid #E5E7EB;
+              }
+              .summary h2 {
+                color: #7C3AED;
+                margin-top: 0;
+                font-size: 20px;
+              }
+              table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin-top: 24px;
+                background: white;
+                border-radius: 8px;
+                overflow: hidden;
+              }
+              th { 
+                background-color: #7C3AED; 
+                color: white;
+                padding: 16px;
+                text-align: left;
+              }
+              td { 
+                padding: 12px 16px;
+                border-bottom: 1px solid #E5E7EB;
+              }
+              tr:last-child td {
+                border-bottom: none;
+              }
+              .status-approved { 
+                color: #10B981;
+                font-weight: 600;
+              }
+              .status-rejected { 
+                color: #EF4444;
+                font-weight: 600;
+              }
+              .status-pending { 
+                color: #F59E0B;
+                font-weight: 600;
+              }
+              .amount-detail { 
+                color: #6B7280; 
+                font-size: 0.9em;
+                margin-top: 4px;
+              }
+              .footer {
+                text-align: center;
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #E5E7EB;
+                color: #6B7280;
+              }
             </style>
           </head>
           <body>
-            <h1>Kudumbashree Unit Report</h1>
+            <div class="header">
+              <img src="${logoUrl}" class="logo" alt="Kudumbashree Logo"/>
+              <h1>Kudumbashree Unit Report</h1>
+              <div class="date">Generated on ${format(
+                new Date(),
+                "MMMM dd, yyyy"
+              )}</div>
+            </div>
             
             <div class="summary">
-              <h2>Summary</h2>
-              <p>Total Members: ${members.length}</p>
-              <p>Weekly Dues Status:</p>
+              <h2>Monthly Summary</h2>
+              <p><strong>Total Members:</strong> ${members.length}</p>
+              
+              <h3>Weekly Dues Status</h3>
               <ul>
-                <li>Total Members with Pending Dues: ${
+                <li>Members with Pending Dues: ${
                   members.filter((m) => m.weeklyDues.pending > 0).length
                 }</li>
-                <li>Total Pending Due Amount: ₹${formatCurrency(
+                <li>Total Pending Amount: ₹${formatCurrency(
                   members.reduce(
                     (sum, m) => sum + m.weeklyDues.pendingAmount,
                     0
                   )
                 )}</li>
               </ul>
-              <p>Loans Status:</p>
+              
+              <h3>Loans Overview</h3>
               <ul>
-                <li>Total Active Loans: ${
+                <li>Active Loans: ${
                   sortedLoans.filter((l) => l.status === "approved").length
                 }</li>
-                <li>Base Amount: ₹${formatCurrency(baseAmount)}</li>
-                <li>Total Amount (with 3% interest): ₹${formatCurrency(
+                <li>Total Base Amount: ₹${formatCurrency(baseAmount)}</li>
+                <li>Total Amount with Interest (3%): ₹${formatCurrency(
                   totalAmount
                 )}</li>
               </ul>
             </div>
 
-            <h2>Loan Details</h2>
             <table>
               <thead>
                 <tr>
@@ -518,25 +589,32 @@ export default function ViewReportsScreen({
                     <td>${loan.loanType}</td>
                     <td>
                       ₹${formatCurrency(loan.amount)}
-                      <br/>
-                      <span class="amount-detail">
+                      <div class="amount-detail">
                         With Interest: ₹${formatCurrency(loan.amount * 1.03)}
-                      </span>
+                      </div>
                     </td>
                     <td>${loan.purpose}</td>
                     <td class="status-${loan.status}">${loan.status}</td>
-                    <td>${format(loan.createdAt, "dd/MM/yyyy")}</td>
+                    <td>${format(loan.createdAt, "MMM dd, yyyy")}</td>
                   </tr>
                 `
                   )
                   .join("")}
               </tbody>
             </table>
+
+            <div class="footer">
+              <img src="${logoUrl}" width="60" alt="Kudumbashree Logo"/>
+              <p>© ${new Date().getFullYear()} Kudumbashree Unit Report</p>
+            </div>
           </body>
         </html>
       `;
 
-      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      const { uri } = await Print.printToFileAsync({
+        html: htmlContent,
+      });
+
       const fileName = `kudumbashree-report-${format(
         new Date(),
         "yyyy-MM-dd-HHmmss"
@@ -549,109 +627,243 @@ export default function ViewReportsScreen({
   };
 
   const generateMemberReport = async (member: MemberReport) => {
-    const memberLoans = loans.filter(
-      (loan) => loan.memberId === member.memberId
-    );
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #8B5CF6; text-align: center; }
-            .member-info { margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; }
-            .amount-detail { color: #6B7280; font-size: 0.9em; margin-top: 4px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-            th { background-color: #8B5CF6; color: white; }
-            .status-approved { color: #10B981; }
-            .status-rejected { color: #EF4444; }
-            .status-pending { color: #F59E0B; }
-          </style>
-        </head>
-        <body>
-          <h1>Member Report - ${member.memberName}</h1>
-          
-          <div class="member-info">
-            <h2>Weekly Dues Summary</h2>
-            <p>Total Weeks: ${member.weeklyDues.total}</p>
-            <p>Paid Weeks: ${member.weeklyDues.paid}</p>
-            <p>Pending Weeks: ${member.weeklyDues.pending}</p>
-            <p>Weekly Amount: ₹${formatCurrency(
-              member.weeklyDues.weeklyAmount
-            )}</p>
-            <p>Total Due: ₹${formatCurrency(
-              member.weeklyDues.totalDueAmount
-            )}</p>
-            <p>Total Paid: ₹${formatCurrency(member.weeklyDues.paidAmount)}</p>
-            <p>Pending Amount: ₹${formatCurrency(
-              member.weeklyDues.pendingAmount
-            )}</p>
-            ${
-              member.weeklyDues.lastPaidDate
-                ? `<p>Last Paid: ${format(
-                    member.weeklyDues.lastPaidDate.toDate(),
-                    "dd MMM yyyy"
-                  )}</p>`
-                : ""
-            }
-          </div>
-
-          <div class="member-info">
-            <h2>Loans Summary</h2>
-            <p>Active Loans: ${member.loans.active}</p>
-            <p>Total Amount: ₹${formatCurrency(member.loans.totalAmount)}</p>
-            <p>Pending Amount: ₹${formatCurrency(
-              member.loans.pendingAmount
-            )}</p>
-          </div>
-
-          <h2>Loan Details</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Loan Type</th>
-                <th>Amount</th>
-                <th>Purpose</th>
-                <th>Status</th>
-                <th>Applied Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${memberLoans
-                .map(
-                  (loan) => `
-                <tr>
-                  <td>${loan.loanType}</td>
-                  <td>
-                    Base: ₹${formatCurrency(loan.amount)}
-                    <br/>
-                    <span class="amount-detail">
-                      With Interest: ₹${formatCurrency(loan.amount * 1.03)}
-                    </span>
-                  </td>
-                  <td>${loan.purpose}</td>
-                  <td class="status-${loan.status}">${loan.status}</td>
-                  <td>${format(loan.createdAt, "dd/MM/yyyy")}</td>
-                </tr>
-              `
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
     try {
-      const { uri } = await Print.printToFileAsync({ html: htmlContent });
-      const fileName = `member-report-${member.memberName}-${format(
-        new Date(),
-        "yyyy-MM-dd-HHmm"
-      )}.pdf`;
+      const memberLoans = loans.filter(
+        (loan) => loan.memberId === member.memberId
+      );
+      const baseAmount = memberLoans.reduce(
+        (sum, loan) => sum + loan.amount,
+        0
+      );
+      const totalAmount = baseAmount * 1.03;
+
+      const logoSource = Image.resolveAssetSource(kudumbashreeLogo);
+      const logoUrl = logoSource.uri;
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { 
+                font-family: Arial, sans-serif; 
+                padding: 40px;
+                color: #1F2937;
+              }
+              .header {
+                text-align: center;
+                margin-bottom: 40px;
+              }
+              .logo {
+                width: 120px;
+                margin-bottom: 20px;
+              }
+              h1 { 
+                color: #7C3AED; 
+                margin: 0;
+                font-size: 28px;
+              }
+              .date {
+                color: #6B7280;
+                margin-top: 8px;
+              }
+              .member-info {
+                margin: 32px 0;
+                padding: 24px;
+                background: #F9FAFB;
+                border-radius: 12px;
+                border: 1px solid #E5E7EB;
+              }
+              .section-title {
+                color: #7C3AED;
+                margin: 0 0 16px 0;
+                font-size: 20px;
+              }
+              .info-row {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 8px;
+              }
+              .info-label {
+                color: #6B7280;
+                font-weight: bold;
+              }
+              .info-value {
+                color: #1F2937;
+              }
+              .dues-section {
+                margin-top: 32px;
+              }
+              .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 16px;
+                margin: 16px 0;
+              }
+              .stat-card {
+                background: white;
+                padding: 16px;
+                border-radius: 8px;
+                border: 1px solid #E5E7EB;
+                text-align: center;
+              }
+              .stat-value {
+                font-size: 24px;
+                font-weight: bold;
+                margin: 8px 0;
+              }
+              .stat-label {
+                color: #6B7280;
+                font-size: 14px;
+              }
+              .positive { color: #10B981; }
+              .negative { color: #EF4444; }
+              .warning { color: #F59E0B; }
+              table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin-top: 24px;
+                background: white;
+                border-radius: 8px;
+                overflow: hidden;
+              }
+              th { 
+                background-color: #7C3AED; 
+                color: white;
+                padding: 16px;
+                text-align: left;
+              }
+              td { 
+                padding: 12px 16px;
+                border-bottom: 1px solid #E5E7EB;
+              }
+              tr:last-child td {
+                border-bottom: none;
+              }
+              .footer {
+                text-align: center;
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #E5E7EB;
+                color: #6B7280;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <img src="${logoUrl}" class="logo" alt="Kudumbashree Logo"/>
+              <h1>Member Report</h1>
+              <div class="date">Generated on ${format(
+                new Date(),
+                "MMMM dd, yyyy"
+              )}</div>
+            </div>
+
+            <div class="member-info">
+              <h2 class="section-title">Member Information</h2>
+              <div class="info-row">
+                <span class="info-label">Name:</span>
+                <span class="info-value">${member.memberName}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Phone Number:</span>
+                <span class="info-value">${member.phoneNumber}</span>
+              </div>
+            </div>
+
+            <div class="dues-section">
+              <h2 class="section-title">Weekly Dues Status</h2>
+              <div class="stats-grid">
+                <div class="stat-card">
+                  <div class="stat-value">${member.weeklyDues.total}</div>
+                  <div class="stat-label">Total Weeks</div>
+                  <div class="stat-label">₹${formatCurrency(
+                    member.weeklyDues.totalDueAmount
+                  )}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value positive">${
+                    member.weeklyDues.paid
+                  }</div>
+                  <div class="stat-label">Paid Weeks</div>
+                  <div class="stat-label positive">₹${formatCurrency(
+                    member.weeklyDues.paidAmount
+                  )}</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value negative">${
+                    member.weeklyDues.pending
+                  }</div>
+                  <div class="stat-label">Pending Weeks</div>
+                  <div class="stat-label negative">₹${formatCurrency(
+                    member.weeklyDues.pendingAmount
+                  )}</div>
+                </div>
+              </div>
+              ${
+                member.weeklyDues.lastPaidDate
+                  ? `
+                <div style="text-align: center; color: #6B7280; margin-top: 16px;">
+                  Last paid on: ${format(
+                    member.weeklyDues.lastPaidDate.toDate(),
+                    "MMMM dd, yyyy"
+                  )}
+                </div>
+              `
+                  : ""
+              }
+            </div>
+
+            <div class="loans-section">
+              <h2 class="section-title">Loan History</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Loan Type</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Applied Date</th>
+                    <th>Pending Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${memberLoans
+                    .map(
+                      (loan) => `
+                    <tr>
+                      <td>${loan.loanType}</td>
+                      <td>₹${formatCurrency(loan.amount)}</td>
+                      <td class="${loan.status}">${loan.status}</td>
+                      <td>${format(loan.createdAt, "MMM dd, yyyy")}</td>
+                      <td class="negative">₹${formatCurrency(
+                        loan.pendingAmount
+                      )}</td>
+                    </tr>
+                  `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="footer">
+              <img src="${logoUrl}" width="60" alt="Kudumbashree Logo"/>
+              <p>© ${new Date().getFullYear()} Kudumbashree Unit Report</p>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({
+        html: htmlContent,
+      });
+
+      const fileName = `member-report-${member.memberName.replace(
+        /\s+/g,
+        "-"
+      )}-${format(new Date(), "yyyy-MM-dd-HHmmss")}.pdf`;
       await savePDFToDownloads(uri, fileName);
-      Alert.alert("Success", "Member report generated successfully!");
     } catch (error) {
       console.error("Error generating member report:", error);
       Alert.alert("Error", "Failed to generate member report");
@@ -983,8 +1195,6 @@ export default function ViewReportsScreen({
   );
 }
 
-// Move FilterModal component here, before styles
-// Update the FilterModal component to properly handle changes
 const FilterModal = ({
   visible,
   onClose,
@@ -1168,14 +1378,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 8,
-    backgroundColor: "#fff", // Add this to ensure background is white
+    backgroundColor: "#fff",
   },
   memberName: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 18,
     color: "#1F2937",
     flex: 1,
-    marginRight: 8, // Add spacing between text and icon
+    marginRight: 8,
   },
   memberPhone: {
     fontFamily: "Poppins_400Regular",
@@ -1184,8 +1394,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   expandIcon: {
-    color: "#4B5563", // Matching gray color for the icon
-    marginLeft: 8, // Add some spacing between text and icon
+    color: "#4B5563",
+    marginLeft: 8,
   },
   expandedContent: {
     marginTop: 12,
@@ -1219,7 +1429,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 16,
-    color: "#1F2937", // Dark text color for better visibility
+    color: "#1F2937",
   },
   loader: {
     marginTop: 50,
@@ -1240,7 +1450,7 @@ const styles = StyleSheet.create({
   filterButtonText: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 14,
-    color: "#4B5563", // Slightly darker gray
+    color: "#4B5563",
     marginLeft: 8,
   },
   exportButton: {
@@ -1337,7 +1547,7 @@ const styles = StyleSheet.create({
   modalButtonText: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 14,
-    color: "#1F2937", // Dark text color
+    color: "#1F2937",
   },
   loanItem: {
     backgroundColor: "#F9FAFB",
