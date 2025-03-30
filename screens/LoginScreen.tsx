@@ -232,7 +232,13 @@ const LoginScreen = ({ navigation }: Props) => {
                       placeholderTextColor="rgba(162,39,142,0.7)"
                       keyboardType="phone-pad"
                       value={phoneNumber}
-                      onChangeText={setPhoneNumber}
+                      onChangeText={(text) => {
+                        // Only allow up to 10 digits
+                        if (text.length <= 10) {
+                          setPhoneNumber(text.replace(/[^0-9]/g, ''));
+                        }
+                      }}
+                      maxLength={10}
                     />
                   </View>
                   <View style={styles.inputContainer}>
