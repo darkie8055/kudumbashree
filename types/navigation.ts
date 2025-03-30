@@ -25,7 +25,11 @@ export type RootStackParamList = {
     phoneNumber: string;
   };
   Savings: undefined;
-  Loan: undefined;
+  Loan:
+    | {
+        phoneNumber?: string;
+      }
+    | undefined;
   Balance: undefined;
   Pending: undefined;
   LinkageLoan: undefined;

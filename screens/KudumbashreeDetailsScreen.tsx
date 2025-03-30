@@ -41,10 +41,8 @@ import PayWeeklyDueScreen from "./PayWeeklyDueScreen";
 
 const Stack = createStackNavigator<RootStackParamList>();
 
-// Update the navigation type at the top
-type MainDetailsScreenNavigationProp = NavigationProp<
-  RootStackParamList & KMemberTabsParamList
->;
+// Update the navigation type
+type MainDetailsScreenNavigationProp = NavigationProp<RootStackParamList>;
 
 interface MainDetailsScreenProps {
   navigation: MainDetailsScreenNavigationProp;
@@ -346,7 +344,15 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
                   title: "Loan",
                   icon: "cash",
                   description: "Manage your loans",
-                  onPress: () => navigation.navigate("Loan"),
+                  onPress: () => {
+                    if (memberData?.id) {
+                      navigation.navigate("Loan", {
+                        phoneNumber: memberData.id,
+                      });
+                    } else {
+                      Alert.alert("Error", "Member data not found");
+                    }
+                  },
                   color: "#EC4899",
                 },
                 {
@@ -571,14 +577,15 @@ function MainDetailsScreen({ navigation }: MainDetailsScreenProps) {
             <View style={styles.loanActionsContainer}>
               <Pressable
                 style={styles.actionCard}
-                onPress={() =>
-                  (navigation as MainDetailsScreenNavigationProp).navigate(
-                    "ApplyLoan",
-                    {
-                      phoneNumber: memberData?.id || "",
-                    }
-                  )
-                }
+                onPress={() => {
+                  if (memberData?.id) {
+                    navigation.navigate("ApplyLoan", {
+                      phoneNumber: memberData.id, // Pass the phone number
+                    });
+                  } else {
+                    Alert.alert("Error", "Member data not found");
+                  }
+                }}
               >
                 <View style={styles.actionCardContent}>
                   <View style={styles.actionCardHeader}>

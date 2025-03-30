@@ -6,6 +6,8 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
+  Modal,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -32,10 +34,27 @@ interface WeeklyDue {
   paidDate?: Date;
 }
 
+interface FilterOptions {
+  status: "all" | "pending" | "paid" | "overdue";
+  sortBy: "newest" | "oldest";
+}
+
+interface MonthlyGroup {
+  monthYear: string;
+  dues: WeeklyDue[];
+  totalAmount: number;
+  paidAmount: number;
+}
+
 export default function PayWeeklyDueScreen({ navigation }) {
   const { userId } = useUser();
   const [weeklyDues, setWeeklyDues] = useState<WeeklyDue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+    status: "all",
+    sortBy: "oldest",
+  });
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
   useEffect(() => {
     fetchWeeklyDues();
@@ -44,19 +63,46 @@ export default function PayWeeklyDueScreen({ navigation }) {
   const fetchWeeklyDues = async () => {
     try {
       const db = getFirestore();
+
+      // Get member's join date from unit details
+      const unitDoc = await getDoc(doc(db, "unitDetails", "123"));
+      if (!unitDoc.exists()) {
+        throw new Error("Unit details not found");
+      }
+
+      // Find member in the members array
+      const memberData = unitDoc
+        .data()
+        .members.find((member) => member.phone === userId);
+
+      // Set start date - either member's join date or March 1st 2025
+      let startDate;
+      if (memberData?.joinedAt) {
+        startDate = new Date(memberData.joinedAt);
+      } else {
+        startDate = new Date("2025-03-01");
+      }
+
+      // Ensure startDate is at the beginning of its week
+      startDate.setHours(0, 0, 0, 0);
+      const dayOfWeek = startDate.getDay();
+      startDate.setDate(startDate.getDate() - dayOfWeek); // Move to start of week
+
       const settingsDoc = await getDoc(doc(db, "weeklyDueSettings", "config"));
       if (!settingsDoc.exists()) {
         throw new Error("Weekly due amount not set");
       }
 
       const weeklyAmount = settingsDoc.data().amount;
-      const startDate = new Date("2025-02-01"); // Updated to 2025
       const now = new Date();
 
       const userDuesDoc = await getDoc(doc(db, "weeklyDuePayments", userId));
       const paidWeeks = userDuesDoc.exists()
         ? userDuesDoc.data().paidWeeks || []
         : [];
+      const paidDates = userDuesDoc.exists()
+        ? userDuesDoc.data().paidDates || {}
+        : {};
 
       const weeks: WeeklyDue[] = [];
       let currentDate = new Date(startDate);
@@ -68,6 +114,7 @@ export default function PayWeeklyDueScreen({ navigation }) {
 
         const dueDate = new Date(weekEnd);
         const isPaid = paidWeeks.includes(weekNumber);
+        const paidDate = isPaid ? new Date(paidDates[weekNumber]) : undefined;
         const isOverdue = !isPaid && dueDate < now;
 
         weeks.push({
@@ -76,6 +123,7 @@ export default function PayWeeklyDueScreen({ navigation }) {
           endDate: new Date(weekEnd),
           dueDate: new Date(dueDate),
           isPaid,
+          paidDate,
           amount: weeklyAmount,
           status: isPaid ? "paid" : isOverdue ? "overdue" : "pending",
         });
@@ -84,8 +132,8 @@ export default function PayWeeklyDueScreen({ navigation }) {
         weekNumber++;
       }
 
-      // Sort weeks in reverse order (latest week first)
-      weeks.sort((a, b) => b.weekNumber - a.weekNumber);
+      // Sort weeks in ascending order (first week first)
+      weeks.sort((a, b) => a.weekNumber - b.weekNumber);
 
       setWeeklyDues(weeks);
     } catch (error) {
@@ -108,13 +156,15 @@ export default function PayWeeklyDueScreen({ navigation }) {
       const paidDate = new Date();
 
       const userDuesRef = doc(db, "weeklyDuePayments", userId);
+      const userDuesDoc = await getDoc(userDuesRef);
+      const existingPaidWeeks = userDuesDoc.exists()
+        ? userDuesDoc.data().paidWeeks || []
+        : [];
+
       await setDoc(
         userDuesRef,
         {
-          paidWeeks: [
-            ...weeklyDues.filter((w) => w.isPaid).map((w) => w.weekNumber),
-            weekNumber,
-          ],
+          paidWeeks: [...existingPaidWeeks, weekNumber],
           [`paidDates.${weekNumber}`]: paidDate,
           lastUpdated: paidDate,
         },
@@ -147,6 +197,71 @@ export default function PayWeeklyDueScreen({ navigation }) {
       setIsLoading(false);
     }
   };
+
+  const getFilteredDues = (): MonthlyGroup[] => {
+    let filtered = [...weeklyDues];
+
+    // Apply status filter
+    if (filterOptions.status !== "all") {
+      filtered = filtered.filter((due) => due.status === filterOptions.status);
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      if (filterOptions.sortBy === "newest") {
+        return b.weekNumber - a.weekNumber;
+      }
+      return a.weekNumber - b.weekNumber;
+    });
+
+    // Group by month
+    const monthlyGroups = filtered.reduce((groups, due) => {
+      const monthYear = due.startDate.toLocaleDateString("en-IN", {
+        month: "long",
+        year: "numeric",
+      });
+      if (!groups[monthYear]) {
+        groups[monthYear] = {
+          monthYear,
+          dues: [],
+          totalAmount: 0,
+          paidAmount: 0,
+        };
+      }
+      groups[monthYear].dues.push(due);
+      groups[monthYear].totalAmount += due.amount;
+      if (due.isPaid) {
+        groups[monthYear].paidAmount += due.amount;
+      }
+      return groups;
+    }, {});
+
+    // Convert to array and sort by date
+    return Object.values(monthlyGroups).sort((a, b) => {
+      const dateA = new Date(a.dues[0].startDate);
+      const dateB = new Date(b.dues[0].startDate);
+      return filterOptions.sortBy === "newest"
+        ? dateB.getTime() - dateA.getTime()
+        : dateA.getTime() - dateB.getTime();
+    });
+  };
+
+  const renderMonthlyGroup = ({ item }: { item: MonthlyGroup }) => (
+    <View style={styles.monthlyGroup}>
+      <View style={styles.monthHeader}>
+        <Text style={styles.monthTitle}>{item.monthYear}</Text>
+        <View style={styles.monthStats}>
+          <Text style={styles.monthAmount}>
+            Paid: ₹{item.paidAmount.toLocaleString("en-IN")}
+          </Text>
+          <Text style={styles.monthAmount}>
+            Total: ₹{item.totalAmount.toLocaleString("en-IN")}
+          </Text>
+        </View>
+      </View>
+      {item.dues.map((due) => renderWeeklyDue({ item: due }))}
+    </View>
+  );
 
   const renderWeeklyDue = ({ item }: { item: WeeklyDue }) => (
     <View
@@ -259,6 +374,86 @@ export default function PayWeeklyDueScreen({ navigation }) {
     );
   };
 
+  const FilterModal = () => (
+    <Modal
+      visible={showFilterModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowFilterModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter & Sort</Text>
+            <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterSectionTitle}>Status</Text>
+            <View style={styles.filterOptions}>
+              {(["all", "pending", "paid", "overdue"] as const).map(
+                (status) => (
+                  <Pressable
+                    key={status}
+                    style={[
+                      styles.filterOption,
+                      filterOptions.status === status &&
+                        styles.filterOptionSelected,
+                    ]}
+                    onPress={() =>
+                      setFilterOptions((prev) => ({ ...prev, status: status }))
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.filterOptionText,
+                        filterOptions.status === status &&
+                          styles.filterOptionTextSelected,
+                      ]}
+                    >
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </Text>
+                  </Pressable>
+                )
+              )}
+            </View>
+          </View>
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterSectionTitle}>Sort By</Text>
+            <View style={styles.filterOptions}>
+              {(["oldest", "newest"] as const).map((sort) => (
+                <Pressable
+                  key={sort}
+                  style={[
+                    styles.filterOption,
+                    filterOptions.sortBy === sort &&
+                      styles.filterOptionSelected,
+                  ]}
+                  onPress={() =>
+                    setFilterOptions((prev) => ({ ...prev, sortBy: sort }))
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.filterOptionText,
+                      filterOptions.sortBy === sort &&
+                        styles.filterOptionTextSelected,
+                    ]}
+                  >
+                    {sort.charAt(0).toUpperCase() + sort.slice(1)} First
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
@@ -274,14 +469,22 @@ export default function PayWeeklyDueScreen({ navigation }) {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Weekly Dues</Text>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => setShowFilterModal(true)}
+        >
+          <Ionicons name="funnel-outline" size={24} color="#fff" />
+        </TouchableOpacity>
       </LinearGradient>
 
-      <FlatList
-        data={weeklyDues}
-        renderItem={renderWeeklyDue}
-        keyExtractor={(item) => item.weekNumber.toString()}
+      <FlatList<MonthlyGroup>
+        data={getFilteredDues()}
+        renderItem={renderMonthlyGroup}
+        keyExtractor={(item) => item.monthYear}
         contentContainerStyle={styles.listContent}
       />
+
+      <FilterModal />
     </SafeAreaView>
   );
 }
@@ -311,6 +514,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: "#fff",
     flex: 1,
+  },
+  filterButton: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    padding: 8,
+    borderRadius: 12,
   },
   listContent: {
     padding: 16,
@@ -502,5 +710,85 @@ const styles = StyleSheet.create({
     textAlign: "center",
     textTransform: "uppercase",
     letterSpacing: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 18,
+    color: "#1F2937",
+  },
+  filterSection: {
+    marginBottom: 20,
+  },
+  filterSectionTitle: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 12,
+  },
+  filterOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  filterOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+  },
+  filterOptionSelected: {
+    backgroundColor: "#8B5CF6",
+  },
+  filterOptionText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  filterOptionTextSelected: {
+    color: "#fff",
+  },
+  monthlyGroup: {
+    marginBottom: 24,
+  },
+  monthHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    backgroundColor: "#F3F4F6",
+    padding: 12,
+    borderRadius: 12,
+  },
+  monthTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "#1F2937",
+  },
+  monthStats: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  monthAmount: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    color: "#6B7280",
   },
 });

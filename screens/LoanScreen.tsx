@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Modal,
   Platform,
-  Alert, // Add this import
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -33,10 +33,9 @@ import * as Sharing from "expo-sharing";
 import { format } from "date-fns";
 import * as FileSystem from "expo-file-system";
 import { StorageAccessFramework } from "expo-file-system";
-import { getAuth } from "firebase/auth";
-
-const DEBUG_MODE = true;
-const DEBUG_PHONE = "8891115593";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { NavigationProp, RouteProp } from "@react-navigation/native";
+import { RootStackParamList } from "../types/navigation";
 
 interface LoanApplication {
   id: string;
@@ -59,7 +58,12 @@ interface UserData {
   lastName: string;
 }
 
-export default function LoanScreen({ navigation }) {
+type LoanScreenProps = {
+  navigation: NavigationProp<RootStackParamList>;
+  route: RouteProp<RootStackParamList, "Loan">;
+};
+
+export default function LoanScreen({ navigation, route }: LoanScreenProps) {
   const [loading, setLoading] = useState(true);
   const [loans, setLoans] = useState<LoanApplication[]>([]);
   const [fontsLoaded] = useFonts({
@@ -76,46 +80,43 @@ export default function LoanScreen({ navigation }) {
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
 
+  const phoneNumber = route.params?.phoneNumber;
+
   useEffect(() => {
-    const checkAuthAndFetchLoans = async () => {
+    const fetchLoans = async () => {
       try {
-        const auth = getAuth();
-        const currentUser = auth.currentUser;
+        setLoading(true);
 
-        // Use debug phone number in debug mode
-        let phoneNumber = DEBUG_MODE ? DEBUG_PHONE : currentUser?.phoneNumber;
+        const userPhone =
+          phoneNumber || (await AsyncStorage.getItem("userPhoneNumber"));
 
-        if (!phoneNumber) {
+        if (!userPhone) {
           console.log("No phone number available");
           Alert.alert("Error", "Please login to view loans");
           navigation.navigate("Login");
           return;
         }
 
-        // Clean up phone number format
-        phoneNumber = phoneNumber.replace("+91", "").trim();
-        console.log("Using phone number:", phoneNumber);
+        const cleanPhoneNumber = userPhone.replace("+91", "").trim();
+        console.log("Using phone number:", cleanPhoneNumber);
 
-        // Fetch user data
         const db = getFirestore();
-        const userDocRef = doc(db, "K-member", phoneNumber);
-        console.log("Fetching K-member document:", phoneNumber);
+        const userDocRef = doc(db, "K-member", cleanPhoneNumber);
+        console.log("Fetching K-member document:", cleanPhoneNumber);
 
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
           const data = userDocSnap.data();
-          console.log("Found user data:", JSON.stringify(data, null, 2));
           setUserData({
-            phone: phoneNumber,
+            phone: cleanPhoneNumber,
             firstName: data.firstName || "",
             lastName: data.lastName || "",
           });
 
-          // Fetch loans
           const q = query(
             collection(db, "loanApplications"),
-            where("memberId", "==", phoneNumber)
+            where("memberId", "==", cleanPhoneNumber)
           );
 
           const querySnapshot = await getDocs(q);
@@ -125,28 +126,20 @@ export default function LoanScreen({ navigation }) {
             createdAt: doc.data().createdAt?.toDate() || new Date(),
           })) as LoanApplication[];
 
-          console.log("Loans found:", loanData.length); // Add logging
-
           setLoans(
             loanData.sort(
               (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
             )
           );
         } else {
-          console.log("No user document found"); // Add logging
           Alert.alert(
             "Error",
-            "Member data not found. Please ensure you're registered.",
-            [
-              {
-                text: "OK",
-                onPress: () => navigation.goBack(),
-              },
-            ]
+            "Member data not found. Please ensure you're registered."
           );
+          navigation.goBack();
         }
       } catch (error) {
-        console.error("Error fetching data:", error); // Improved error logging
+        console.error("Error fetching data:", error);
         Alert.alert(
           "Error",
           "Failed to load loan data: " +
@@ -157,8 +150,8 @@ export default function LoanScreen({ navigation }) {
       }
     };
 
-    checkAuthAndFetchLoans();
-  }, []);
+    fetchLoans();
+  }, [phoneNumber]);
 
   useEffect(() => {
     const sorted = sortLoans(loans);
@@ -257,10 +250,8 @@ export default function LoanScreen({ navigation }) {
       const { uri } = await Print.printToFileAsync({ html: htmlContent });
 
       if (Platform.OS === "ios") {
-        // Show preview on iOS
         await Print.printAsync({ uri });
       } else {
-        // On Android, save to downloads
         const permissions =
           await StorageAccessFramework.requestDirectoryPermissionsAsync();
 
@@ -311,7 +302,6 @@ export default function LoanScreen({ navigation }) {
           <Text style={styles.headerTitle}>Loan Applications</Text>
         </LinearGradient>
 
-        {/* Add this new section below the header */}
         <View style={styles.actionBar}>
           <TouchableOpacity
             style={styles.actionButton}

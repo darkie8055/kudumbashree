@@ -210,19 +210,13 @@ export default function SavingsScreen({ navigation }) {
           </View>
 
           <View style={styles.collectiveCard}>
-            <Text style={styles.cardTitle}>Unit Collective Savings</Text>
+            <Text style={styles.cardTitle}>Unit Overview</Text>
             <View style={styles.collectiveStats}>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>
                   ₹{formatCurrency(savingsData.collectiveTotal)}
                 </Text>
                 <Text style={styles.statLabel}>Total Collection</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  ₹{formatCurrency(savingsData.averageSavings)}
-                </Text>
-                <Text style={styles.statLabel}>Avg. per Member</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{savingsData.memberCount}</Text>
@@ -233,66 +227,67 @@ export default function SavingsScreen({ navigation }) {
 
           <View style={styles.breakdownCard}>
             <Text style={styles.cardTitle}>Savings Analysis</Text>
-
             <View style={styles.statGrid}>
-              <View style={styles.statBlock}>
-                <View style={styles.statIconWrapper}>
-                  <Ionicons name="calendar" size={24} color="#8B5CF6" />
-                </View>
-                <Text style={styles.statBlockLabel}>Payment Streak</Text>
-                <Text style={styles.statBlockValue}>
-                  {savingsData.weeksPaid} weeks
-                </Text>
-                <Text style={styles.statBlockSubtext}>
-                  Consecutive payments
-                </Text>
-              </View>
-
-              <View style={styles.statBlock}>
-                <View style={styles.statIconWrapper}>
-                  <Ionicons name="trending-up" size={24} color="#10B981" />
-                </View>
-                <Text style={styles.statBlockLabel}>Monthly Average</Text>
-                <Text style={styles.statBlockValue}>
-                  ₹
-                  {formatCurrency(
+              {[
+                {
+                  icon: "calendar-outline",
+                  color: "#8B5CF6",
+                  bgColor: "#EDE9FE",
+                  label: "Payment Streak",
+                  value: `${savingsData.weeksPaid} weeks`,
+                  subtext: "Total payments made",
+                },
+                {
+                  icon: "trending-up",
+                  color: "#10B981",
+                  bgColor: "#D1FAE5",
+                  label: "Monthly Average",
+                  value: `₹${formatCurrency(
                     savingsData.totalAmount /
                       (savingsData.monthlyBreakdown.length || 1)
-                  )}
-                </Text>
-                <Text style={styles.statBlockSubtext}>Per month savings</Text>
-              </View>
-
-              <View style={styles.statBlock}>
-                <View style={styles.statIconWrapper}>
-                  <Ionicons name="analytics" size={24} color="#F59E0B" />
-                </View>
-                <Text style={styles.statBlockLabel}>Contribution</Text>
-                <Text style={styles.statBlockValue}>
-                  {(
+                  )}`,
+                  subtext: "Per month savings",
+                },
+                {
+                  icon: "analytics-outline",
+                  color: "#F59E0B",
+                  bgColor: "#FEF3C7",
+                  label: "Unit Share",
+                  value: `${(
                     (savingsData.totalAmount /
                       (savingsData.collectiveTotal || 1)) *
                     100
-                  ).toFixed(1)}
-                  %
-                </Text>
-                <Text style={styles.statBlockSubtext}>Of unit total</Text>
-              </View>
-
-              <View style={styles.statBlock}>
-                <View style={styles.statIconWrapper}>
-                  <Ionicons name="bar-chart" size={24} color="#EC4899" />
-                </View>
-                <Text style={styles.statBlockLabel}>Payment Rate</Text>
-                <Text style={styles.statBlockValue}>
-                  {(
+                  ).toFixed(1)}%`,
+                  subtext: "Of total collection",
+                },
+                {
+                  icon: "bar-chart-outline",
+                  color: "#EC4899",
+                  bgColor: "#FCE7F3",
+                  label: "Payment Rate",
+                  value: `${(
                     (savingsData.weeksPaid / (savingsData.weeksPaid + 4)) *
                     100
-                  ).toFixed(1)}
-                  %
-                </Text>
-                <Text style={styles.statBlockSubtext}>Completion rate</Text>
-              </View>
+                  ).toFixed(1)}%`,
+                  subtext: "Completion rate",
+                },
+              ].map((stat, index) => (
+                <View key={index} style={styles.statBlock}>
+                  <View
+                    style={[
+                      styles.statIconWrapper,
+                      { backgroundColor: stat.bgColor },
+                    ]}
+                  >
+                    <Ionicons name={stat.icon} size={24} color={stat.color} />
+                  </View>
+                  <View style={styles.statContent}>
+                    <Text style={styles.statBlockLabel}>{stat.label}</Text>
+                    <Text style={styles.statBlockValue}>{stat.value}</Text>
+                    <Text style={styles.statBlockSubtext}>{stat.subtext}</Text>
+                  </View>
+                </View>
+              ))}
             </View>
           </View>
         </ScrollView>
@@ -305,7 +300,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F3F4F6",
-    paddingBottom:70,
+    paddingBottom: 70,
   },
   header: {
     padding: 20,
@@ -400,20 +395,22 @@ const styles = StyleSheet.create({
   collectiveStats: {
     flexDirection: "row",
     justifyContent: "space-between",
+    paddingHorizontal: 8,
   },
   statItem: {
     alignItems: "center",
     flex: 1,
+    gap: 8,
   },
   statValue: {
     fontFamily: "Poppins_700Bold",
     fontSize: 20,
     color: "#1F2937",
-    marginBottom: 4,
+    textAlign: "center",
   },
   statLabel: {
     fontFamily: "Poppins_400Regular",
-    fontSize: 12,
+    fontSize: 13,
     color: "#6B7280",
     textAlign: "center",
   },
@@ -426,8 +423,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
-    marginBottom:50,
-    paddingBottom:0,
+    marginBottom: 50,
+    paddingBottom: 0,
   },
   statGrid: {
     flexDirection: "row",
@@ -441,29 +438,35 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
+  },
+  statContent: {
     alignItems: "center",
   },
   statIconWrapper: {
+    alignSelf: "center",
     backgroundColor: "#EDE9FE",
     borderRadius: 12,
     padding: 8,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   statBlockLabel: {
     fontFamily: "Poppins_500Medium",
-    fontSize: 14,
+    fontSize: 13,
     color: "#6B7280",
     marginBottom: 4,
+    textAlign: "center",
   },
   statBlockValue: {
     fontFamily: "Poppins_600SemiBold",
-    fontSize: 20,
+    fontSize: 18,
     color: "#1F2937",
-    marginBottom: 2,
+    marginBottom: 4,
+    textAlign: "center",
   },
   statBlockSubtext: {
     fontFamily: "Poppins_400Regular",
-    fontSize: 12,
+    fontSize: 11,
     color: "#9CA3AF",
+    textAlign: "center",
   },
 });

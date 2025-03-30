@@ -43,9 +43,6 @@ import type { RootStackParamList } from "../types/navigation";
 import { getAuth } from "firebase/auth";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 
-const DEBUG_MODE = true;
-const DEBUG_PHONE = "8891115593";
-
 type ApplyLoanScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
   "ApplyLoan"
@@ -122,13 +119,8 @@ export default function ApplyLoanScreen({ navigation, route }: Props) {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const auth = getAuth();
-        const currentUser = auth.currentUser;
-
-        // Use debug phone number in debug mode
-        let phoneNumber = DEBUG_MODE
-          ? DEBUG_PHONE
-          : currentUser?.phoneNumber?.replace("+91", "");
+        // Get phone number from route params
+        const phoneNumber = route.params?.phoneNumber;
 
         if (!phoneNumber) {
           console.log("No phone number available");
@@ -180,7 +172,7 @@ export default function ApplyLoanScreen({ navigation, route }: Props) {
       duration: 1000,
       useNativeDriver: true,
     }).start();
-  }, []); // Remove route.params?.phoneNumber dependency
+  }, [route.params?.phoneNumber]); // Add dependency
 
   // Update handleSubmit to use userData directly
   const handleSubmit = async (
