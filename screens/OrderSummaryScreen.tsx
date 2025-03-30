@@ -1,23 +1,89 @@
 "use client"
 
-import { useState } from "react"
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Image } from "react-native"
+import { useState, useMemo, useEffect, useCallback, useRef } from "react"
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Image, Modal, ActivityIndicator } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
+import QRCode from 'react-native-qrcode-svg'
 
 export default function OrderSummaryScreen({ navigation, route }) {
-  const { cart, paymentMethod, address } = route.params
+  const { 
+    cart = [], 
+    paymentMethod = {},
+    address = null
+  } = route.params || {}
+
+  useEffect(() => {
+    if (!address) {
+      navigation.replace('Address', route.params)
+    }
+  }, [address])
+
   const [couponCode, setCouponCode] = useState("")
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
+  const [showPaymentQR, setShowPaymentQR] = useState(false)
+  const [paymentTimer, setPaymentTimer] = useState(300) // 5 minutes
+  const [isPaymentTimedOut, setIsPaymentTimedOut] = useState(false)
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false)
+  const [paymentSuccess, setPaymentSuccess] = useState(false)
+  const timerRef = useRef(null);
 
   const subtotal = cart.reduce((total, item) => total + item.product.price * item.quantity, 0)
   const discount = 9.5
   const deliveryCharge = 5.0
   const total = subtotal - discount + deliveryCharge
 
-  const handlePlaceOrder = () => {
-    const orderId = Math.floor(Math.random() * 90000) + 10000
+  const qrValue = useMemo(() => {
+    return `upi://pay?pa=gamestriker8055@okaxis&pn=Kudumbashree&am=${total.toFixed(2)}&cu=INR`;
+  }, [total]);
 
+  const timerDisplay = useMemo(() => {
+    const minutes = Math.floor(paymentTimer / 60);
+    const seconds = paymentTimer % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }, [paymentTimer]);
+
+  const startPaymentTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    timerRef.current = setInterval(() => {
+      setPaymentTimer((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+          }
+          setIsPaymentTimedOut(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      setPaymentTimer(300);
+      setIsPaymentTimedOut(false);
+      setShowPaymentQR(false);
+    };
+  }, []);
+
+  const handlePlaceOrder = useCallback(() => {
+    if (paymentMethod.type === 'upi') {
+      setShowPaymentQR(true);
+      startPaymentTimer();
+    } else {
+      proceedWithOrder();
+    }
+  }, [paymentMethod, startPaymentTimer]);
+
+  const proceedWithOrder = () => {
+    const orderId = Math.floor(Math.random() * 90000) + 10000
     const orderStatus = {
       orderId,
       total,
@@ -25,11 +91,32 @@ export default function OrderSummaryScreen({ navigation, route }) {
       status: "PLACED",
       placedAt: new Date().toISOString(),
     }
-
     navigation.navigate("OrderTracking", orderStatus)
   }
 
+  const handlePaymentVerification = async () => {
+    setIsProcessingPayment(true);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    setIsProcessingPayment(false);
+    setPaymentSuccess(true);
+  };
+
+  const handleDone = () => {
+    setShowPaymentQR(false);
+    setPaymentSuccess(false);
+    setPaymentTimer(300);
+    setIsPaymentTimedOut(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    proceedWithOrder();
+  };
+
   const renderPaymentMethod = () => {
+    if (!paymentMethod.type) {
+      return null;
+    }
+
     if (paymentMethod.type === "upi") {
       return (
         <View style={styles.section}>
@@ -65,25 +152,148 @@ export default function OrderSummaryScreen({ navigation, route }) {
     )
   }
 
-  const renderOrderItems = () => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Order Items</Text>
-      {cart.map((item) => (
-        <View key={item.product.id} style={styles.orderItem}>
-          <Image 
-            source={{ uri: item.product.imageUrl }} // Fix: change 'image' to 'imageUrl'
-            style={styles.productImage}
-            resizeMode="cover" // Add resizeMode for better image display
-          />
-          <View style={styles.itemDetails}>
-            <Text style={styles.itemName}>{item.product.name}</Text>
-            <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
-          </View>
-          <Text style={styles.itemPrice}>₹{(item.product.price * item.quantity).toFixed(2)}</Text>
+  const renderOrderItems = () => {
+    if (!cart.length) {
+      return (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Order Items</Text>
+          <Text style={styles.emptyText}>No items in cart</Text>
         </View>
-      ))}
-    </View>
-  );
+      );
+    }
+
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Order Items</Text>
+        {cart.map((item) => (
+          <View key={item.product.id} style={styles.orderItem}>
+            <Image 
+              source={{ uri: item.product.imageUrl }}
+              style={styles.productImage}
+              resizeMode="cover"
+            />
+            <View style={styles.itemDetails}>
+              <Text style={styles.itemName}>{item.product.name}</Text>
+              <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
+            </View>
+            <Text style={styles.itemPrice}>₹{(item.product.price * item.quantity).toFixed(2)}</Text>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
+  const renderAddress = () => {
+    if (!address) return null;
+
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Delivery Address</Text>
+        <View style={styles.addressInfo}>
+          <View style={styles.addressIcon}>
+            <Ionicons name="location-outline" size={24} color="#333" />
+          </View>
+          <View style={styles.addressContent}>
+            <Text style={styles.addressName}>{address.name}</Text>
+            <Text style={styles.addressText}>{address.street}</Text>
+            <Text style={styles.addressText}>{address.city}</Text>
+            <Text style={styles.addressPhone}>{address.phone}</Text>
+            {address.isDefault && (
+              <View style={styles.defaultBadge}>
+                <Text style={styles.defaultText}>DEFAULT</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const PaymentQRModal = useMemo(() => {
+    return () => (
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showPaymentQR}
+        onRequestClose={() => !isProcessingPayment && setShowPaymentQR(false)}
+        statusBarTranslucent
+        hardwareAccelerated={true}
+      >
+        <View style={[styles.modalContainer, StyleSheet.absoluteFill]}>
+          <View style={styles.modalContent}>
+            {paymentSuccess ? (
+              <>
+                <View style={styles.successIcon}>
+                  <Ionicons name="checkmark-circle" size={60} color="#69C779" />
+                </View>
+                <Text style={styles.successTitle}>Payment Successful!</Text>
+                <TouchableOpacity 
+                  style={styles.doneButton}
+                  onPress={handleDone}
+                >
+                  <Text style={styles.doneButtonText}>Done</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Scan to Pay</Text>
+                <View style={[styles.qrContainer, styles.qrShadow]}>
+                  <QRCode
+                    value={qrValue}
+                    size={200}
+                    quietZone={10}
+                    backgroundColor="#fff"
+                    color="#000"
+                    ecl="H"
+                  />
+                </View>
+                <Text style={styles.timerText}>
+                  Time remaining: {timerDisplay}
+                </Text>
+                {isPaymentTimedOut ? (
+                  <Text style={styles.timeoutText}>Payment timed out. Please try again.</Text>
+                ) : (
+                  <TouchableOpacity 
+                    style={[styles.verifyPaymentButton, isProcessingPayment && styles.processingButton]}
+                    onPress={handlePaymentVerification}
+                    disabled={isProcessingPayment}
+                  >
+                    {isProcessingPayment ? (
+                      <View style={styles.processingContainer}>
+                        <ActivityIndicator color="#fff" />
+                        <Text style={[styles.verifyPaymentButtonText, styles.processingText]}>
+                          Processing...
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.verifyPaymentButtonText}>
+                        I have made the payment
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+                {!isProcessingPayment && (
+                  <TouchableOpacity 
+                    style={styles.cancelButton}
+                    onPress={() => {
+                      setShowPaymentQR(false);
+                      if (timerRef.current) {
+                        clearInterval(timerRef.current);
+                      }
+                      setPaymentTimer(300);
+                      setIsPaymentTimedOut(false);
+                    }}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+    );
+  }, [showPaymentQR, qrValue, timerDisplay, isPaymentTimedOut, isProcessingPayment, paymentSuccess]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -95,23 +305,8 @@ export default function OrderSummaryScreen({ navigation, route }) {
       </View>
 
       <ScrollView style={styles.content}>
+        {renderAddress()}
         {renderPaymentMethod()}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Delivery Address</Text>
-          <View style={styles.addressInfo}>
-            <View style={styles.addressIcon}>
-              <Ionicons name="location-outline" size={24} color="#333" />
-            </View>
-            <View>
-              <Text style={styles.addressName}>{address.name}</Text>
-              <Text style={styles.addressText}>{address.street}</Text>
-              <Text style={styles.addressText}>{address.city}</Text>
-              <Text style={styles.addressPhone}>{address.phone}</Text>
-            </View>
-          </View>
-        </View>
-
         {renderOrderItems()}
 
         <View style={styles.section}>
@@ -128,7 +323,6 @@ export default function OrderSummaryScreen({ navigation, route }) {
               disabled={!couponCode || isApplyingCoupon}
               onPress={() => {
                 setIsApplyingCoupon(true)
-                // Simulate coupon application
                 setTimeout(() => {
                   setIsApplyingCoupon(false)
                   setCouponCode("")
@@ -170,6 +364,8 @@ export default function OrderSummaryScreen({ navigation, route }) {
           <Text style={styles.placeOrderButtonText}>Place Order</Text>
         </TouchableOpacity>
       </View>
+
+      <PaymentQRModal />
     </SafeAreaView>
   )
 }
@@ -271,6 +467,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 12,
   },
+  addressContent: {
+    flex: 1,
+    paddingRight: 40,
+  },
   addressName: {
     fontSize: 16,
     fontWeight: "500",
@@ -286,6 +486,20 @@ const styles = StyleSheet.create({
     color: "#666",
     marginTop: 4,
   },
+  defaultBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  defaultText: {
+    color: '#69C779',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
   orderItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -298,7 +512,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 8,
     marginRight: 12,
-    backgroundColor: '#f0f0f0', // Add fallback background color
+    backgroundColor: '#f0f0f0',
   },
   itemDetails: {
     flex: 1,
@@ -409,6 +623,121 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  modalContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+    alignItems: 'center',
+    elevation: 5,
+  },
+  qrContainer: {
+    width: 240,
+    height: 240,
+    padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginVertical: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  qrShadow: {
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  timerText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: 10,
+  },
+  timeoutText: {
+    color: 'red',
+    marginVertical: 10,
+  },
+  verifyPaymentButton: {
+    backgroundColor: '#69C779',
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  verifyPaymentButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  cancelButton: {
+    backgroundColor: '#ccc',
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: 16,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  processingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  processingText: {
+    marginLeft: 8,
+  },
+  processingButton: {
+    opacity: 0.8,
+  },
+  successIcon: {
+    marginBottom: 16,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 24,
+  },
+  doneButton: {
+    backgroundColor: '#69C779',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  doneButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 })
 

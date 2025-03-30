@@ -37,25 +37,25 @@ const samplePaymentMethods: PaymentMethod[] = [
     id: "3",
     type: "upi",
     upiApp: "BHIM",
-    upiIcon:  "https://drive.google.com/file/d/1wQnlHhK2lOhhkTyPHrBlvg-sgn2tnbjY/view?usp=sharing",
+    upiIcon: "https://play-lh.googleusercontent.com/B5cNBA15IxjCT-8UTXEWgiPcGkJ1C07iHKwm2Hbs8xR3PnJvZ0swTag3abdC_Fj5OfnP",
   },
   {
     id: "4",
     type: "upi",
     upiApp: "PhonePe",
-    upiIcon: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/upi-CdI8LUHVB7LdWuls6vIZDm9PREJasC.png",
+    upiIcon: "https://play-lh.googleusercontent.com/6iyA2zVz5PyyMjK5SIxdUhrb7oh9cYYp3VPDXIOmk12zQKPtuEHF9y5MKwwbAjzNccU",
   },
   {
     id: "5",
     type: "upi",
     upiApp: "Paytm",
-    upiIcon: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/upi-CdI8LUHVB7LdWuls6vIZDm9PREJasC.png",
+    upiIcon: "https://play-lh.googleusercontent.com/HArtbyi53u0jnqhnnxkQnMx9dHOERNcprZyKnInd2nrfM7Wd9ivMNTiz7IJP6-mSpwk",
   },
   {
     id: "6",
     type: "upi",
     upiApp: "Google Pay",
-    upiIcon: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/upi-CdI8LUHVB7LdWuls6vIZDm9PREJasC.png",
+    upiIcon: "https://play-lh.googleusercontent.com/HArtbyi53u0jnqhnnxkQnMx9dHOERNcprZyKnInd2nrfM7Wd9ivMNTiz7IJP6-mSpwk",
   },
 ]
 
@@ -64,19 +64,28 @@ export default function PaymentMethodScreen({ navigation, route }) {
   const [paymentType, setPaymentType] = useState<"card" | "upi">("card")
   const [upiId, setUpiId] = useState<string>("")
   const [showUpiInput, setShowUpiInput] = useState<boolean>(false)
+  const [isUpiVerified, setIsUpiVerified] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(false)
+
+  const verifyUpiId = async () => {
+    setIsVerifying(true)
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    setIsVerifying(false)
+    setIsUpiVerified(true)
+  }
 
   const handlePaymentProceed = () => {
-    const selectedPayment = samplePaymentMethods.find((m) => m.id === selectedMethod)
-
+    const selectedPayment = samplePaymentMethods.find((m) => m.id === selectedMethod);
+    
     if (selectedPayment?.type === "upi") {
-      setShowUpiInput(true)
+      setShowUpiInput(true);
     } else {
       navigation.navigate("OrderSummary", {
         ...route.params,
         paymentMethod: selectedPayment,
-      })
+      });
     }
-  }
+  };
 
   const handleUpiPayment = () => {
     const selectedPayment = samplePaymentMethods.find((m) => m.id === selectedMethod)
@@ -89,6 +98,23 @@ export default function PaymentMethodScreen({ navigation, route }) {
     })
   }
 
+  const handleNextPress = () => {
+    if (!selectedMethod) {
+      alert('Please select a payment method')
+      return
+    }
+
+    const selectedPayment = samplePaymentMethods.find((m) => m.id === selectedMethod)
+    if (selectedPayment?.type === "upi") {
+      setShowUpiInput(true)
+    } else {
+      navigation.navigate("OrderSummary", {
+        ...route.params,
+        paymentMethod: selectedPayment,
+      })
+    }
+  }
+
   const UpiInputModal = () => (
     <Modal
       animationType="slide"
@@ -99,18 +125,39 @@ export default function PaymentMethodScreen({ navigation, route }) {
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Enter UPI ID</Text>
-          <TextInput
-            style={styles.upiInput}
-            placeholder="example@upi"
-            value={upiId}
-            onChangeText={setUpiId}
-            autoCapitalize="none"
-          />
+          <View style={styles.upiInputContainer}>
+            <TextInput
+              style={[styles.upiInput, isUpiVerified && styles.upiInputVerified]}
+              placeholder="example@upi"
+              value={upiId}
+              onChangeText={(text) => {
+                setUpiId(text)
+                setIsUpiVerified(false)
+              }}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity 
+              style={[styles.verifyButton, isVerifying && styles.verifyingButton]}
+              onPress={verifyUpiId}
+              disabled={isVerifying || !upiId || isUpiVerified}
+            >
+              <Text style={styles.verifyButtonText}>
+                {isVerifying ? 'Verifying...' : isUpiVerified ? 'Verified' : 'Verify'}
+              </Text>
+            </TouchableOpacity>
+            {isUpiVerified && (
+              <Ionicons name="checkmark-circle" size={24} color="#69C779" style={styles.verifiedIcon} />
+            )}
+          </View>
           <View style={styles.modalButtons}>
             <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setShowUpiInput(false)}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.modalButton, styles.proceedButton]} onPress={handleUpiPayment}>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.proceedButton, !isUpiVerified && styles.disabledButton]} 
+              onPress={handleUpiPayment}
+              disabled={!isUpiVerified}
+            >
               <Text style={styles.proceedButtonText}>Proceed</Text>
             </TouchableOpacity>
           </View>
@@ -148,7 +195,6 @@ export default function PaymentMethodScreen({ navigation, route }) {
 
       <ScrollView style={styles.content}>
         {paymentType === "card" ? (
-          // Credit Card Section
           samplePaymentMethods
             .filter((method) => method.type === "visa" || method.type === "mastercard")
             .map((method) => (
@@ -185,7 +231,6 @@ export default function PaymentMethodScreen({ navigation, route }) {
               </TouchableOpacity>
             ))
         ) : (
-          // UPI Section
           <View style={styles.upiContainer}>
             <Text style={styles.upiTitle}>Select your UPI app</Text>
             <View style={styles.upiGrid}>
@@ -218,13 +263,9 @@ export default function PaymentMethodScreen({ navigation, route }) {
       </ScrollView>
 
       <TouchableOpacity
-        style={styles.nextButton}
-        onPress={() =>
-          navigation.navigate("Address", {
-            ...route.params,
-            paymentMethod: samplePaymentMethods.find((m) => m.id === selectedMethod),
-          })
-        }
+        style={[styles.nextButton, !selectedMethod && styles.disabledButton]}
+        onPress={handleNextPress}
+        disabled={!selectedMethod}
       >
         <Text style={styles.nextButtonText}>Next</Text>
       </TouchableOpacity>
@@ -437,13 +478,40 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: "#333",
   },
+  upiInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   upiInput: {
+    flex: 1,
     borderWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: '#e0e0e0',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    marginBottom: 16,
+    marginRight: 8,
+  },
+  upiInputVerified: {
+    borderColor: '#69C779',
+  },
+  verifyButton: {
+    backgroundColor: '#69C779',
+    padding: 12,
+    borderRadius: 8,
+  },
+  verifyingButton: {
+    backgroundColor: '#ccc',
+  },
+  verifyButtonText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  verifiedIcon: {
+    position: 'absolute',
+    right: 8,
+    top: '50%',
+    marginTop: -12,
   },
   modalButtons: {
     flexDirection: "row",
@@ -468,6 +536,9 @@ const styles = StyleSheet.create({
   proceedButtonText: {
     color: "#fff",
     fontSize: 16,
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
   },
 })
 

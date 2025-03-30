@@ -33,6 +33,17 @@ const sampleAddresses: Address[] = [
 export default function AddressScreen({ navigation, route }) {
   const [selectedAddress, setSelectedAddress] = useState<string>(sampleAddresses[0].id)
 
+  const handleNext = () => {
+    const selected = sampleAddresses.find((a) => a.id === selectedAddress);
+    if (selected) {
+      navigation.navigate("OrderSummary", {
+        cart: route.params?.cart,
+        address: selected,
+        paymentMethod: route.params?.paymentMethod
+      });
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -80,13 +91,9 @@ export default function AddressScreen({ navigation, route }) {
       </ScrollView>
 
       <TouchableOpacity
-        style={styles.nextButton}
-        onPress={() =>
-          navigation.navigate("OrderSummary", {
-            ...route.params,
-            address: sampleAddresses.find((a) => a.id === selectedAddress),
-          })
-        }
+        style={[styles.nextButton, !selectedAddress && styles.disabledButton]}
+        disabled={!selectedAddress}
+        onPress={handleNext}
       >
         <Text style={styles.nextButtonText}>Next</Text>
       </TouchableOpacity>
@@ -196,6 +203,9 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  disabledButton: {
+    backgroundColor: "#e0e0e0",
   },
 })
 
