@@ -214,36 +214,39 @@ export default function PayWeeklyDueScreen({ navigation }) {
       return a.weekNumber - b.weekNumber;
     });
 
-    // Group by month
-    const monthlyGroups = filtered.reduce((groups, due) => {
-      const monthYear = due.startDate.toLocaleDateString("en-IN", {
-        month: "long",
-        year: "numeric",
-      });
-      if (!groups[monthYear]) {
-        groups[monthYear] = {
-          monthYear,
-          dues: [],
-          totalAmount: 0,
-          paidAmount: 0,
-        };
-      }
-      groups[monthYear].dues.push(due);
-      groups[monthYear].totalAmount += due.amount;
-      if (due.isPaid) {
-        groups[monthYear].paidAmount += due.amount;
-      }
-      return groups;
-    }, {});
+    // Group by month with proper typing
+    const monthlyGroups = filtered.reduce<Record<string, MonthlyGroup>>(
+      (groups, due) => {
+        const monthYear = due.startDate.toLocaleDateString("en-IN", {
+          month: "long",
+          year: "numeric",
+        });
+        if (!groups[monthYear]) {
+          groups[monthYear] = {
+            monthYear,
+            dues: [],
+            totalAmount: 0,
+            paidAmount: 0,
+          };
+        }
+        groups[monthYear].dues.push(due);
+        groups[monthYear].totalAmount += due.amount;
+        if (due.isPaid) {
+          groups[monthYear].paidAmount += due.amount;
+        }
+        return groups;
+      },
+      {}
+    );
 
-    // Convert to array and sort by date
+    // Convert to array and sort by date with proper typing
     return Object.values(monthlyGroups).sort((a, b) => {
       const dateA = new Date(a.dues[0].startDate);
       const dateB = new Date(b.dues[0].startDate);
       return filterOptions.sortBy === "newest"
         ? dateB.getTime() - dateA.getTime()
         : dateA.getTime() - dateB.getTime();
-    });
+    }) as MonthlyGroup[];
   };
 
   const renderMonthlyGroup = ({ item }: { item: MonthlyGroup }) => (
@@ -259,7 +262,11 @@ export default function PayWeeklyDueScreen({ navigation }) {
           </Text>
         </View>
       </View>
-      {item.dues.map((due) => renderWeeklyDue({ item: due }))}
+      {item.dues.map((due) => (
+        <View key={`${item.monthYear}-week-${due.weekNumber}`}>
+          {renderWeeklyDue({ item: due })}
+        </View>
+      ))}
     </View>
   );
 
