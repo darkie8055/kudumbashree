@@ -8,21 +8,10 @@ import QRCode from 'react-native-qrcode-svg'
 import Toast from 'react-native-toast-message'
 
 // Create a separate Timer component outside the main component
-const TimerComponent = ({ seconds, onTimeout }) => {
-  useEffect(() => {
-    const interval = setInterval(() => {
-      seconds > 0 && onTimeout(seconds - 1);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [seconds]);
-
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-
+const TimerComponent = () => {
   return (
     <Text style={styles.timerText}>
-      Time remaining: {minutes}:{remainingSeconds.toString().padStart(2, '0')}
+      Time remaining: 5:00
     </Text>
   );
 };
@@ -107,10 +96,7 @@ export default function OrderSummaryScreen({ navigation, route }) {
               <>
                 <Text style={styles.modalTitle}>Scan to Pay</Text>
                 {QRCodeComponent}
-                <TimerComponent
-                  seconds={paymentTimer}
-                  onTimeout={setPaymentTimer}
-                />
+                <TimerComponent />
                 {isPaymentTimedOut ? (
                   <Text style={styles.timeoutText}>Payment timed out. Please try again.</Text>
                 ) : (
