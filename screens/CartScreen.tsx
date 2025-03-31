@@ -39,7 +39,30 @@ export default function CartScreen({ navigation, route }) {
     const updatedCart = cart.map((cartItem) => {
       if (cartItem.product.id === item.product.id) {
         const newQuantity = Math.max(0, cartItem.quantity + change);
-        if (newQuantity === 0) return null;
+        if (newQuantity === 0) {
+          Toast.show({
+            type: 'info',
+            text1: 'Item Removed',
+            text2: `${item.product.name} has been removed from cart`,
+            visibilityTime: TOAST_DURATION,
+          });
+          return null;
+        }
+        if (change > 0) {
+          Toast.show({
+            type: 'success',
+            text1: 'Quantity Updated',
+            text2: `Increased quantity of ${item.product.name}`,
+            visibilityTime: TOAST_DURATION,
+          });
+        } else if (change < 0) {
+          Toast.show({
+            type: 'info',
+            text1: 'Quantity Updated',
+            text2: `Decreased quantity of ${item.product.name}`,
+            visibilityTime: TOAST_DURATION,
+          });
+        }
         return { ...cartItem, quantity: newQuantity };
       }
       return cartItem;
@@ -168,7 +191,8 @@ export default function CartScreen({ navigation, route }) {
       />
       <View style={styles.productInfo}>
         <Text style={styles.productName}>{item.product.name}</Text>
-        <Text style={styles.productPrice}>₹{item.product.price}</Text>
+        <Text style={styles.productPrice}>₹{item.product.price} × {item.quantity}</Text>
+        <Text style={styles.itemTotal}>Total: ₹{item.product.price * item.quantity}</Text>
         <View style={styles.quantityContainer}>
           <TouchableOpacity
             onPress={() => handleQuantityChange(item, -1)}
@@ -380,6 +404,12 @@ const styles = StyleSheet.create({
   productPrice: {
     fontSize: 14,
     color: "#666",
+    marginBottom: 8,
+  },
+  itemTotal: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#69C779',
     marginBottom: 8,
   },
   quantityContainer: {
