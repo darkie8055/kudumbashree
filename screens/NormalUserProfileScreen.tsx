@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TextInput,
   Animated,
+  Image, // Add this import
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -37,6 +38,7 @@ interface NormalUserDetails {
   gender: string;
   role: string;
   createdAt?: string;
+  profilePhotoUrl: string; // Add this field
 }
 
 export default function NormalUserProfileScreen({ route, navigation }) {
@@ -210,10 +212,10 @@ export default function NormalUserProfileScreen({ route, navigation }) {
             ]}
           >
             <View style={styles.avatarContainer}>
-              <Text style={styles.avatarText}>
-                {userDetails?.firstName?.[0]}
-                {userDetails?.lastName?.[0]}
-              </Text>
+              <Image
+                source={{ uri: userDetails.profilePhotoUrl }}
+                style={styles.profileImage}
+              />
             </View>
             <Text style={styles.userName}>
               {`${userDetails?.firstName} ${userDetails?.lastName}`}
@@ -424,11 +426,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 3,
     borderColor: "rgba(255, 255, 255, 0.8)",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  avatarText: {
-    fontSize: 36,
-    fontFamily: "Poppins_600SemiBold",
-    color: "#8B5CF6",
+  profileImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 60,
   },
   userName: {
     marginTop: 8,

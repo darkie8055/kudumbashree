@@ -77,6 +77,15 @@ interface LoanReport {
   totalPaid: number;
 }
 
+interface UnitDetails {
+  presidentDetails: {
+    name: string;
+    phone: string;
+    role: string;
+  };
+  unitName: string;
+}
+
 const SORT_OPTIONS = ["date", "amount", "status"] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
 
@@ -122,6 +131,7 @@ export default function ViewReportsScreen({
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
+  const [unitDetails, setUnitDetails] = useState<UnitDetails | null>(null);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -132,6 +142,7 @@ export default function ViewReportsScreen({
   useEffect(() => {
     fetchReports();
     fetchLoans();
+    fetchUnitDetails();
   }, [currentMonth]);
 
   const fetchReports = async () => {
@@ -318,6 +329,18 @@ export default function ViewReportsScreen({
       Alert.alert("Error", "Failed to load loan data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUnitDetails = async () => {
+    try {
+      const db = getFirestore();
+      const unitDoc = await getDoc(doc(db, "unitDetails", "123")); // Using "123" as your unit ID
+      if (unitDoc.exists()) {
+        setUnitDetails(unitDoc.data() as UnitDetails);
+      }
+    } catch (error) {
+      console.error("Error fetching unit details:", error);
     }
   };
 
@@ -528,6 +551,32 @@ export default function ViewReportsScreen({
                 border-top: 1px solid #E5E7EB;
                 color: #6B7280;
               }
+              .signature-section {
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #E5E7EB;
+              }
+              .signature-box {
+                margin-top: 20px;
+                display: flex;
+                justify-content: flex-end;
+              }
+              .signature-line {
+                width: 200px;
+                border-bottom: 1px solid #1F2937;
+                margin-bottom: 8px;
+              }
+              .signature-label {
+                font-size: 12px;
+                color: #6B7280;
+                text-align: center;
+              }
+              .position-label {
+                font-size: 10px;
+                color: #6B7280;
+                text-align: center;
+                margin-top: 4px;
+              }
             </style>
           </head>
           <body>
@@ -602,6 +651,20 @@ export default function ViewReportsScreen({
                   .join("")}
               </tbody>
             </table>
+
+            <div class="signature-section">
+              <div class="signature-box">
+                <div>
+                  <div class="signature-line"></div>
+                  <div class="signature-label">
+                    ${unitDetails?.presidentDetails?.name || "Unit President"}
+                  </div>
+                  <div class="position-label">President, ${
+                    unitDetails?.unitName || "Kudumbashree Unit"
+                  }</div>
+                </div>
+              </div>
+            </div>
 
             <div class="footer">
               <img src="${logoUrl}" width="60" alt="Kudumbashree Logo"/>
@@ -748,6 +811,32 @@ export default function ViewReportsScreen({
                 border-top: 1px solid #E5E7EB;
                 color: #6B7280;
               }
+              .signature-section {
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #E5E7EB;
+              }
+              .signature-box {
+                margin-top: 20px;
+                display: flex;
+                justify-content: flex-end;
+              }
+              .signature-line {
+                width: 200px;
+                border-bottom: 1px solid #1F2937;
+                margin-bottom: 8px;
+              }
+              .signature-label {
+                font-size: 12px;
+                color: #6B7280;
+                text-align: center;
+              }
+              .position-label {
+                font-size: 10px;
+                color: #6B7280;
+                text-align: center;
+                margin-top: 4px;
+              }
             </style>
           </head>
           <body>
@@ -845,6 +934,20 @@ export default function ViewReportsScreen({
                     .join("")}
                 </tbody>
               </table>
+            </div>
+
+            <div class="signature-section">
+              <div class="signature-box">
+                <div>
+                  <div class="signature-line"></div>
+                  <div class="signature-label">
+                    ${unitDetails?.presidentDetails?.name || "Unit President"}
+                  </div>
+                  <div class="position-label">President, ${
+                    unitDetails?.unitName || "Kudumbashree Unit"
+                  }</div>
+                </div>
+              </div>
             </div>
 
             <div class="footer">

@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   Alert,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -36,6 +37,7 @@ import { StorageAccessFramework } from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationProp, RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../types/navigation";
+import kudumbashreeLogo from "../assets/kudumbashreelogo.jpg";
 
 interface LoanApplication {
   id: string;
@@ -56,6 +58,12 @@ interface UserData {
   phone: string;
   firstName: string;
   lastName: string;
+}
+
+interface UnitDetails {
+  presidentName: string;
+  unitName: string;
+  // ... other fields
 }
 
 type LoanScreenProps = {
@@ -79,6 +87,7 @@ export default function LoanScreen({ navigation, route }: LoanScreenProps) {
   const [sortedLoans, setSortedLoans] = useState<LoanApplication[]>([]);
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [unitDetails, setUnitDetails] = useState<UnitDetails | null>(null);
 
   const phoneNumber = route.params?.phoneNumber;
 
@@ -158,6 +167,26 @@ export default function LoanScreen({ navigation, route }: LoanScreenProps) {
     setSortedLoans(sorted);
   }, [loans, filterOptions]);
 
+  useEffect(() => {
+    const fetchUnitDetails = async () => {
+      try {
+        const db = getFirestore();
+        const unitDoc = await getDoc(doc(db, "unitDetails", "123")); // Using "123" as your unit ID
+        if (unitDoc.exists()) {
+          const data = unitDoc.data() as UnitDetails;
+          setUnitDetails({
+            presidentName: data.presidentDetails.name,
+            unitName: data.unitName,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching unit details:", error);
+      }
+    };
+
+    fetchUnitDetails();
+  }, []);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "approved":
@@ -194,59 +223,142 @@ export default function LoanScreen({ navigation, route }: LoanScreenProps) {
   };
 
   const generatePDF = async () => {
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-            th { background-color: #8B5CF6; color: white; }
-            .status-approved { color: #10B981; }
-            .status-rejected { color: #EF4444; }
-            .status-pending { color: #F59E0B; }
-            h1 { color: #8B5CF6; }
-          </style>
-        </head>
-        <body>
-          <h1>Loan Applications History</h1>
-          <p style="color: #6B7280; margin-bottom: 20px;">
-            Member: ${userData?.firstName} ${userData?.lastName}
-          </p>
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Type</th>
-                <th>Amount</th>
-                <th>Purpose</th>
-                <th>Period</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${sortLoans(loans)
-                .map(
-                  (loan) => `
-                <tr>
-                  <td>${format(loan.createdAt, "dd/MM/yyyy")}</td>
-                  <td>${loan.loanType}</td>
-                  <td>₹${loan.amount}</td>
-                  <td>${loan.purpose}</td>
-                  <td>${loan.repaymentPeriod} months</td>
-                  <td class="status-${loan.status}">${loan.status}</td>
-                </tr>
-              `
-                )
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
     try {
+      const logoSource = Image.resolveAssetSource(kudumbashreeLogo);
+      const logoUrl = logoSource.uri;
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body { 
+                font-family: Arial, sans-serif;
+                padding: 40px;
+                color: #1F2937;
+              }
+              .header {
+                text-align: center;
+                margin-bottom: 40px;
+              }
+              .logo {
+                width: 120px;
+                margin-bottom: 20px;
+              }
+              h1 { 
+                color: #8B5CF6;
+                margin: 0;
+                font-size: 28px;
+              }
+              .date {
+                color: #6B7280;
+                margin-top: 8px;
+              }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+              th { background-color: #8B5CF6; color: white; }
+              .status-approved { color: #10B981; }
+              .status-rejected { color: #EF4444; }
+              .status-pending { color: #F59E0B; }
+              .signature-section {
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #E5E7EB;
+              }
+              .signature-box {
+                margin-top: 20px;
+                display: flex;
+                justify-content: flex-end;
+              }
+              .signature-line {
+                width: 200px;
+                border-bottom: 1px solid #1F2937;
+                margin-bottom: 8px;
+              }
+              .signature-label {
+                font-size: 12px;
+                color: #6B7280;
+                text-align: center;
+              }
+              .position-label {
+                font-size: 10px;
+                color: #6B7280;
+                text-align: center;
+                margin-top: 4px;
+              }
+              .footer {
+                text-align: center;
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #E5E7EB;
+                color: #6B7280;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <img src="${logoUrl}" class="logo" alt="Kudumbashree Logo"/>
+              <h1>Loan Applications History</h1>
+              <div class="date">
+                Generated on ${format(new Date(), "MMMM dd, yyyy")}
+              </div>
+              <p style="color: #6B7280; margin-bottom: 20px;">
+                Member: ${userData?.firstName} ${userData?.lastName}
+              </p>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Purpose</th>
+                  <th>Period</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${sortLoans(loans)
+                  .map(
+                    (loan) => `
+                  <tr>
+                    <td>${format(loan.createdAt, "dd/MM/yyyy")}</td>
+                    <td>${loan.loanType}</td>
+                    <td>₹${loan.amount}</td>
+                    <td>${loan.purpose}</td>
+                    <td>${loan.repaymentPeriod} months</td>
+                    <td class="status-${loan.status}">${loan.status}</td>
+                  </tr>
+                `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+            
+            <div class="signature-section">
+              <div class="signature-box">
+                <div>
+                  <div class="signature-line"></div>
+                  <div class="signature-label">
+                    ${
+                      unitDetails?.presidentName || "Unit President"
+                    }
+                  </div>
+                  <div class="position-label">President, ${
+                    unitDetails?.unitName || "Kudumbashree Unit"
+                  }</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="footer">
+              <img src="${logoUrl}" width="60" alt="Kudumbashree Logo"/>
+              <p>© ${new Date().getFullYear()} Kudumbashree Unit Report</p>
+            </div>
+          </body>
+        </html>
+      `;
+
       const { uri } = await Print.printToFileAsync({ html: htmlContent });
 
       if (Platform.OS === "ios") {
