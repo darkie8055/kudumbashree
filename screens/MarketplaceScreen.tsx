@@ -15,7 +15,7 @@ import {
   Dimensions,
   Modal,
   ActivityIndicator,
-  TextStyle, // Add this import
+  TextStyle,
   ViewStyle,
   ImageStyle,
 } from "react-native";
@@ -67,6 +67,17 @@ interface CartItem {
   quantity: number;
 }
 
+// Add this type to your existing Props interface
+interface Props {
+  navigation: StackNavigationProp<RootStackParamList>;
+  route?: {
+    params?: {
+      cart?: CartItem[];
+      userType?: "normal" | "K-member" | "president"; // Add this
+    };
+  };
+}
+
 const categories = [
   "All",
   "Food",
@@ -76,15 +87,6 @@ const categories = [
   "Others",
 ];
 const sortOptions = ["name", "priceLow", "priceHigh", "location"];
-
-interface Props {
-  navigation: StackNavigationProp<RootStackParamList>;
-  route?: {
-    params?: {
-      cart?: CartItem[];
-    };
-  };
-}
 
 const { width } = Dimensions.get("window");
 const ITEM_WIDTH = width * 0.44;
@@ -109,7 +111,7 @@ declare global {
   var addNewProduct: ((product: Product) => void) | null;
 }
 
-export default function MarketplaceScreen({ navigation, route }) {
+export default function MarketplaceScreen({ navigation, route }: Props) {
   const { userId, userDetails } = useUser();
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -134,20 +136,22 @@ export default function MarketplaceScreen({ navigation, route }) {
 
   // Add this ref for the recommendations FlatList
   const recommendationsRef = useRef<FlatList>(null);
-  const [currentRecommendationIndex, setCurrentRecommendationIndex] = useState(0);
+  const [currentRecommendationIndex, setCurrentRecommendationIndex] =
+    useState(0);
 
   // Add this useEffect for auto-scrolling
   useEffect(() => {
     let scrollTimer: NodeJS.Timeout;
-    
+
     if (recommendations.length > 0) {
       scrollTimer = setInterval(() => {
         if (recommendationsRef.current && recommendations.length > 0) {
-          const nextIndex = (currentRecommendationIndex + 1) % recommendations.length;
+          const nextIndex =
+            (currentRecommendationIndex + 1) % recommendations.length;
           recommendationsRef.current.scrollToIndex({
             index: nextIndex,
             animated: true,
-            viewPosition: 0.5
+            viewPosition: 0.5,
           });
           setCurrentRecommendationIndex(nextIndex);
         }
@@ -510,13 +514,13 @@ export default function MarketplaceScreen({ navigation, route }) {
             </TouchableOpacity>
           )}
           onScrollToIndexFailed={(info) => {
-            const wait = new Promise(resolve => setTimeout(resolve, 500));
+            const wait = new Promise((resolve) => setTimeout(resolve, 500));
             wait.then(() => {
               if (recommendationsRef.current) {
                 recommendationsRef.current.scrollToIndex({
                   index: info.index,
                   animated: true,
-                  viewPosition: 0.5
+                  viewPosition: 0.5,
                 });
               }
             });
@@ -536,6 +540,7 @@ export default function MarketplaceScreen({ navigation, route }) {
     return cart.reduce((total, item) => total + item.quantity, 0);
   }, [cart]);
 
+  // Update the renderHeader function
   const renderHeader = useCallback(() => {
     return (
       <View>
@@ -550,13 +555,16 @@ export default function MarketplaceScreen({ navigation, route }) {
               <Ionicons name="storefront" size={24} color="#fff" />
             </View>
             <Text style={styles.headerTitle}>K-MART</Text>
-            <TouchableOpacity
-              style={styles.headerBadge}
-              onPress={goToProductManagement}
-            >
-              <Ionicons name="add" size={20} color="#fff" />
-              <Text style={styles.headerSubtitle}>Sell Product</Text>
-            </TouchableOpacity>
+            {/* Only show Sell Product button if user is not a normal user */}
+            {route?.params?.userType !== "normal" && (
+              <TouchableOpacity
+                style={styles.headerBadge}
+                onPress={goToProductManagement}
+              >
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.headerSubtitle}>Sell Product</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </LinearGradient>
 
@@ -647,6 +655,7 @@ export default function MarketplaceScreen({ navigation, route }) {
     renderRecommendations,
     goToProductManagement,
     getTotalCartItems,
+    route?.params?.userType,
   ]);
 
   useEffect(() => {
@@ -872,7 +881,7 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_400Regular",
     fontSize: 14,
     color: "#fff",
-    fontWeight:"bold",
+    fontWeight: "bold",
   },
   searchContainer: {
     marginTop: 16,
@@ -1042,7 +1051,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 8,
-    backgroundColor: '#f0f0f0', // Add placeholder color
+    backgroundColor: "#f0f0f0", // Add placeholder color
   },
   recommendedName: {
     fontSize: 12,

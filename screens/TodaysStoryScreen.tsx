@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
 interface Props {
   goBack: () => void
 }
-
+// DO NOT STUDY THIS SCREEN!!!!!! NOT USED!!!
 const TodaysStoryScreen: React.FC<Props> = ({ goBack }) => {
   return (
     <View style={styles.container}>

@@ -139,8 +139,11 @@ const LoginScreen = ({ navigation }: Props) => {
           } else {
             showAlert("Access Denied", "Your application has been rejected.");
           }
-        } else {
-          navigation.navigate("NormalUserTabs", { phoneNumber });
+        } else if (userRole === "normal") {
+          navigation.navigate("NormalUserTabs", {
+            phoneNumber,
+            userType: "normal", // Add this
+          });
         }
       }, 1000);
     } catch (error) {
@@ -235,7 +238,7 @@ const LoginScreen = ({ navigation }: Props) => {
                       onChangeText={(text) => {
                         // Only allow up to 10 digits
                         if (text.length <= 10) {
-                          setPhoneNumber(text.replace(/[^0-9]/g, ''));
+                          setPhoneNumber(text.replace(/[^0-9]/g, ""));
                         }
                       }}
                       maxLength={10}

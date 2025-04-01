@@ -8,7 +8,7 @@ const PayPendingLoanScreen: React.FC = () => {
     </View>
   )
 }
-
+// DO NOT STUDY THIS SCREEN!!!!!
 const styles = StyleSheet.create({
   container: {
     flex: 1,

@@ -139,6 +139,7 @@ function KMemberTabs({ route }) {
 
 function NormalUserTabs({ route }) {
   const phoneNumber = route?.params?.phoneNumber;
+  const userType = route?.params?.userType;
 
   return (
     <Tab.Navigator
@@ -175,7 +176,10 @@ function NormalUserTabs({ route }) {
       <Tab.Screen
         name="Market"
         component={MarketplaceScreen}
-        initialParams={{ cart: [] }}
+        initialParams={{
+          cart: [],
+          userType: userType,
+        }}
       />
       <Tab.Screen
         name="Profile"
