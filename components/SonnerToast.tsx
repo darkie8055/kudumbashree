@@ -3,7 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { ToastConfig } from "react-native-toast-message";
 
-export const TOAST_DURATION = 1500;
+export const TOAST_DURATION = 1000;
 
 export const toastConfig: ToastConfig = {
   success: ({ text1, text2 }) => (
