@@ -456,24 +456,29 @@ export default function HomeScreen({ navigation }: Props) {
   };
 
   const goToPreviousNotice = () => {
+    setPauseScroll(true);
+
+    // Animate right-to-left (for previous)
     Animated.sequence([
-      Animated.timing(slideAnim, {
-        toValue: -1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
+      // Move current notice out to the right
       Animated.timing(slideAnim, {
         toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      // Jump to the left (off-screen) without animation
+      Animated.timing(slideAnim, {
+        toValue: -1,
         duration: 0,
         useNativeDriver: true,
       }),
+      // Slide in the previous notice from left
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 200,
+        duration: 250,
         useNativeDriver: true,
       }),
     ]).start(() => {
-      setPauseScroll(true);
       setCurrentNoticeIndex((prev) =>
         prev === 0 ? notices.length - 1 : prev - 1
       );
@@ -482,24 +487,29 @@ export default function HomeScreen({ navigation }: Props) {
   };
 
   const goToNextNotice = () => {
+    setPauseScroll(true);
+
+    // Animate left-to-right (for next)
     Animated.sequence([
-      Animated.timing(slideAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
+      // Move current notice out to the left
       Animated.timing(slideAnim, {
         toValue: -1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      // Jump to the right (off-screen) without animation
+      Animated.timing(slideAnim, {
+        toValue: 1,
         duration: 0,
         useNativeDriver: true,
       }),
+      // Slide in the next notice from right
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 200,
+        duration: 250,
         useNativeDriver: true,
       }),
     ]).start(() => {
-      setPauseScroll(true);
       setCurrentNoticeIndex((prev) => (prev + 1) % notices.length);
       setTimeout(() => setPauseScroll(false), 3000);
     });
@@ -630,9 +640,21 @@ export default function HomeScreen({ navigation }: Props) {
         <Animated.View style={fadeIn}>
           {/* Notice Board Section */}
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionHeader}>Notice Board</Text>
+            <View style={styles.sectionHeaderContainer}>
+              <Text style={styles.sectionHeader}>Notice Board</Text>
+              <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={() => navigation.navigate("Notices")}
+              >
+                <Text style={styles.viewAllText}>View All</Text>
+                <Ionicons name="chevron-forward" size={16} color="#8B5CF6" />
+              </TouchableOpacity>
+            </View>
+
             <LinearGradient
               colors={["rgba(139, 92, 246, 0.1)", "rgba(236, 72, 153, 0.1)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={styles.boardContainer}
             >
               {notices.length > 0 ? (
@@ -655,65 +677,163 @@ export default function HomeScreen({ navigation }: Props) {
                   >
                     {renderNotice(notices[currentNoticeIndex])}
                   </Animated.View>
+
                   <View style={styles.noticeNavigation}>
                     <TouchableOpacity
-                      style={styles.navButton}
+                      style={styles.navCircleButton}
                       onPress={goToPreviousNotice}
                     >
-                      <Ionicons name="chevron-back" size={24} color="#8B5CF6" />
+                      <LinearGradient
+                        colors={["#FFFFFF", "#F9FAFB"]}
+                        style={styles.navCircleGradient}
+                      >
+                        <Ionicons
+                          name="chevron-back"
+                          size={20}
+                          color="#8B5CF6"
+                        />
+                      </LinearGradient>
                     </TouchableOpacity>
+
                     <View style={styles.dotContainer}>
                       {notices.map((_, index) => (
-                        <View
+                        <TouchableOpacity
                           key={index}
-                          style={[
-                            styles.dot,
-                            index === currentNoticeIndex && styles.activeDot,
-                          ]}
-                        />
+                          onPress={() => {
+                            setCurrentNoticeIndex(index);
+                            setPauseScroll(true);
+                            setTimeout(() => setPauseScroll(false), 3000);
+                          }}
+                        >
+                          <View
+                            style={[
+                              styles.dot,
+                              index === currentNoticeIndex && styles.activeDot,
+                            ]}
+                          />
+                        </TouchableOpacity>
                       ))}
                     </View>
+
                     <TouchableOpacity
-                      style={styles.navButton}
+                      style={styles.navCircleButton}
                       onPress={goToNextNotice}
                     >
-                      <Ionicons
-                        name="chevron-forward"
-                        size={24}
-                        color="#8B5CF6"
-                      />
+                      <LinearGradient
+                        colors={["#FFFFFF", "#F9FAFB"]}
+                        style={styles.navCircleGradient}
+                      >
+                        <Ionicons
+                          name="chevron-forward"
+                          size={20}
+                          color="#8B5CF6"
+                        />
+                      </LinearGradient>
                     </TouchableOpacity>
                   </View>
                 </View>
               ) : (
-                <Text style={styles.emptyNotice}>No notices available</Text>
+                <View style={styles.emptyNoticeContainer}>
+                  <Ionicons
+                    name="notifications-outline"
+                    size={40}
+                    color="#D1D5DB"
+                  />
+                  <Text style={styles.emptyNotice}>No notices available</Text>
+                </View>
               )}
             </LinearGradient>
           </View>
 
           {/* News Board Section */}
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionHeader}>Latest News</Text>
-            <View style={styles.newsContainer}>
+            <View style={styles.sectionHeaderContainer}>
+              <Text style={styles.sectionHeader}>Latest News</Text>
               <TouchableOpacity
-                style={styles.scrollButton}
+                style={styles.viewAllButton}
+                onPress={() => navigation.navigate("AllNews")}
+              >
+                <Text style={styles.viewAllText}>View All</Text>
+                <Ionicons name="chevron-forward" size={16} color="#8B5CF6" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.newsCarouselContainer}>
+              <TouchableOpacity
+                style={styles.carouselNavButton}
                 onPress={scrollLeft}
               >
-                <Ionicons name="chevron-back" size={24} color="#8B5CF6" />
+                <LinearGradient
+                  colors={["rgba(255,255,255,0.9)", "rgba(255,255,255,0.7)"]}
+                  style={styles.navButtonGradient}
+                >
+                  <Ionicons name="chevron-back" size={22} color="#8B5CF6" />
+                </LinearGradient>
               </TouchableOpacity>
+
               <FlatList
                 ref={newsListRef}
                 data={news}
                 keyExtractor={(item) => item.id}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                renderItem={renderNewsItem}
+                contentContainerStyle={styles.newsListContent}
+                renderItem={({ item }) => {
+                  const scale =
+                    scaleAnimations[item.id] || new Animated.Value(1);
+                  return (
+                    <TouchableOpacity
+                      onPressIn={() => handleHover(item.id, true)}
+                      onPressOut={() => handleHover(item.id, false)}
+                      style={styles.newsCardContainer}
+                      onPress={() => {
+                        setSelectedNews(item);
+                        setModalVisible(true);
+                      }}
+                      activeOpacity={0.9}
+                    >
+                      <Animated.View
+                        style={[styles.newsCard, { transform: [{ scale }] }]}
+                      >
+                        <Image
+                          source={{ uri: item.image }}
+                          style={styles.newsCardImage}
+                        />
+                        <LinearGradient
+                          colors={["transparent", "rgba(0,0,0,0.7)"]}
+                          style={styles.newsCardGradient}
+                        >
+                          <Text
+                            style={styles.newsCardHeadline}
+                            numberOfLines={2}
+                          >
+                            {item.headline}
+                          </Text>
+                          <View style={styles.newsCardFooter}>
+                            <View style={styles.newsTag}>
+                              <Text style={styles.newsTagText}>NEWS</Text>
+                            </View>
+                            <TouchableOpacity style={styles.readMoreButton}>
+                              <Text style={styles.readMoreText}>Read More</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </LinearGradient>
+                      </Animated.View>
+                    </TouchableOpacity>
+                  );
+                }}
               />
+
               <TouchableOpacity
-                style={styles.scrollButton}
+                style={[styles.carouselNavButton, styles.rightNavButton]}
                 onPress={scrollRight}
               >
-                <Ionicons name="chevron-forward" size={24} color="#8B5CF6" />
+                <LinearGradient
+                  colors={["rgba(255,255,255,0.9)", "rgba(255,255,255,0.7)"]}
+                  style={styles.navButtonGradient}
+                >
+                  <Ionicons name="chevron-forward" size={22} color="#8B5CF6" />
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -829,6 +949,22 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 10,
   },
+  sectionHeaderContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  viewAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  viewAllText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    color: "#8B5CF6",
+    marginRight: 4,
+  },
   quickActionsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -894,6 +1030,110 @@ const styles = StyleSheet.create({
   },
   scrollButton: {
     padding: 0.5,
+  },
+  newsCarouselContainer: {
+    position: "relative",
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+  },
+  newsListContent: {
+    paddingVertical: 8,
+    paddingRight: 20,
+  },
+  newsCardContainer: {
+    marginRight: 16,
+    borderRadius: 16,
+    overflow: "hidden",
+    width: width * 0.65,
+    height: 190,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  newsCard: {
+    width: "100%",
+    height: "100%",
+    overflow: "hidden",
+    borderRadius: 16,
+  },
+  newsCardImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 16,
+    resizeMode: "cover",
+  },
+  newsCardGradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "60%",
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    justifyContent: "flex-end",
+  },
+  newsCardHeadline: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "#FFFFFF",
+    marginBottom: 12,
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  newsCardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  newsTag: {
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  newsTagText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 10,
+    color: "#FFFFFF",
+  },
+  readMoreButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  readMoreText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 10,
+    color: "#8B5CF6",
+  },
+  carouselNavButton: {
+    position: "absolute",
+    top: "50%",
+    left: 8,
+    zIndex: 10,
+    marginTop: -20,
+  },
+  rightNavButton: {
+    left: undefined,
+    right: 8,
+  },
+  navButtonGradient: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   centeredView: {
     flex: 1,
@@ -1041,8 +1281,19 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingHorizontal: 10,
   },
-  navButton: {
+  navCircleButton: {
     padding: 5,
+  },
+  navCircleGradient: {
+    borderRadius: 20,
+    padding: 5,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyNoticeContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
   },
   buttonGradientBorder: {
     borderRadius: 15,

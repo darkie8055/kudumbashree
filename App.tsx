@@ -53,6 +53,8 @@ import ActivitiesScreen from "./screens/ActivitiesScreen"; // New import
 import RulesAndRegulationsScreen from "./screens/RulesAndRegulationsScreen"; // New import
 import UpcomingScreen from "./screens/UpcomingScreen"; // New import
 import TodayStoryScreen from "./screens/TodayStoryScreen"; // New import
+import AllNewsScreen from "./screens/AllNewsScreen"; // New import
+import NoticesScreen from "./screens/NoticesScreen"; // New import
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -212,6 +214,7 @@ function PresidentStack() {
         name="ApprovedMembers"
         component={ApprovedMembersScreen}
         options={{
+          headerShown: false,
           title: "Manage Members",
           headerStyle: {
             backgroundColor: "#8B5CF6",
@@ -233,6 +236,7 @@ function PresidentStack() {
         name="AddNoticeNews"
         component={AddNoticeNewsScreen}
         options={{
+          headerShown: false,
           title: "Add Notice/News",
           headerStyle: {
             backgroundColor: "#8B5CF6",
@@ -494,6 +498,12 @@ export default function App() {
             component={TodayStoryScreen}
             options={{ headerShown: false }}
           />
+          <Stack.Screen
+            name="AllNews"
+            component={AllNewsScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen name="Notices" component={NoticesScreen} />
         </Stack.Navigator>
       </NavigationContainer>
       <Toast config={toastConfig} />

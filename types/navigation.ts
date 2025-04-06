@@ -61,6 +61,8 @@ export type RootStackParamList = {
   Attendance: undefined;
   LawsAndRegulations: undefined;
   TodayStory: undefined;
+  AllNews: undefined;
+  Notices: undefined;
 };
 
 // President stack

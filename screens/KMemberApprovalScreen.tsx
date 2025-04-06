@@ -8,9 +8,9 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  StatusBar,
+  Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import {
   useFonts,
@@ -32,6 +32,7 @@ import {
   writeBatch,
   getFirestore,
 } from "firebase/firestore";
+import { LinearGradient } from "expo-linear-gradient";
 import * as FileSystem from "expo-file-system";
 
 interface KMember {
@@ -230,10 +231,6 @@ export default function KMemberApprovalScreen({ navigation }) {
     }
   };
 
-  if (!fontsLoaded) {
-    return null;
-  }
-
   const handleDocumentView = async (
     documentUrl: string,
     documentType: string
@@ -253,41 +250,82 @@ export default function KMemberApprovalScreen({ navigation }) {
   };
 
   const renderItem = ({ item }: { item: KMember }) => (
-    <LinearGradient
-      colors={["rgba(139, 92, 246, 0.05)", "rgba(236, 72, 153, 0.05)"]}
-      style={styles.memberItem}
-    >
-      <View style={styles.memberDetails}>
-        <Text
-          style={styles.memberName}
-        >{`${item.firstName} ${item.lastName}`}</Text>
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoLabel}>Phone:</Text>
-          <Text style={styles.infoValue}>{item.phone}</Text>
+    <View style={styles.card}>
+      <View style={styles.cardContent}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.memberName}>
+            {item.firstName} {item.lastName}
+          </Text>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.approveButton]}
+              onPress={() => handleApprove(item.phone)}
+            >
+              <Ionicons name="checkmark-outline" size={20} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.rejectButton]}
+              onPress={() => handleReject(item.phone)}
+            >
+              <Ionicons name="close-outline" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoLabel}>Aadhar:</Text>
-          <Text style={styles.infoValue}>{item.aadhar}</Text>
-        </View>
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoLabel}>Ration Card:</Text>
-          <Text style={styles.infoValue}>{item.rationCard}</Text>
-        </View>
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoLabel}>Economic Status:</Text>
-          <Text style={styles.infoValue}>{item.economicStatus}</Text>
-        </View>
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoLabel}>Category:</Text>
-          <Text style={styles.infoValue}>{item.category}</Text>
-        </View>
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoLabel}>Unit Name:</Text>
-          <Text style={styles.infoValue}>{item.unitName}</Text>
-        </View>
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoLabel}>Unit Number:</Text>
-          <Text style={styles.infoValue}>{item.unitNumber}</Text>
+
+        <View style={styles.detailsContainer}>
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="call-outline" size={16} color="#8B5CF6" />
+            </View>
+            <Text style={styles.label}>Phone:</Text>
+            <Text style={styles.value}>{item.phone}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="card-outline" size={16} color="#8B5CF6" />
+            </View>
+            <Text style={styles.label}>Aadhar:</Text>
+            <Text style={styles.value}>{item.aadhar}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons
+                name="document-text-outline"
+                size={16}
+                color="#8B5CF6"
+              />
+            </View>
+            <Text style={styles.label}>Ration Card:</Text>
+            <Text style={styles.value}>{item.rationCard}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="wallet-outline" size={16} color="#8B5CF6" />
+            </View>
+            <Text style={styles.label}>Economic:</Text>
+            <Text style={styles.value}>{item.economicStatus}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="people-outline" size={16} color="#8B5CF6" />
+            </View>
+            <Text style={styles.label}>Category:</Text>
+            <Text style={styles.value}>{item.category}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="home-outline" size={16} color="#8B5CF6" />
+            </View>
+            <Text style={styles.label}>Unit:</Text>
+            <Text style={styles.value}>
+              {item.unitName} ({item.unitNumber})
+            </Text>
+          </View>
         </View>
 
         <View style={styles.documentSection}>
@@ -302,10 +340,10 @@ export default function KMemberApprovalScreen({ navigation }) {
               >
                 <Ionicons
                   name="document-text-outline"
-                  size={20}
+                  size={18}
                   color="white"
                 />
-                <Text style={styles.viewDocText}>View Aadhar</Text>
+                <Text style={styles.viewDocText}>Aadhar Card</Text>
               </TouchableOpacity>
             )}
 
@@ -318,194 +356,264 @@ export default function KMemberApprovalScreen({ navigation }) {
               >
                 <Ionicons
                   name="document-text-outline"
-                  size={20}
+                  size={18}
                   color="white"
                 />
-                <Text style={styles.viewDocText}>View Ration Card</Text>
+                <Text style={styles.viewDocText}>Ration Card</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
       </View>
-
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.approveButton]}
-          onPress={() => handleApprove(item.phone)}
-        >
-          <Ionicons name="checkmark-outline" size={24} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.rejectButton]}
-          onPress={() => handleReject(item.phone)} // Changed from handleApprove
-        >
-          <Ionicons name="close-outline" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
-    </LinearGradient>
+    </View>
   );
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={24} color="#8B5CF6" />
-        </TouchableOpacity>
-        <Text style={styles.title}>K-Member Approvals</Text>
-      </View>
-      {loading ? (
+  if (!fontsLoaded || loading) {
+    return (
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#8B5CF6" />
-      ) : kMembers.length > 0 ? (
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.rootContainer}>
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor="white"
+        translucent={true}
+      />
+
+      <LinearGradient
+        colors={["rgba(162,39,142,0.01)", "rgba(162,39,142,0.03)"]}
+        style={styles.container}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        {/* Header with gradient - positioned below status bar */}
+        <View style={styles.headerContainer}>
+          <LinearGradient
+            colors={["#7C3AED", "#C026D3"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.header}
+          >
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.headerContent}>
+              <Text style={styles.headerTitle}>Member Approvals</Text>
+              <Text style={styles.headerSubtitle}>
+                Review and manage unit member applications
+              </Text>
+            </View>
+          </LinearGradient>
+        </View>
+
+        {/* Main content with scrollable FlatList */}
         <FlatList
           data={kMembers}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
+          ListHeaderComponent={
+            <View style={styles.statsContainer}>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>{kMembers.length}</Text>
+                <Text style={styles.statLabel}>Pending Approvals</Text>
+              </View>
+            </View>
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconContainer}>
+                <Ionicons name="people-outline" size={48} color="#8B5CF6" />
+              </View>
+              <Text style={styles.emptyTitle}>No Pending Approvals</Text>
+              <Text style={styles.emptyText}>
+                There are no pending members to approve
+              </Text>
+            </View>
+          }
         />
-      ) : (
-        <Text style={styles.noMembersText}>No pending approvals</Text>
-      )}
-    </SafeAreaView>
+      </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+  },
+  headerContainer: {
+    width: "100%",
   },
   header: {
+    padding: 20,
+    paddingTop: 15,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(139, 92, 246, 0.1)",
+    paddingBottom: 15,
   },
   backButton: {
-    marginRight: 16,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    padding: 8,
+    borderRadius: 12,
+    marginRight: 12,
   },
-  title: {
-    fontFamily: "Poppins_700Bold",
+  headerContent: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 24,
-    color: "#8B5CF6",
+    color: "#fff",
+    marginBottom: 0,
+  },
+  headerSubtitle: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.9)",
   },
   listContainer: {
     padding: 16,
+    paddingBottom: 100,
   },
-  memberItem: {
-    borderRadius: 12,
+  statsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  statCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
+    minWidth: "40%",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  statValue: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 24,
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  card: {
     backgroundColor: "white",
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
     },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: "#8B5CF6",
   },
-  memberDetails: {
-    flex: 1,
-    gap: 8,
+  cardContent: {
+    padding: 16,
   },
-  memberName: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 20,
-    color: "#8B5CF6",
-    marginBottom: 8,
-  },
-  infoContainer: {
+  cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(139, 92, 246, 0.1)",
+    marginBottom: 16,
   },
-  infoLabel: {
+  memberName: {
+    fontSize: 18,
     fontFamily: "Poppins_600SemiBold",
-    fontSize: 14,
-    color: "#8B5CF6",
-  },
-  infoValue: {
-    fontFamily: "Poppins_400Regular",
-    fontSize: 14,
-    color: "#4B5563",
+    color: "#1F2937",
+    flex: 1,
   },
   actionButtons: {
     flexDirection: "row",
-    justifyContent: "flex-end",
-    marginTop: 16,
     gap: 8,
   },
   actionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
   },
   approveButton: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#10B981", // Green color for approve
   },
   rejectButton: {
-    backgroundColor: "#EC4899",
+    backgroundColor: "#EF4444", // Red color for reject
   },
-  noMembersText: {
+  detailsContainer: {
+    gap: 8,
+  },
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  detailIconContainer: {
+    marginRight: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontFamily: "Poppins_600SemiBold",
+    color: "#6B7280",
+    width: 80,
+  },
+  value: {
+    flex: 1,
+    fontSize: 14,
     fontFamily: "Poppins_400Regular",
-    fontSize: 18,
-    color: "#8B5CF6",
-    textAlign: "center",
-    marginTop: 20,
+    color: "#4B5563",
+    textAlign: "right",
   },
   documentSection: {
     marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(139, 92, 246, 0.1)",
-    paddingTop: 16,
+    paddingTop: 8,
   },
   sectionTitle: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 16,
-    color: "#8B5CF6",
-    marginBottom: 8,
+    color: "#6B7280",
+    marginBottom: 12,
   },
   documentButtons: {
     flexDirection: "row",
     gap: 12,
-    flexWrap: "wrap",
   },
   viewDocButton: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#8B5CF6",
-    padding: 12,
+    padding: 10,
     borderRadius: 8,
     flex: 1,
-    minWidth: 150,
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
   },
   viewDocText: {
     fontFamily: "Poppins_600SemiBold",
@@ -513,11 +621,37 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
   },
-  noDocText: {
-    fontFamily: "Poppins_400Regular",
-    color: "#9CA3AF",
-    fontSize: 14,
+  loadingContainer: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 16,
+    marginTop: 20,
+  },
+  emptyIconContainer: {
+    marginBottom: 12,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    padding: 16,
+    borderRadius: 50,
+  },
+  emptyTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 18,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: "#6B7280",
     textAlign: "center",
   },
 });

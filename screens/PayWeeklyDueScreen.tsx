@@ -114,7 +114,23 @@ export default function PayWeeklyDueScreen({ navigation }) {
 
         const dueDate = new Date(weekEnd);
         const isPaid = paidWeeks.includes(weekNumber);
-        const paidDate = isPaid ? new Date(paidDates[weekNumber]) : undefined;
+
+        // Fix for handling Firestore timestamp objects
+        let paidDate;
+        if (isPaid && paidDates[weekNumber]) {
+          // Check if it's a Firestore timestamp (has seconds property)
+          if (
+            paidDates[weekNumber] &&
+            typeof paidDates[weekNumber] === "object" &&
+            "seconds" in paidDates[weekNumber]
+          ) {
+            paidDate = new Date(paidDates[weekNumber].seconds * 1000);
+          } else {
+            // Handle regular Date objects or ISO strings
+            paidDate = new Date(paidDates[weekNumber]);
+          }
+        }
+
         const isOverdue = !isPaid && dueDate < now;
 
         weeks.push({
@@ -361,6 +377,17 @@ export default function PayWeeklyDueScreen({ navigation }) {
       overdue: styles.overdueText,
     };
 
+    // Function to safely format date
+    const formatDate = (date?: Date) => {
+      if (!date || isNaN(date.getTime())) {
+        return "";
+      }
+      return date.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+      });
+    };
+
     return (
       <View
         style={[
@@ -370,12 +397,7 @@ export default function PayWeeklyDueScreen({ navigation }) {
       >
         <Text style={textStyles[status]}>{status.toUpperCase()}</Text>
         {status === "paid" && paidDate && (
-          <Text style={styles.paidDateText}>
-            {paidDate.toLocaleDateString("en-IN", {
-              day: "numeric",
-              month: "short",
-            })}
-          </Text>
+          <Text style={styles.paidDateText}>{formatDate(paidDate)}</Text>
         )}
       </View>
     );

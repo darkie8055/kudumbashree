@@ -100,7 +100,7 @@ export default function PresidentDashboardScreen({ navigation }: Props) {
     {
       title: "Manage Members",
       icon: "people",
-      description: "Add and manage unit members",
+      description: "View and manage unit members",
       onPress: () =>
         navigation.navigate("PresidentStack", { screen: "ApprovedMembers" }),
       color: "#8B5CF6",

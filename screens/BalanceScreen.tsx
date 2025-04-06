@@ -139,7 +139,14 @@ export default function BalanceScreen({ navigation }) {
   };
 
   const formatCurrency = (amount: number) => {
-    return amount.toLocaleString("en-IN");
+    // Format currency to show exactly 2 decimal places
+    const formattedAmount = amount.toFixed(2);
+
+    // Add thousand separators for better readability
+    return Number(formattedAmount).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   };
 
   return (
@@ -376,7 +383,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 3,
-    marginBottom:50,
+    marginBottom: 50,
   },
   sectionTitle: {
     fontFamily: "Poppins_600SemiBold",
