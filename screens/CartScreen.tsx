@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,19 +6,31 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
-  Modal,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import Toast from 'react-native-toast-message';
-import { toastConfig, TOAST_DURATION } from '../components/SonnerToast';
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from "@expo-google-fonts/poppins";
+import { getFirestore, doc, deleteDoc, setDoc } from "firebase/firestore";
+import { useUser } from "../contexts/UserContext";
 
 interface Product {
   id: string;
   name: string;
   imageUrl: string;
   price: number;
+  description?: string;
+  unit?: string;
+  category?: string;
+  location?: string;
 }
 
 interface CartItem {
@@ -26,290 +38,195 @@ interface CartItem {
   quantity: number;
 }
 
-export default function CartScreen({ navigation, route }) {
-  const { cart, onCartUpdate } = route.params;
-  
-  const [recommendations, setRecommendations] = useState<Product[]>([]);
-  const [optimizedPrices, setOptimizedPrices] = useState<{[key: string]: number}>({});
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [showRecommendations, setShowRecommendations] = useState(true);
-
-  const handleQuantityChange = (item: CartItem, change: number) => {
-    const updatedCart = cart.map((cartItem) => {
-      if (cartItem.product.id === item.product.id) {
-        const newQuantity = Math.max(0, cartItem.quantity + change);
-        if (newQuantity === 0) {
-          Toast.show({
-            type: 'info',
-            text1: 'Item Removed',
-            text2: `${item.product.name} has been removed from cart`,
-            visibilityTime: TOAST_DURATION,
-          });
-          return null;
-        }
-        if (change > 0) {
-          Toast.show({
-            type: 'success',
-            text1: 'Quantity Updated',
-            text2: `Increased quantity of ${item.product.name}`,
-            visibilityTime: TOAST_DURATION,
-          });
-        } else if (change < 0) {
-          Toast.show({
-            type: 'info',
-            text1: 'Quantity Updated',
-            text2: `Decreased quantity of ${item.product.name}`,
-            visibilityTime: TOAST_DURATION,
-          });
-        }
-        return { ...cartItem, quantity: newQuantity };
-      }
-      return cartItem;
-    }).filter(Boolean) as CartItem[];
-
-    if (onCartUpdate) {
-      onCartUpdate(updatedCart);
-    }
+interface CartScreenProps {
+  navigation: any;
+  route: {
+    params: {
+      cart: CartItem[];
+      onCartUpdate: (updatedCart: CartItem[]) => void;
+    };
   };
+}
 
-  const getTotalAmount = () => {
+export default function CartScreen({ navigation, route }: CartScreenProps) {
+  const { userId } = useUser();
+  const [cart, setCart] = useState<CartItem[]>(route.params.cart || []);
+  const [loading, setLoading] = useState(false);
+  const [updatingItem, setUpdatingItem] = useState<string | null>(null);
+
+  const [fontsLoaded] = useFonts({
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  });
+
+  useEffect(() => {
+    // Update the cart if the params change
+    if (route.params?.cart) {
+      setCart(route.params.cart);
+    }
+  }, [route.params]);
+
+  const handleQuantityChange = useCallback(
+    async (product: Product, quantity: number) => {
+      if (!userId) {
+        Alert.alert("Error", "Please sign in to update cart");
+        return;
+      }
+
+      try {
+        setUpdatingItem(product.id);
+        const db = getFirestore();
+
+        if (quantity <= 0) {
+          // Remove from Firestore if quantity is zero
+          const cartRef = doc(db, "K-member", userId, "cart", product.id);
+          await deleteDoc(cartRef);
+
+          // Update local state
+          const updatedCart = cart.filter(
+            (item) => item.product.id !== product.id
+          );
+          setCart(updatedCart);
+
+          // Update parent screen
+          if (route.params?.onCartUpdate) {
+            route.params.onCartUpdate(updatedCart);
+          }
+        } else {
+          // Update quantity in Firestore
+          const cartRef = doc(db, "K-member", userId, "cart", product.id);
+          await setDoc(
+            cartRef,
+            {
+              productId: product.id,
+              quantity: quantity,
+              addedAt: new Date(),
+              price: product.price,
+              name: product.name,
+              imageUrl: product.imageUrl,
+            },
+            { merge: true }
+          );
+
+          // Update local state
+          const updatedCart = cart.map((item) =>
+            item.product.id === product.id ? { ...item, quantity } : item
+          );
+          setCart(updatedCart);
+
+          // Update parent screen
+          if (route.params?.onCartUpdate) {
+            route.params.onCartUpdate(updatedCart);
+          }
+        }
+      } catch (error) {
+        console.error("Error updating cart:", error);
+        Alert.alert("Error", "Failed to update cart");
+      } finally {
+        setUpdatingItem(null);
+      }
+    },
+    [cart, userId, route.params]
+  );
+
+  const calculateTotal = useCallback(() => {
     return cart.reduce(
       (total, item) => total + item.product.price * item.quantity,
       0
     );
-  };
+  }, [cart]);
 
-  const clearCart = () => {
-    if (onCartUpdate) {
-      onCartUpdate([]);
-      Toast.show({
-        type: 'success',
-        text1: 'Cart Cleared',
-        text2: 'Your cart has been cleared successfully',
-        visibilityTime: TOAST_DURATION,
-        autoHide: true,
-        topOffset: 40,
-        bottomOffset: 100,
-        position: 'bottom',
-      });
-    }
-  };
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("beforeRemove", () => {
-      if (onCartUpdate) {
-        onCartUpdate(cart);
-      }
+  const handleCheckout = useCallback(() => {
+    navigation.navigate("Payment", {
+      cart,
+      totalAmount: calculateTotal(),
     });
+  }, [navigation, cart, calculateTotal]);
 
-    return unsubscribe;
-  }, [navigation, cart, onCartUpdate]);
+  const renderCartItem = useCallback(
+    ({ item }: { item: CartItem }) => (
+      <View style={styles.cartItem}>
+        <Image
+          source={{ uri: item.product.imageUrl }}
+          style={styles.productImage}
+        />
+        <View style={styles.itemDetails}>
+          <Text style={styles.productName}>{item.product.name}</Text>
+          <Text style={styles.productPrice}>₹{item.product.price}</Text>
 
-  
-  useEffect(() => {
-    const getCartRecommendations = async () => {
-      if (cart.length > 0) {
-        
-        const recommended = cart.slice(0, 3).map(item => ({
-          ...item.product,
-          id: `rec_${item.product.id}`
-        }));
-        setRecommendations(recommended);
-      }
-    };
-    getCartRecommendations();
-  }, [cart]);
-
-  // Add dynamic price optimization
-  useEffect(() => {
-    const optimizePrices = async () => {
-      // Simulate price optimization API call
-      const optimized = cart.reduce((acc, item) => ({
-        ...acc,
-        [item.product.id]: item.product.price * 0.9 // 10% discount example
-      }), {});
-      setOptimizedPrices(optimized);
-    };
-    optimizePrices();
-  }, [cart]);
-
-  const handleProductPress = (product: Product) => {
-    setSelectedProduct(product);
-    setIsModalVisible(true);
-  };
-
-  const closeModal = () => {
-    setIsModalVisible(false);
-    setSelectedProduct(null);
-  };
-
-  const renderProductDetails = () => {
-    if (!selectedProduct) return null;
-
-    return (
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isModalVisible}
-        onRequestClose={closeModal}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-            <Image
-              source={{ uri: selectedProduct.imageUrl }}
-              style={styles.modalImage}
-            />
-            <Text style={styles.modalProductName}>{selectedProduct.name}</Text>
-            <Text style={styles.modalProductPrice}>₹{selectedProduct.price}</Text>
-            <Text style={styles.modalProductDescription}>
-              {selectedProduct.description || 'No description available'}
-            </Text>
+          <View style={styles.quantityControl}>
             <TouchableOpacity
-              style={styles.modalAddToCartButton}
-              onPress={() => {
-                handleAddToCart(selectedProduct);
-                closeModal();
-              }}
+              style={styles.quantityButton}
+              onPress={() =>
+                handleQuantityChange(item.product, item.quantity - 1)
+              }
+              disabled={updatingItem === item.product.id}
             >
-              <Text style={styles.modalAddToCartButtonText}>Add to Cart</Text>
+              <Ionicons name="remove" size={18} color="#fff" />
+            </TouchableOpacity>
+
+            {updatingItem === item.product.id ? (
+              <ActivityIndicator
+                size="small"
+                color="#8B5CF6"
+                style={styles.quantityText}
+              />
+            ) : (
+              <Text style={styles.quantityText}>{item.quantity}</Text>
+            )}
+
+            <TouchableOpacity
+              style={styles.quantityButton}
+              onPress={() =>
+                handleQuantityChange(item.product, item.quantity + 1)
+              }
+              disabled={updatingItem === item.product.id}
+            >
+              <Ionicons name="add" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
-    );
-  };
 
-  const renderCartItem = ({ item }: { item: CartItem }) => (
-    <View style={styles.cartItem}>
-      <Image
-        source={{ uri: item.product.imageUrl }}
-        style={styles.productImage}
-      />
-      <View style={styles.productInfo}>
-        <Text style={styles.productName}>{item.product.name}</Text>
-        <Text style={styles.productPrice}>₹{item.product.price} × {item.quantity}</Text>
-        <Text style={styles.itemTotal}>Total: ₹{item.product.price * item.quantity}</Text>
-        <View style={styles.quantityContainer}>
-          <TouchableOpacity
-            onPress={() => handleQuantityChange(item, -1)}
-            style={styles.quantityButton}
-          >
-            <Ionicons name="remove" size={24} color="#8B5CF6" />
-          </TouchableOpacity>
-          <Text style={styles.quantityText}>{item.quantity}</Text>
-          <TouchableOpacity
-            onPress={() => handleQuantityChange(item, 1)}
-            style={styles.quantityButton}
-          >
-            <Ionicons name="add" size={24} color="#8B5CF6" />
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.itemTotal}>
+          ₹{(item.product.price * item.quantity).toFixed(2)}
+        </Text>
       </View>
-    </View>
+    ),
+    [handleQuantityChange, updatingItem]
   );
 
-  const handleAddToCart = (product: Product) => {
-    const existingItemIndex = cart.findIndex(
-      (item) => item.product.id === product.id
-    );
-    let updatedCart;
-    if (existingItemIndex !== -1) {
-      updatedCart = [...cart];
-      const updatedItem = { 
-        ...updatedCart[existingItemIndex],
-        quantity: updatedCart[existingItemIndex].quantity + 1
-      };
-      updatedCart[existingItemIndex] = updatedItem;
-    } else {
-      updatedCart = [...cart, { product, quantity: 1 }];
-    }
-    
-    if (onCartUpdate) {
-      onCartUpdate(updatedCart);
-    }
-    
-    // Show toast message
-    Toast.show({
-      type: 'success',
-      text1: 'Added to Cart',
-      text2: `${product.name} has been added`,
-      visibilityTime: TOAST_DURATION,
-      autoHide: true,
-      topOffset: 40,
-      bottomOffset: 100,
-      position: 'bottom',
-      onPress: () => Toast.hide(),
-    });
-  };
-
-  const renderRecommendations = () => {
-    if (!showRecommendations || recommendations.length === 0) return null;
-
-    return (
-      <View style={styles.recommendationsSection}>
-        <View style={styles.recommendationsHeader}>
-          <Text style={styles.recommendationsTitle}>You May Also Like</Text>
-          <TouchableOpacity 
-            onPress={() => setShowRecommendations(false)}
-            style={styles.closeRecommendationsButton}
-          >
-            <Ionicons name="close" size={20} color="#333" />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.recommendationsContainer}>
-          <FlatList
-            horizontal
-            data={recommendations}
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.recommendedItem}
-                onPress={() => handleProductPress(item)}
-                activeOpacity={0.7}
-              >
-                <Image
-                  source={{ uri: item.imageUrl }}
-                  style={styles.recommendedImage}
-                  resizeMode="cover"
-                />
-                <Text style={styles.recommendedName} numberOfLines={2}>
-                  {item.name}
-                </Text>
-                <Text style={styles.recommendedPrice}>₹{item.price}</Text>
-              </TouchableOpacity>
-            )}
-            keyExtractor={(item) => item.id}
-          />
-        </View>
-      </View>
-    );
-  };
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+      <LinearGradient
+        colors={["#7C3AED", "#C026D3"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
           style={styles.backButton}
+          onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Your Cart</Text>
-      </View>
+      </LinearGradient>
 
       {cart.length === 0 ? (
         <View style={styles.emptyCart}>
-          <Ionicons name="cart-outline" size={64} color="#ccc" />
+          <Ionicons name="cart-outline" size={80} color="#8B5CF6" />
           <Text style={styles.emptyCartText}>Your cart is empty</Text>
           <TouchableOpacity
-            style={styles.continueShopping}
-            onPress={() => navigation.navigate("KMemberTabs", { screen: "Market" })}
+            style={styles.shopButton}
+            onPress={() => navigation.goBack()}
           >
-            <Text style={styles.continueShoppingText}>Continue Shopping</Text>
+            <Text style={styles.shopButtonText}>Shop Now</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -320,56 +237,100 @@ export default function CartScreen({ navigation, route }) {
             keyExtractor={(item) => item.product.id}
             contentContainerStyle={styles.cartList}
           />
-          {cart.length > 0 && renderRecommendations()}
-          <View style={styles.footer}>
-            <View style={styles.totalContainer}>
-              <Text style={styles.totalText}>Total:</Text>
-              <Text style={styles.totalAmount}>₹{getTotalAmount()}</Text>
+
+          <View style={styles.totalContainer}>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Subtotal</Text>
+              <Text style={styles.totalValue}>
+                ₹{calculateTotal().toFixed(2)}
+              </Text>
             </View>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Delivery</Text>
+              <Text style={styles.totalValue}>₹0.00</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.totalRow}>
+              <Text style={styles.grandTotalLabel}>Total</Text>
+              <Text style={styles.grandTotalValue}>
+                ₹{calculateTotal().toFixed(2)}
+              </Text>
+            </View>
+
             <TouchableOpacity
               style={styles.checkoutButton}
-              onPress={() => navigation.navigate("Payment", { cart })}
+              onPress={handleCheckout}
+              disabled={loading}
             >
-              <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.clearCartButton}
-              onPress={() => {
-                clearCart();
-                navigation.setParams({ cart: [] });
-              }}
-            >
-              <Text style={styles.clearCartText}>Clear Cart</Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.checkoutButtonText}>Checkout</Text>
+                  <Ionicons name="arrow-forward" size={20} color="#fff" />
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </>
       )}
-      {renderProductDetails()}
-      <Toast config={toastConfig} />
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#f5f7fa",
   },
   header: {
+    padding: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    elevation: 4,
+    shadowColor: "#7C3AED",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   backButton: {
-    marginRight: 16,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    padding: 8,
+    borderRadius: 12,
+    marginRight: 12,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 24,
+    color: "#fff",
+  },
+  emptyCart: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  emptyCartText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 18,
+    color: "#6B7280",
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  shopButton: {
+    backgroundColor: "#8B5CF6",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  shopButtonText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "#fff",
   },
   cartList: {
     padding: 16,
@@ -378,218 +339,115 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "#fff",
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    padding: 12,
+    marginBottom: 12,
+    alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 2,
+    elevation: 2,
   },
   productImage: {
-    width: 80,
-    height: 80,
+    width: 70,
+    height: 70,
     borderRadius: 8,
-    marginRight: 16,
+    marginRight: 12,
   },
-  productInfo: {
+  itemDetails: {
     flex: 1,
   },
   productName: {
+    fontFamily: "Poppins_500Medium",
     fontSize: 16,
-    fontWeight: "bold",
+    color: "#1F2937",
     marginBottom: 4,
-    color: "#333",
   },
   productPrice: {
+    fontFamily: "Poppins_700Bold",
     fontSize: 14,
-    color: "#666",
+    color: "#10B981",
     marginBottom: 8,
   },
-  itemTotal: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#69C779',
-    marginBottom: 8,
-  },
-  quantityContainer: {
+  quantityControl: {
     flexDirection: "row",
     alignItems: "center",
   },
   quantityButton: {
-    padding: 4,
-  },
-  quantityText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginHorizontal: 8,
-    color: "#333",
-  },
-  footer: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    paddingVertical: 24,
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
-  },
-  totalContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  totalText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  totalAmount: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#69C779",
-  },
-  checkoutButton: {
-    backgroundColor: "#69C779",
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  checkoutButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  clearCartButton: {
-    backgroundColor: "#f44336",
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  clearCartText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  emptyCart: {
-    flex: 1,
+    backgroundColor: "#8B5CF6",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
+  },
+  quantityText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 16,
+    color: "#4B5563",
+    marginHorizontal: 12,
+    minWidth: 20,
+    textAlign: "center",
+  },
+  itemTotal: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "#4B5563",
+  },
+  totalContainer: {
+    backgroundColor: "#fff",
     padding: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  emptyCartText: {
+  totalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  totalLabel: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 16,
+    color: "#6B7280",
+  },
+  totalValue: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 16,
+    color: "#4B5563",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#E5E7EB",
+    marginVertical: 10,
+  },
+  grandTotalLabel: {
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 18,
-    color: "#666",
+    color: "#1F2937",
+  },
+  grandTotalValue: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 18,
+    color: "#10B981",
+  },
+  checkoutButton: {
+    backgroundColor: "#8B5CF6",
+    borderRadius: 12,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 14,
     marginTop: 16,
-    marginBottom: 24,
   },
-  continueShopping: {
-    backgroundColor: "#69C779",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  continueShoppingText: {
+  checkoutButtonText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  recommendationsSection: {
-    padding: 12,
-    backgroundColor: '#f8f8f8',
-    maxHeight: 180, // Reduced height
-  },
-  recommendationsContainer: {
-    height: 140, // Fixed height for recommendations container
-  },
-  recommendedItem: {
-    width: 100,
-    height: 140, // Fixed height for item
     marginRight: 8,
-  },
-  recommendedImage: {
-    width: 100,
-    height: 80, // Adjusted image height
-    borderRadius: 8,
-  },
-  recommendedName: {
-    fontSize: 12,
-    marginTop: 4,
-    height: 32, // Fixed height for text
-    numberOfLines: 2,
-    ellipsizeMode: 'tail',
-  },
-  recommendedPrice: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#69C779',
-    marginTop: 2,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    width: '90%',
-    maxHeight: '80%',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    zIndex: 1,
-  },
-  modalImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  modalProductName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  modalProductPrice: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#69C779',
-    marginBottom: 8,
-  },
-  modalProductDescription: {
-    fontSize: 16,
-    marginBottom: 16,
-    color: '#666',
-  },
-  modalAddToCartButton: {
-    backgroundColor: '#8B5CF6',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalAddToCartButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700', // Changed to bold
-  },
-  recommendationsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#333',
-  },
-  recommendationsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  closeRecommendationsButton: {
-    padding: 4,
   },
 });

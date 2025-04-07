@@ -46,6 +46,7 @@ import {
   doc,
   setDoc,
   onSnapshot,
+  deleteDoc,
 } from "firebase/firestore";
 
 interface Product {
@@ -247,8 +248,13 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     setIsModalVisible(true);
   }, []);
 
+  // Update the renderProduct function with quantity controls
   const renderProduct = useCallback(
     ({ item }: { item: Product }) => {
+      // Find if product is already in cart
+      const cartItem = cart.find((i) => i.product.id === item.id);
+      const quantity = cartItem ? cartItem.quantity : 0;
+
       return (
         <View style={styles.productCard}>
           <TouchableOpacity onPress={() => handleProductPress(item)}>
@@ -259,16 +265,37 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
             <Text style={styles.productName}>{item.name}</Text>
             <Text style={styles.productPrice}>₹{item.price}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addToCartButton}
-            onPress={() => handleAddToCart(item)}
-          >
-            <Text style={styles.addToCartButtonText}>Add to Cart</Text>
-          </TouchableOpacity>
+
+          {quantity > 0 ? (
+            <View style={styles.quantityContainer}>
+              <TouchableOpacity
+                style={styles.quantityButton}
+                onPress={() => handleQuantityChange(item, quantity - 1)}
+              >
+                <Ionicons name="remove" size={16} color="#fff" />
+              </TouchableOpacity>
+
+              <Text style={styles.quantityText}>{quantity}</Text>
+
+              <TouchableOpacity
+                style={styles.quantityButton}
+                onPress={() => handleQuantityChange(item, quantity + 1)}
+              >
+                <Ionicons name="add" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.addToCartButton}
+              onPress={() => handleAddToCart(item)}
+            >
+              <Text style={styles.addToCartButtonText}>Add to Cart</Text>
+            </TouchableOpacity>
+          )}
         </View>
       );
     },
-    [handleProductPress, handleAddToCart]
+    [handleProductPress, handleAddToCart, cart, handleQuantityChange]
   );
 
   const fetchProducts = useCallback(async (shouldRefresh = false) => {
@@ -356,26 +383,97 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     []
   );
 
-  const handleRemoveFromCart = useCallback(
-    (product: Product) => {
-      const updatedCart = cart.filter((item) => item.product.id !== product.id);
-      setCart(updatedCart);
-    },
-    [cart, setCart]
-  );
-
   const handleQuantityChange = useCallback(
-    (product: Product, quantity: number) => {
-      if (quantity <= 0) {
-        handleRemoveFromCart(product);
-      } else {
-        const updatedCart = cart.map((item) =>
-          item.product.id === product.id ? { ...item, quantity } : item
-        );
-        setCart(updatedCart);
+    async (product: Product, quantity: number) => {
+      if (!userId) {
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Please sign in to update cart",
+        });
+        return;
+      }
+
+      try {
+        const db = getFirestore();
+
+        if (quantity <= 0) {
+          // Remove from Firestore if quantity is zero
+          const cartRef = doc(db, "K-member", userId, "cart", product.id);
+          await deleteDoc(cartRef);
+
+          // Update local state
+          const updatedCart = cart.filter(
+            (item) => item.product.id !== product.id
+          );
+          setCart(updatedCart);
+
+          // Update navigation params
+          navigation.setParams({
+            cart: updatedCart,
+          });
+        } else {
+          // Update quantity in Firestore
+          const cartRef = doc(db, "K-member", userId, "cart", product.id);
+          await setDoc(
+            cartRef,
+            {
+              productId: product.id,
+              quantity: quantity,
+              addedAt: new Date(),
+              price: product.price,
+              name: product.name,
+              imageUrl: product.imageUrl,
+            },
+            { merge: true }
+          );
+
+          // Update local state
+          const existingItemIndex = cart.findIndex(
+            (item) => item.product.id === product.id
+          );
+
+          if (existingItemIndex !== -1) {
+            // Item exists, update quantity
+            const updatedCart = [...cart];
+            updatedCart[existingItemIndex] = {
+              ...updatedCart[existingItemIndex],
+              quantity,
+            };
+            setCart(updatedCart);
+
+            // Update navigation params
+            navigation.setParams({
+              cart: updatedCart,
+            });
+          } else {
+            // Item doesn't exist, add it
+            const updatedCart = [...cart, { product, quantity }];
+            setCart(updatedCart);
+
+            // Update navigation params
+            navigation.setParams({
+              cart: updatedCart,
+            });
+          }
+        }
+
+        Toast.show({
+          type: "success",
+          text1: "Cart Updated",
+          text2: quantity === 0 ? "Item removed from cart" : "Quantity updated",
+          visibilityTime: TOAST_DURATION,
+        });
+      } catch (error) {
+        console.error("Error updating cart:", error);
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Failed to update cart",
+        });
       }
     },
-    [cart, handleRemoveFromCart, setCart]
+    [cart, userId, navigation]
   );
 
   const goToCart = useCallback(() => {
@@ -435,6 +533,10 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
   const renderProductDetails = useCallback(() => {
     if (!selectedProduct) return null;
 
+    // Find if product is already in cart
+    const cartItem = cart.find((i) => i.product.id === selectedProduct.id);
+    const quantity = cartItem ? cartItem.quantity : 0;
+
     return (
       <Modal
         animationType="slide"
@@ -467,20 +569,51 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
             <Text style={styles.modalProductLocation}>
               Location: {selectedProduct.location}
             </Text>
-            <TouchableOpacity
-              style={styles.modalAddToCartButton}
-              onPress={() => {
-                handleAddToCart(selectedProduct);
-                closeModal();
-              }}
-            >
-              <Text style={styles.modalAddToCartButtonText}>Add to Cart</Text>
-            </TouchableOpacity>
+
+            {quantity > 0 ? (
+              <View style={styles.modalQuantityContainer}>
+                <TouchableOpacity
+                  style={styles.modalQuantityButton}
+                  onPress={() =>
+                    handleQuantityChange(selectedProduct, quantity - 1)
+                  }
+                >
+                  <Ionicons name="remove" size={20} color="#fff" />
+                </TouchableOpacity>
+
+                <Text style={styles.modalQuantityText}>{quantity}</Text>
+
+                <TouchableOpacity
+                  style={styles.modalQuantityButton}
+                  onPress={() =>
+                    handleQuantityChange(selectedProduct, quantity + 1)
+                  }
+                >
+                  <Ionicons name="add" size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.modalAddToCartButton}
+                onPress={() => {
+                  handleAddToCart(selectedProduct);
+                }}
+              >
+                <Text style={styles.modalAddToCartButtonText}>Add to Cart</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Modal>
     );
-  }, [selectedProduct, isModalVisible, closeModal, handleAddToCart]);
+  }, [
+    selectedProduct,
+    isModalVisible,
+    closeModal,
+    handleAddToCart,
+    cart,
+    handleQuantityChange,
+  ]);
 
   const renderRecommendations = useCallback(() => {
     if (recommendations.length === 0) return null;
@@ -1120,5 +1253,50 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "bold",
+  },
+  quantityContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    borderRadius: 8,
+    padding: 4,
+    marginHorizontal: 8,
+    marginBottom: 8,
+  },
+  quantityButton: {
+    backgroundColor: "#8B5CF6",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  quantityText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "#4B5563",
+  },
+  modalQuantityContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: 8,
+  },
+  modalQuantityButton: {
+    backgroundColor: "#8B5CF6",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalQuantityText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "#4B5563",
   },
 });
