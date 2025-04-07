@@ -36,7 +36,6 @@ import BalanceScreen from "./BalanceScreen";
 import PendingScreen from "./PendingScreen";
 import LinkageLoanScreen from "./LinkageLoanScreen";
 import ApplyLoanScreen from "./ApplyLoanScreen";
-import PayPendingLoanScreen from "./PayPendingLoanScreen";
 import PayWeeklyDueScreen from "./PayWeeklyDueScreen";
 
 const Stack = createStackNavigator<RootStackParamList>();
