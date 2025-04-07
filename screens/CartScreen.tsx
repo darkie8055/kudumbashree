@@ -131,6 +131,50 @@ export default function CartScreen({ navigation, route }: CartScreenProps) {
     [cart, userId, route.params]
   );
 
+  const clearCart = useCallback(async () => {
+    if (!userId) {
+      Alert.alert("Error", "Please sign in to clear cart");
+      return;
+    }
+
+    Alert.alert("Clear Cart", "Are you sure you want to clear your cart?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Clear",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setLoading(true);
+            const db = getFirestore();
+
+            // Delete all cart items from Firestore
+            const promises = cart.map((item) =>
+              deleteDoc(doc(db, "K-member", userId, "cart", item.product.id))
+            );
+
+            await Promise.all(promises);
+
+            // Update local state
+            setCart([]);
+
+            // Update parent screen
+            if (route.params?.onCartUpdate) {
+              route.params.onCartUpdate([]);
+            }
+          } catch (error) {
+            console.error("Error clearing cart:", error);
+            Alert.alert("Error", "Failed to clear cart");
+          } finally {
+            setLoading(false);
+          }
+        },
+      },
+    ]);
+  }, [userId, cart, route.params]);
+
   const calculateTotal = useCallback(() => {
     return cart.reduce(
       (total, item) => total + item.product.price * item.quantity,
@@ -216,6 +260,15 @@ export default function CartScreen({ navigation, route }: CartScreenProps) {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Your Cart</Text>
+        {cart.length > 0 && (
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={clearCart}
+            disabled={loading}
+          >
+            <Ionicons name="trash-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+        )}
       </LinearGradient>
 
       {cart.length === 0 ? (
@@ -307,6 +360,14 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_600SemiBold",
     fontSize: 24,
     color: "#fff",
+    flex: 1,
+    marginLeft: 12,
+  },
+  clearButton: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    padding: 8,
+    borderRadius: 12,
+    marginLeft: "auto",
   },
   emptyCart: {
     flex: 1,
