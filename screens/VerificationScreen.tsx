@@ -408,7 +408,7 @@ export default function VerificationScreen({ navigation }: Props) {
       <FirebaseRecaptchaVerifierModal
         ref={recaptchaVerifier}
         firebaseConfig={firebaseConfig}
-        attemptInvisibleVerification={false}
+        attemptInvisibleVerification={true}
         title="Verify Phone Number"
         cancelLabel="Cancel"
       />

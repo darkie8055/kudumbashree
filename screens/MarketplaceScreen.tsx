@@ -60,13 +60,40 @@ interface Product {
   category: string;
   location: string;
   status?: string;
-  createdAt?: Date;
+  createdAt?: Date | string; // Allow both Date and string
 }
 
 interface CartItem {
   product: Product;
   quantity: number;
 }
+
+// Helper functions to serialize/deserialize cart data
+const serializeCartForNavigation = (cart: CartItem[]): CartItem[] => {
+  return cart.map((item) => ({
+    ...item,
+    product: {
+      ...item.product,
+      createdAt:
+        item.product.createdAt instanceof Date
+          ? item.product.createdAt.toISOString()
+          : item.product.createdAt,
+    },
+  }));
+};
+
+const deserializeCartFromNavigation = (cart: CartItem[]): CartItem[] => {
+  return cart.map((item) => ({
+    ...item,
+    product: {
+      ...item.product,
+      createdAt:
+        typeof item.product.createdAt === "string"
+          ? new Date(item.product.createdAt)
+          : item.product.createdAt,
+    },
+  }));
+};
 
 // Add this type to your existing Props interface
 interface Props {
@@ -90,7 +117,7 @@ const categories = [
 const sortOptions = ["name", "priceLow", "priceHigh", "location"];
 
 const { width } = Dimensions.get("window");
-const ITEM_WIDTH = width * 0.44;
+const ITEM_WIDTH = (width - 32) / 2; // 16px padding on each side, split evenly
 
 const AnimatedFlatList = Animated.createAnimatedComponent<any>(FlatList);
 
@@ -120,7 +147,9 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     Poppins_700Bold,
   });
 
-  const [cart, setCart] = useState<CartItem[]>(route?.params?.cart || []);
+  const [cart, setCart] = useState<CartItem[]>(
+    route?.params?.cart ? deserializeCartFromNavigation(route.params.cart) : []
+  );
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -139,24 +168,40 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
   const recommendationsRef = useRef<FlatList>(null);
   const [currentRecommendationIndex, setCurrentRecommendationIndex] =
     useState(0);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
 
   // Add this useEffect for auto-scrolling
   useEffect(() => {
     let scrollTimer: NodeJS.Timeout;
 
-    if (recommendations.length > 0) {
+    if (recommendations.length > 1 && !isUserScrolling) {
       scrollTimer = setInterval(() => {
-        if (recommendationsRef.current && recommendations.length > 0) {
+        if (
+          recommendationsRef.current &&
+          recommendations.length > 1 &&
+          !isUserScrolling
+        ) {
           const nextIndex =
             (currentRecommendationIndex + 1) % recommendations.length;
-          recommendationsRef.current.scrollToIndex({
-            index: nextIndex,
-            animated: true,
-            viewPosition: 0.5,
-          });
-          setCurrentRecommendationIndex(nextIndex);
+
+          try {
+            recommendationsRef.current.scrollToIndex({
+              index: nextIndex,
+              animated: true,
+              viewPosition: 0.5,
+            });
+            setCurrentRecommendationIndex(nextIndex);
+          } catch (error) {
+            // If scrollToIndex fails, scroll to offset instead
+            const itemWidth = 108; // 100 + 8 margin
+            recommendationsRef.current.scrollToOffset({
+              offset: nextIndex * itemWidth,
+              animated: true,
+            });
+            setCurrentRecommendationIndex(nextIndex);
+          }
         }
-      }, 3000); // Scroll every 3 seconds
+      }, 4000); // Increased to 4 seconds for better UX
     }
 
     return () => {
@@ -164,7 +209,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
         clearInterval(scrollTimer);
       }
     };
-  }, [currentRecommendationIndex, recommendations.length]);
+  }, [currentRecommendationIndex, recommendations.length, isUserScrolling]);
 
   useEffect(() => {
     if (!route?.params?.cart) {
@@ -218,12 +263,13 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
         });
 
         // Update navigation params to reflect new cart state
+        const updatedCart = cart.map((item) =>
+          item.product.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
         navigation.setParams({
-          cart: cart.map((item) =>
-            item.product.id === product.id
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          ),
+          cart: serializeCartForNavigation(updatedCart),
         });
 
         Toast.show({
@@ -248,6 +294,99 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     setIsModalVisible(true);
   }, []);
 
+  const handleQuantityChange = useCallback(
+    async (product: Product, quantity: number) => {
+      if (!userId) {
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Please sign in to update cart",
+        });
+        return;
+      }
+
+      try {
+        const db = getFirestore();
+
+        if (quantity <= 0) {
+          // Remove from Firestore if quantity is zero
+          const cartRef = doc(db, "K-member", userId, "cart", product.id);
+          await deleteDoc(cartRef);
+
+          // Update local state
+          const updatedCart = cart.filter(
+            (item) => item.product.id !== product.id
+          );
+          setCart(updatedCart);
+
+          // Update navigation params
+          navigation.setParams({
+            cart: serializeCartForNavigation(updatedCart),
+          });
+        } else {
+          // Update quantity in Firestore
+          const cartRef = doc(db, "K-member", userId, "cart", product.id);
+          await setDoc(
+            cartRef,
+            {
+              productId: product.id,
+              quantity: quantity,
+              addedAt: new Date(),
+              price: product.price,
+              name: product.name,
+              imageUrl: product.imageUrl,
+            },
+            { merge: true }
+          );
+
+          // Update local state
+          const existingItemIndex = cart.findIndex(
+            (item) => item.product.id === product.id
+          );
+
+          if (existingItemIndex !== -1) {
+            // Item exists, update quantity
+            const updatedCart = [...cart];
+            updatedCart[existingItemIndex] = {
+              ...updatedCart[existingItemIndex],
+              quantity,
+            };
+            setCart(updatedCart);
+
+            // Update navigation params
+            navigation.setParams({
+              cart: serializeCartForNavigation(updatedCart),
+            });
+          } else {
+            // Item doesn't exist, add it
+            const updatedCart = [...cart, { product, quantity }];
+            setCart(updatedCart);
+
+            // Update navigation params
+            navigation.setParams({
+              cart: serializeCartForNavigation(updatedCart),
+            });
+          }
+        }
+
+        Toast.show({
+          type: "success",
+          text1: "Cart Updated",
+          text2: quantity === 0 ? "Item removed from cart" : "Quantity updated",
+          visibilityTime: TOAST_DURATION,
+        });
+      } catch (error) {
+        console.error("Error updating cart:", error);
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Failed to update cart",
+        });
+      }
+    },
+    [cart, userId, navigation]
+  );
+
   // Update the renderProduct function with quantity controls
   const renderProduct = useCallback(
     ({ item }: { item: Product }) => {
@@ -262,7 +401,13 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
               source={{ uri: item.imageUrl }}
               style={styles.productImage}
             />
-            <Text style={styles.productName}>{item.name}</Text>
+            <Text
+              style={styles.productName}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              {item.name}
+            </Text>
             <Text style={styles.productPrice}>₹{item.price}</Text>
           </TouchableOpacity>
 
@@ -337,7 +482,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
 
       if (shouldRefresh) {
         setProducts(newProducts);
-        setFilteredProducts(newProducts);
+        // Don't set filteredProducts directly - let useEffect handle filtering
       } else {
         setProducts((prev) => {
           const existingIds = new Set(prev.map((p) => p.id));
@@ -345,7 +490,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
             (p) => !existingIds.has(p.id)
           );
           const updatedProducts = [...prev, ...uniqueNewProducts];
-          setFilteredProducts(updatedProducts);
+          // Don't set filteredProducts directly - let useEffect handle filtering
           return updatedProducts;
         });
       }
@@ -383,99 +528,6 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     []
   );
 
-  const handleQuantityChange = useCallback(
-    async (product: Product, quantity: number) => {
-      if (!userId) {
-        Toast.show({
-          type: "error",
-          text1: "Error",
-          text2: "Please sign in to update cart",
-        });
-        return;
-      }
-
-      try {
-        const db = getFirestore();
-
-        if (quantity <= 0) {
-          // Remove from Firestore if quantity is zero
-          const cartRef = doc(db, "K-member", userId, "cart", product.id);
-          await deleteDoc(cartRef);
-
-          // Update local state
-          const updatedCart = cart.filter(
-            (item) => item.product.id !== product.id
-          );
-          setCart(updatedCart);
-
-          // Update navigation params
-          navigation.setParams({
-            cart: updatedCart,
-          });
-        } else {
-          // Update quantity in Firestore
-          const cartRef = doc(db, "K-member", userId, "cart", product.id);
-          await setDoc(
-            cartRef,
-            {
-              productId: product.id,
-              quantity: quantity,
-              addedAt: new Date(),
-              price: product.price,
-              name: product.name,
-              imageUrl: product.imageUrl,
-            },
-            { merge: true }
-          );
-
-          // Update local state
-          const existingItemIndex = cart.findIndex(
-            (item) => item.product.id === product.id
-          );
-
-          if (existingItemIndex !== -1) {
-            // Item exists, update quantity
-            const updatedCart = [...cart];
-            updatedCart[existingItemIndex] = {
-              ...updatedCart[existingItemIndex],
-              quantity,
-            };
-            setCart(updatedCart);
-
-            // Update navigation params
-            navigation.setParams({
-              cart: updatedCart,
-            });
-          } else {
-            // Item doesn't exist, add it
-            const updatedCart = [...cart, { product, quantity }];
-            setCart(updatedCart);
-
-            // Update navigation params
-            navigation.setParams({
-              cart: updatedCart,
-            });
-          }
-        }
-
-        Toast.show({
-          type: "success",
-          text1: "Cart Updated",
-          text2: quantity === 0 ? "Item removed from cart" : "Quantity updated",
-          visibilityTime: TOAST_DURATION,
-        });
-      } catch (error) {
-        console.error("Error updating cart:", error);
-        Toast.show({
-          type: "error",
-          text1: "Error",
-          text2: "Failed to update cart",
-        });
-      }
-    },
-    [cart, userId, navigation]
-  );
-
   const goToCart = useCallback(() => {
     navigation.navigate("Cart", {
       cart,
@@ -496,35 +548,56 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
   }, [hasMore, isLoading, fetchProducts]);
 
   const filterAndSortProducts = useCallback(() => {
-    if (!products?.length) return;
+    if (!products?.length) {
+      setFilteredProducts([]);
+      return;
+    }
 
-    let filtered = products;
+    let filtered = [...products]; // Create a copy to avoid mutation
 
-    if (searchQuery) {
-      filtered = filtered.filter((product) =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase())
+    // Apply search filter
+    if (searchQuery && searchQuery.trim()) {
+      filtered = filtered.filter(
+        (product) =>
+          product.name
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase().trim()) ||
+          product.description
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase().trim()) ||
+          product.category
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase().trim())
       );
     }
 
+    // Apply category filter
     if (selectedCategory !== "All") {
       filtered = filtered.filter(
         (product) => product.category === selectedCategory
       );
     }
 
+    // Apply sorting
     const sortedProducts = [...filtered];
     switch (sortOption) {
       case "priceLow":
-        sortedProducts.sort((a, b) => a.price - b.price);
+        sortedProducts.sort((a, b) => (a.price || 0) - (b.price || 0));
         break;
       case "priceHigh":
-        sortedProducts.sort((a, b) => b.price - a.price);
+        sortedProducts.sort((a, b) => (b.price || 0) - (a.price || 0));
         break;
       case "location":
-        sortedProducts.sort((a, b) => a.location.localeCompare(b.location));
+        sortedProducts.sort((a, b) =>
+          (a.location || "").localeCompare(b.location || "")
+        );
         break;
+      case "name":
       default:
-        sortedProducts.sort((a, b) => a.name.localeCompare(b.name));
+        sortedProducts.sort((a, b) =>
+          (a.name || "").localeCompare(b.name || "")
+        );
+        break;
     }
 
     setFilteredProducts(sortedProducts);
@@ -619,8 +692,8 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
     if (recommendations.length === 0) return null;
 
     return (
-      <View style={styles.sectionContainer}>
-        <Text style={styles.sectionHeader}>Recommended for You</Text>
+      <View style={styles.recommendationsContainer}>
+        <Text style={styles.recommendationsHeader}>Recommended for You</Text>
         <FlatList
           ref={recommendationsRef}
           horizontal
@@ -646,27 +719,55 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
               <Text style={styles.recommendedPrice}>₹{item.price}</Text>
             </TouchableOpacity>
           )}
+          onScrollBeginDrag={() => {
+            setIsUserScrolling(true);
+          }}
+          onScrollEndDrag={() => {
+            // Resume auto-scroll after 3 seconds of user inactivity
+            setTimeout(() => setIsUserScrolling(false), 3000);
+          }}
           onScrollToIndexFailed={(info) => {
-            const wait = new Promise((resolve) => setTimeout(resolve, 500));
-            wait.then(() => {
-              if (recommendationsRef.current) {
-                recommendationsRef.current.scrollToIndex({
-                  index: info.index,
-                  animated: true,
-                  viewPosition: 0.5,
-                });
+            // Better error handling for scroll failures
+            setTimeout(() => {
+              if (
+                recommendationsRef.current &&
+                info.index < recommendations.length
+              ) {
+                try {
+                  recommendationsRef.current.scrollToIndex({
+                    index: info.index,
+                    animated: false,
+                    viewPosition: 0.5,
+                  });
+                } catch (error) {
+                  // Fallback to scrollToOffset
+                  const itemWidth = 108; // 100 + 8 margin
+                  recommendationsRef.current.scrollToOffset({
+                    offset: info.index * itemWidth,
+                    animated: false,
+                  });
+                }
               }
-            });
+            }, 100);
           }}
           getItemLayout={(data, index) => ({
-            length: 100 + 8, // Item width + margin
-            offset: (100 + 8) * index,
+            length: 108, // Item width (100) + margin (8)
+            offset: 108 * index,
             index,
           })}
+          contentContainerStyle={{
+            paddingLeft: 16,
+            paddingRight: 16,
+          }}
+          initialScrollIndex={0}
+          maintainVisibleContentPosition={{
+            minIndexForVisible: 0,
+            autoscrollToTopThreshold: 100,
+          }}
         />
       </View>
     );
-  }, [recommendations, handleProductPress, currentRecommendationIndex]);
+  }, [recommendations, handleProductPress]);
 
   // Add a function to calculate total cart items
   const getTotalCartItems = useCallback(() => {
@@ -832,10 +933,14 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
   }, [fetchProducts]);
 
   useEffect(() => {
-    if (products.length > 0) {
-      filterAndSortProducts();
-    }
-  }, [searchQuery, selectedCategory, sortOption]);
+    filterAndSortProducts();
+  }, [
+    searchQuery,
+    selectedCategory,
+    sortOption,
+    products,
+    filterAndSortProducts,
+  ]);
 
   useEffect(() => {
     const getAIRecommendations = async () => {
@@ -903,6 +1008,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
         keyExtractor={(item) => `product-${item.id}`}
         numColumns={2}
         contentContainerStyle={styles.productListContainer}
+        columnWrapperStyle={styles.productRow}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={() => (
           <View style={styles.emptyState}>
@@ -979,6 +1085,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 8,
+    marginHorizontal: -16, // Negative margin to extend to screen edges
   },
   headerContent: {
     flexDirection: "row",
@@ -1061,48 +1168,60 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   productCard: {
-    width: ITEM_WIDTH,
-    margin: 8,
-    borderRadius: 8,
-    overflow: "hidden",
+    flex: 1,
+    marginHorizontal: 8,
+    marginVertical: 8,
+    borderRadius: 12,
     backgroundColor: "#fff",
     shadowColor: "#000",
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    fontFamily: "Poppins_600SemiBold",
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+    overflow: "hidden",
   },
   productImage: {
     width: "100%",
     height: 120,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
+    backgroundColor: "#f5f5f5",
+    resizeMode: "cover",
   },
   productName: {
     fontSize: 14,
-    fontWeight: "bold",
-    marginVertical: 8,
-    marginLeft: 8,
+    fontFamily: "Poppins_600SemiBold",
+    marginTop: 12,
+    marginBottom: 4,
+    marginHorizontal: 12,
+    color: "#1F2937",
+    lineHeight: 18,
+    minHeight: 36, // Ensure consistent height for 2 lines
   },
   productPrice: {
-    fontSize: 13.5,
-    fontWeight: "bold",
-    color: "#69C779",
-    marginBottom: 8,
-    marginLeft: 8,
+    fontSize: 16,
+    fontFamily: "Poppins_700Bold",
+    color: "#059669",
+    marginBottom: 0,
+    marginHorizontal: 12,
   },
   addToCartButton: {
     backgroundColor: "#8B5CF6",
-    paddingVertical: 8,
+    paddingVertical: 12,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    borderRadius: 8,
     alignItems: "center",
   },
   addToCartButtonText: {
     color: "#fff",
-    fontWeight: "700",
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 14,
   },
   productListContainer: {
+    paddingHorizontal: 16,
     paddingBottom: 70,
+  },
+  productRow: {
+    justifyContent: "space-between",
   },
   modalContainer: {
     flex: 1,
@@ -1173,6 +1292,15 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#f8f8f8",
     maxHeight: 200,
+  },
+  recommendationsContainer: {
+    marginTop: 24,
+  },
+  recommendationsHeader: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 8,
+    paddingHorizontal: 16,
   },
   recommendedItem: {
     width: 100,
@@ -1260,9 +1388,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#F3F4F6",
     borderRadius: 8,
-    padding: 4,
-    marginHorizontal: 8,
-    marginBottom: 8,
+    padding: 6,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    minHeight: 44, // Match button height
   },
   quantityButton: {
     backgroundColor: "#8B5CF6",

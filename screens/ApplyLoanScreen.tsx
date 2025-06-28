@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   picker: {
-    height: 50,
+    height: 60,
     width: "100%",
   },
   errorText: {

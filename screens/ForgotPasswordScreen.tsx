@@ -26,13 +26,9 @@ import {
   Poppins_600SemiBold,
   Poppins_700Bold,
 } from "@expo-google-fonts/poppins";
-import {
-  getAuth,
-  PhoneAuthProvider,
-  signInWithCredential,
-} from "firebase/auth";
+import { PhoneAuthProvider, signInWithCredential } from "firebase/auth";
 import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
-import { firebaseConfig } from "../firebase";
+import { firebaseConfig, auth } from "../firebase";
 import {
   doc,
   updateDoc,
@@ -59,6 +55,7 @@ interface Props {
 
 LogBox.ignoreLogs([
   "Warning: FirebaseRecaptcha: Support for defaultProps will be removed from function components in a future major release.",
+  "Support for defaultProps will be removed from function components",
   "Firebase: Error (auth/cancelled-popup-request).",
   "Firebase: Error (auth/popup-closed-by-user).",
   "Error: Cancelled by user.",
@@ -66,8 +63,7 @@ LogBox.ignoreLogs([
 ]);
 
 export default function ForgotPasswordScreen({ navigation, route }: Props) {
-  const { phoneNumber } = route.params;
-  const [phone, setPhone] = useState(phoneNumber || "");
+  const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -80,6 +76,7 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
   const [verificationId, setVerificationId] = useState("");
   const [loading, setLoading] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
+  const [showRecaptcha, setShowRecaptcha] = useState(false);
   const recaptchaVerifier = useRef(null);
 
   const [fontsLoaded] = useFonts({
@@ -100,9 +97,15 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
   const handleSendOTP = async () => {
     try {
       setLoading(true);
-      const auth = getAuth();
+      setShowRecaptcha(true);
+
+      // Use the auth instance from your firebase.js instead of getAuth()
+      console.log("Using imported auth instance:", auth);
+
       const phoneProvider = new PhoneAuthProvider(auth);
       const formattedPhoneNumber = "+91" + phone;
+
+      console.log("Attempting to verify:", formattedPhoneNumber);
 
       const verificationId = await phoneProvider.verifyPhoneNumber(
         formattedPhoneNumber,
@@ -112,6 +115,10 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
       Alert.alert("Success", "Verification code has been sent to your phone.");
       setStep(2);
     } catch (err: any) {
+      console.error("Full error:", err);
+      console.error("Error code:", err?.code);
+      console.error("Error message:", err?.message);
+
       if (
         err?.message === "Cancelled by user" ||
         err?.code === "auth/cancelled-popup-request" ||
@@ -121,22 +128,27 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
           "Cancelled",
           "Verification was cancelled. Please try again."
         );
+      } else if (err?.code === "auth/invalid-app-credential") {
+        Alert.alert(
+          "Configuration Error",
+          "There's an issue with the app configuration. Please contact support."
+        );
       } else {
         console.error(err);
         Alert.alert(
           "Error",
-          "Failed to send verification code. Please try again."
+          `Failed to send verification code: ${err?.message || "Unknown error"}`
         );
       }
     } finally {
       setLoading(false);
+      setShowRecaptcha(false);
     }
   };
 
   const handleVerifyOTP = async () => {
     try {
       setLoading(true);
-      const auth = getAuth();
       const credential = PhoneAuthProvider.credential(verificationId, otp);
       await signInWithCredential(auth, credential);
       setStep(3);
@@ -277,7 +289,11 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
                             disabled={loading || phone.length !== 10}
                           >
                             <Text style={styles.buttonText}>
-                              {loading ? "Sending..." : "Send OTP"}
+                              {loading
+                                ? "Sending..."
+                                : showRecaptcha
+                                ? "Security Check..."
+                                : "Send OTP"}
                             </Text>
                           </TouchableOpacity>
                         </LinearGradient>
@@ -456,8 +472,35 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
       <FirebaseRecaptchaVerifierModal
         ref={recaptchaVerifier}
         firebaseConfig={firebaseConfig}
-        attemptInvisibleVerification={false}
+        attemptInvisibleVerification={true}
+        title="Security Verification"
+        cancelLabel="Cancel"
+        languageCode="en"
       />
+
+      {/* Custom Loading Overlay for Security Verification */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showRecaptcha && loading}
+        onRequestClose={() => {}}
+      >
+        <View style={styles.securityOverlay}>
+          <View style={styles.securityModal}>
+            <Animated.View style={{ opacity: animation }}>
+              <Ionicons
+                name="shield-checkmark"
+                size={60}
+                color="rgb(162,39,142)"
+              />
+              <Text style={styles.securityText}>Security Verification</Text>
+              <Text style={styles.securitySubtext}>
+                Verifying your request for security...
+              </Text>
+            </Animated.View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         animationType="fade"
@@ -635,5 +678,40 @@ const styles = StyleSheet.create({
   modalButton: {
     width: "100%",
     marginTop: 0,
+  },
+  securityOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(162, 39, 142, 0.9)",
+  },
+  securityModal: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 40,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    margin: 20,
+  },
+  securityText: {
+    fontFamily: "Poppins_700Bold",
+    color: "rgb(162,39,142)",
+    fontSize: 20,
+    marginTop: 20,
+    textAlign: "center",
+  },
+  securitySubtext: {
+    fontFamily: "Poppins_400Regular",
+    color: "rgba(162,39,142,0.7)",
+    fontSize: 14,
+    marginTop: 10,
+    textAlign: "center",
   },
 });

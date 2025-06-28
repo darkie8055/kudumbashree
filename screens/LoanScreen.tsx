@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   Image,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -37,7 +38,6 @@ import { StorageAccessFramework } from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationProp, RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../types/navigation";
-import kudumbashreeLogo from "../assets/kudumbashreelogo.jpg";
 
 interface LoanApplication {
   id: string;
@@ -63,6 +63,9 @@ interface UserData {
 interface UnitDetails {
   presidentName: string;
   unitName: string;
+  presidentDetails?: {
+    name: string;
+  };
   // ... other fields
 }
 
@@ -90,6 +93,8 @@ export default function LoanScreen({ navigation, route }: LoanScreenProps) {
   const [unitDetails, setUnitDetails] = useState<UnitDetails | null>(null);
 
   const phoneNumber = route.params?.phoneNumber;
+  const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+  const isSmallScreen = screenWidth < 375;
 
   useEffect(() => {
     const fetchLoans = async () => {
@@ -175,8 +180,11 @@ export default function LoanScreen({ navigation, route }: LoanScreenProps) {
         if (unitDoc.exists()) {
           const data = unitDoc.data() as UnitDetails;
           setUnitDetails({
-            presidentName: data.presidentDetails.name,
-            unitName: data.unitName,
+            presidentName:
+              data.presidentDetails?.name ||
+              data.presidentName ||
+              "Unit President",
+            unitName: data.unitName || "Kudumbashree Unit",
           });
         }
       } catch (error) {
@@ -224,6 +232,7 @@ export default function LoanScreen({ navigation, route }: LoanScreenProps) {
 
   const generatePDF = async () => {
     try {
+      const kudumbashreeLogo = require("../assets/kudumbashreelogo.jpg");
       const logoSource = Image.resolveAssetSource(kudumbashreeLogo);
       const logoUrl = logoSource.uri;
 
@@ -494,6 +503,7 @@ export default function LoanScreen({ navigation, route }: LoanScreenProps) {
                   {
                     borderLeftWidth: 4,
                     borderLeftColor: getStatusColor(loan.status),
+                    paddingHorizontal: isSmallScreen ? 12 : 20, // Responsive padding
                   },
                 ]}
               >
@@ -546,15 +556,41 @@ export default function LoanScreen({ navigation, route }: LoanScreenProps) {
                     <View style={styles.detailIconContainer}>
                       <Ionicons name="book-outline" size={16} color="#6B7280" />
                     </View>
-                    <Text style={styles.detailLabel}>Purpose:</Text>
-                    <Text style={styles.detailValue}>{loan.purpose}</Text>
+                    <Text
+                      style={[
+                        styles.detailLabel,
+                        { fontSize: isSmallScreen ? 13 : 14 },
+                      ]}
+                    >
+                      Purpose:
+                    </Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        { fontSize: isSmallScreen ? 13 : 14 },
+                      ]}
+                    >
+                      {loan.purpose}
+                    </Text>
                   </View>
                   <View style={styles.detailRow}>
                     <View style={styles.detailIconContainer}>
                       <Ionicons name="time-outline" size={16} color="#6B7280" />
                     </View>
-                    <Text style={styles.detailLabel}>Repay:</Text>
-                    <Text style={styles.detailValue}>
+                    <Text
+                      style={[
+                        styles.detailLabel,
+                        { fontSize: isSmallScreen ? 13 : 14 },
+                      ]}
+                    >
+                      Repay:
+                    </Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        { fontSize: isSmallScreen ? 13 : 14 },
+                      ]}
+                    >
                       {loan.repaymentPeriod} months
                     </Text>
                   </View>
@@ -566,8 +602,20 @@ export default function LoanScreen({ navigation, route }: LoanScreenProps) {
                         color="#6B7280"
                       />
                     </View>
-                    <Text style={styles.detailLabel}>Applied:</Text>
-                    <Text style={styles.detailValue}>
+                    <Text
+                      style={[
+                        styles.detailLabel,
+                        { fontSize: isSmallScreen ? 13 : 14 },
+                      ]}
+                    >
+                      Applied:
+                    </Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        { fontSize: isSmallScreen ? 13 : 14 },
+                      ]}
+                    >
                       {format(loan.createdAt, "MMM dd, yyyy")}
                     </Text>
                   </View>
@@ -743,7 +791,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     backgroundColor: "#fff",
-    marginHorizontal: 16,
+    marginHorizontal: 12, // Reduced from 16 for more space
     marginVertical: 16,
     borderRadius: 16,
     padding: 16,
@@ -853,7 +901,7 @@ const styles = StyleSheet.create({
   actionBar: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12, // Reduced from 16 for consistency
     marginBottom: 16,
     backgroundColor: "transparent",
   },
@@ -878,13 +926,14 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   loansContainer: {
-    padding: 16,
+    paddingHorizontal: 12, // Reduced from 16 for more space on small screens
+    paddingVertical: 4, // Reduced vertical padding
   },
   loanCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
     marginBottom: 16,
-    padding: 20,
+    paddingVertical: 20, // Only vertical padding, horizontal is handled dynamically
     elevation: 3,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -907,6 +956,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9FAFB",
     borderRadius: 12,
     padding: 16, // Slightly more padding
+    paddingHorizontal: 12, // Reduced horizontal padding for more space
     borderWidth: 1,
     borderColor: "#E5E7EB", // This will be dynamically enhanced
   },
@@ -954,8 +1004,9 @@ const styles = StyleSheet.create({
   },
   detailRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start", // Changed from "center" to "flex-start" for better text alignment
     marginBottom: 10,
+    minHeight: 24, // Ensure minimum height for proper spacing
   },
   detailIconContainer: {
     width: 24,
@@ -963,19 +1014,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
+    marginTop: 2, // Slight adjustment for icon alignment with text
   },
   detailLabel: {
     fontFamily: "Poppins_400Regular",
     fontSize: 14,
     color: "#6B7280",
-    width: 60,
+    minWidth: 55, // Changed from fixed width to minWidth
+    flexShrink: 0, // Prevent label from shrinking
   },
   detailValue: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 14,
     color: "#1F2937",
     flex: 1,
-    marginLeft: 5,
+    marginLeft: 8, // Increased margin for better spacing
+    flexWrap: "wrap", // Allow text to wrap properly
+    textAlign: "left", // Ensure text alignment
   },
   modalContainer: {
     flex: 1,

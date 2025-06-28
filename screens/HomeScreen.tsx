@@ -941,29 +941,36 @@ const styles = StyleSheet.create({
   sectionContainer: {
     marginTop: 10,
     marginBottom: 25,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18, // Increased slightly for better balance
   },
   sectionHeader: {
     fontFamily: "Poppins_600SemiBold",
-    fontSize: 18,
+    fontSize: 17, // Slightly smaller font
     color: "#333",
     marginBottom: 10,
+    flexShrink: 1, // Allow shrinking if needed
+    marginRight: 12, // More margin for separation
   },
   sectionHeaderContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 16,
+    minHeight: 24, // Ensure minimum height
   },
   viewAllButton: {
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 4, // Horizontal padding for touch area
+    paddingVertical: 2, // Vertical padding for touch area
+    maxWidth: 80, // Maximum width to prevent overflow
+    justifyContent: "flex-end", // Align content to the right
   },
   viewAllText: {
     fontFamily: "Poppins_500Medium",
-    fontSize: 14,
+    fontSize: 13, // Slightly smaller font
     color: "#8B5CF6",
-    marginRight: 4,
+    marginRight: 2, // Reduced margin
   },
   quickActionsContainer: {
     flexDirection: "row",
@@ -1033,8 +1040,8 @@ const styles = StyleSheet.create({
   },
   newsCarouselContainer: {
     position: "relative",
-    marginHorizontal: -20,
-    paddingHorizontal: 20,
+    marginHorizontal: -18, // Adjusted to match new padding
+    paddingHorizontal: 18, // Adjusted to match new padding
   },
   newsListContent: {
     paddingVertical: 8,
