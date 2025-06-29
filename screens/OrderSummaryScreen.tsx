@@ -11,11 +11,12 @@ import {
   Image,
   Modal,
   ActivityIndicator,
+  AppState,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import QRCode from "react-native-qrcode-svg";
+import * as Linking from "expo-linking";
 import Toast from "react-native-toast-message";
 import {
   useFonts,
@@ -25,11 +26,6 @@ import {
   Poppins_700Bold,
 } from "@expo-google-fonts/poppins";
 
-// Create a separate Timer component outside the main component
-const TimerComponent = () => {
-  return <Text style={styles.timerText}>Time remaining: 5:00</Text>;
-};
-
 export default function OrderSummaryScreen({ navigation, route }) {
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -37,8 +33,16 @@ export default function OrderSummaryScreen({ navigation, route }) {
     Poppins_600SemiBold,
     Poppins_700Bold,
   });
-  
+
   const { cart = [], paymentMethod = {}, address = null } = route.params || {};
+
+  const [couponCode, setCouponCode] = useState("");
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+  const [appliedDiscount, setAppliedDiscount] = useState(0);
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [appState, setAppState] = useState(AppState.currentState);
+  const [hasOpenedUPI, setHasOpenedUPI] = useState(false);
 
   useEffect(() => {
     if (!address) {
@@ -46,15 +50,45 @@ export default function OrderSummaryScreen({ navigation, route }) {
     }
   }, [address]);
 
-  const [couponCode, setCouponCode] = useState("");
-  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
-  const [showPaymentQR, setShowPaymentQR] = useState(false);
-  const [paymentTimer, setPaymentTimer] = useState(300); // 5 minutes
-  const [isPaymentTimedOut, setIsPaymentTimedOut] = useState(false);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [appliedDiscount, setAppliedDiscount] = useState(0);
-  const [promoApplied, setPromoApplied] = useState(false);
+  // Handle app state changes to detect return from UPI app
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState) => {
+      if (appState.match(/inactive|background/) && nextAppState === "active") {
+        // User returned to the app
+        if (hasOpenedUPI && paymentMethod.type === "upi") {
+          // Start verification process
+          setTimeout(() => {
+            setIsVerifyingPayment(true);
+            Toast.show({
+              type: "info",
+              text1: "Verifying Payment",
+              text2: "Please wait while we verify your payment...",
+            });
+
+            // Mock verification process
+            setTimeout(() => {
+              setIsVerifyingPayment(false);
+              Toast.show({
+                type: "success",
+                text1: "Payment Verified!",
+                text2: "Your order has been placed successfully",
+              });
+              proceedWithOrder();
+            }, 3000); // 3 seconds verification
+          }, 1000); // 1 second delay after returning from payment app
+
+          setHasOpenedUPI(false); // Reset the flag
+        }
+      }
+      setAppState(nextAppState);
+    };
+
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange
+    );
+    return () => subscription?.remove();
+  }, [appState, hasOpenedUPI, paymentMethod.type]);
 
   const subtotal = cart.reduce(
     (total, item) => total + item.product.price * item.quantity,
@@ -64,150 +98,41 @@ export default function OrderSummaryScreen({ navigation, route }) {
   const deliveryCharge = 5.0;
   const total = subtotal - discount + deliveryCharge;
 
-  const qrValue = useMemo(() => {
-    return `upi://pay?pa=gamestriker8055@okaxis&pn=Kudumbashree&am=${total.toFixed(
-      2
-    )}&cu=INR`;
-  }, [total]);
+  // Remove the QR code related components
+  // const QRCodeComponent = ...
+  // const PaymentQRModal = ...
 
-  // Memoize QR code component to prevent re-renders
-  const QRCodeComponent = useMemo(() => {
-    return (
-      <View style={styles.qrContainer}>
-        <QRCode
-          value={qrValue}
-          size={200}
-          quietZone={10}
-          backgroundColor="#fff"
-          color="#000"
-          ecl="H"
-          logo={require("../assets/icon.png")}
-          logoSize={50}
-          logoBackgroundColor="white"
-        />
-      </View>
-    );
-  }, [qrValue]);
-
-  // Update PaymentQRModal to use TimerComponent
-  const PaymentQRModal = useMemo(() => {
-    return () => (
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={showPaymentQR}
-        onRequestClose={() => !isProcessingPayment && setShowPaymentQR(false)}
-        statusBarTranslucent
-      >
-        <View style={[styles.modalContainer, StyleSheet.absoluteFill]}>
-          <View style={styles.modalContent}>
-            {paymentSuccess ? (
-              <>
-                <View style={styles.successIcon}>
-                  <Ionicons name="checkmark-circle" size={60} color="#7C3AED" />
-                </View>
-                <Text style={styles.successTitle}>Payment Successful!</Text>
-                <TouchableOpacity
-                  style={styles.doneButton}
-                  onPress={handleDone}
-                >
-                  <LinearGradient
-                    colors={["#7C3AED", "#C026D3"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.doneButtonGradient}
-                  >
-                    <Text style={styles.doneButtonText}>Done</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <Text style={styles.modalTitle}>Scan to Pay</Text>
-                <Text style={styles.modalSubtitle}>
-                  Use any UPI app to scan and pay
-                </Text>
-                {QRCodeComponent}
-                <TimerComponent />
-                {isPaymentTimedOut ? (
-                  <Text style={styles.timeoutText}>
-                    Payment timed out. Please try again.
-                  </Text>
-                ) : (
-                  <TouchableOpacity
-                    style={[
-                      styles.verifyPaymentButton,
-                      isProcessingPayment && styles.processingButton,
-                    ]}
-                    onPress={handlePaymentVerification}
-                    disabled={isProcessingPayment}
-                  >
-                    <LinearGradient
-                      colors={
-                        isProcessingPayment
-                          ? ["#cccccc", "#999999"]
-                          : ["#7C3AED", "#C026D3"]
-                      }
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.verifyPaymentGradient}
-                    >
-                      {isProcessingPayment ? (
-                        <View style={styles.processingContainer}>
-                          <ActivityIndicator color="#fff" />
-                          <Text
-                            style={[
-                              styles.verifyPaymentButtonText,
-                              styles.processingText,
-                            ]}
-                          >
-                            Processing...
-                          </Text>
-                        </View>
-                      ) : (
-                        <Text style={styles.verifyPaymentButtonText}>
-                          I have made the payment
-                        </Text>
-                      )}
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
-                {!isProcessingPayment && (
-                  <TouchableOpacity
-                    style={styles.cancelButton}
-                    onPress={() => {
-                      setShowPaymentQR(false);
-                      setPaymentTimer(300);
-                      setIsPaymentTimedOut(false);
-                    }}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                )}
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
-    );
-  }, [
-    showPaymentQR,
-    isProcessingPayment,
-    paymentSuccess,
-    QRCodeComponent,
-    paymentTimer,
-    isPaymentTimedOut,
-  ]);
-
-  const handlePlaceOrder = useCallback(() => {
+  const handlePlaceOrder = useCallback(async () => {
     if (paymentMethod.type === "upi") {
-      setPaymentTimer(300);
-      setIsPaymentTimedOut(false);
-      setShowPaymentQR(true);
+      // Automatically open Google Pay with UPI payment
+      const upiUrl = `upi://pay?pa=gamestriker8055@okaxis&pn=Kudumbashree&am=${total.toFixed(
+        2
+      )}&cu=INR`;
+
+      try {
+        const canOpen = await Linking.canOpenURL(upiUrl);
+        if (canOpen) {
+          setHasOpenedUPI(true); // Set flag before opening UPI app
+          await Linking.openURL(upiUrl);
+          // The AppState listener will handle the verification when user returns
+        } else {
+          Toast.show({
+            type: "error",
+            text1: "No UPI app found",
+            text2: "Please install a UPI app to make payments",
+          });
+        }
+      } catch (error) {
+        Toast.show({
+          type: "error",
+          text1: "Unable to open payment app",
+          text2: "Please try again or use a different payment method",
+        });
+      }
     } else {
       proceedWithOrder();
     }
-  }, [paymentMethod]);
+  }, [paymentMethod, total]);
 
   const proceedWithOrder = () => {
     const orderId = Math.floor(Math.random() * 90000) + 10000;
@@ -219,21 +144,6 @@ export default function OrderSummaryScreen({ navigation, route }) {
       placedAt: new Date().toISOString(),
     };
     navigation.navigate("OrderTracking", orderStatus);
-  };
-
-  const handlePaymentVerification = async () => {
-    setIsProcessingPayment(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsProcessingPayment(false);
-    setPaymentSuccess(true);
-  };
-
-  const handleDone = () => {
-    setShowPaymentQR(false);
-    setPaymentSuccess(false);
-    setPaymentTimer(300);
-    setIsPaymentTimedOut(false);
-    proceedWithOrder();
   };
 
   const handleApplyCoupon = () => {
@@ -486,7 +396,24 @@ export default function OrderSummaryScreen({ navigation, route }) {
         </TouchableOpacity>
       </LinearGradient>
 
-      <PaymentQRModal />
+      {/* Payment Verification Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isVerifyingPayment}
+        onRequestClose={() => {}}
+        statusBarTranslucent
+      >
+        <View style={[styles.modalContainer, StyleSheet.absoluteFill]}>
+          <View style={styles.verificationModalContent}>
+            <ActivityIndicator size="large" color="#7C3AED" />
+            <Text style={styles.verificationTitle}>Verifying Payment</Text>
+            <Text style={styles.verificationSubtitle}>
+              Please wait while we verify your payment...
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -812,6 +739,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   modalContainer: {
+    flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.6)",
     justifyContent: "center",
     alignItems: "center",
@@ -954,5 +882,34 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "700",
+  },
+  verificationModalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 32,
+    width: "80%",
+    maxWidth: 350,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  verificationTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1a1a1a",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  verificationSubtitle: {
+    fontSize: 16,
+    color: "#6b7280",
+    textAlign: "center",
+    lineHeight: 22,
   },
 });

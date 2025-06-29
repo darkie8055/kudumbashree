@@ -233,6 +233,10 @@ export default function PaymentMethodScreen({ navigation, route }) {
     const selectedPayment = samplePaymentMethods.find(
       (m) => m.id === selectedMethod
     );
+
+    // Close the UPI modal before navigating
+    setShowUpiInput(false);
+
     navigation.navigate("OrderSummary", {
       ...route.params,
       paymentMethod: {
