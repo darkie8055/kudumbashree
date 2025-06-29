@@ -15,6 +15,7 @@ import {
   Dimensions,
   Modal,
   ActivityIndicator,
+  ScrollView,
   TextStyle,
   ViewStyle,
   ImageStyle,
@@ -401,42 +402,46 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
               source={{ uri: item.imageUrl }}
               style={styles.productImage}
             />
-            <Text
-              style={styles.productName}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
-              {item.name}
-            </Text>
-            <Text style={styles.productPrice}>₹{item.price}</Text>
+            <View style={styles.productInfo}>
+              <Text
+                style={styles.productName}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
+                {item.name}
+              </Text>
+              <Text style={styles.productPrice}>₹{item.price}</Text>
+            </View>
           </TouchableOpacity>
 
-          {quantity > 0 ? (
-            <View style={styles.quantityContainer}>
-              <TouchableOpacity
-                style={styles.quantityButton}
-                onPress={() => handleQuantityChange(item, quantity - 1)}
-              >
-                <Ionicons name="remove" size={16} color="#fff" />
-              </TouchableOpacity>
+          <View style={styles.productActions}>
+            {quantity > 0 ? (
+              <View style={styles.quantityContainer}>
+                <TouchableOpacity
+                  style={styles.quantityButton}
+                  onPress={() => handleQuantityChange(item, quantity - 1)}
+                >
+                  <Ionicons name="remove" size={16} color="#fff" />
+                </TouchableOpacity>
 
-              <Text style={styles.quantityText}>{quantity}</Text>
+                <Text style={styles.quantityText}>{quantity}</Text>
 
+                <TouchableOpacity
+                  style={styles.quantityButton}
+                  onPress={() => handleQuantityChange(item, quantity + 1)}
+                >
+                  <Ionicons name="add" size={16} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ) : (
               <TouchableOpacity
-                style={styles.quantityButton}
-                onPress={() => handleQuantityChange(item, quantity + 1)}
+                style={styles.addToCartButton}
+                onPress={() => handleAddToCart(item)}
               >
-                <Ionicons name="add" size={16} color="#fff" />
+                <Text style={styles.addToCartButtonText}>Add to Cart</Text>
               </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.addToCartButton}
-              onPress={() => handleAddToCart(item)}
-            >
-              <Text style={styles.addToCartButtonText}>Add to Cart</Text>
-            </TouchableOpacity>
-          )}
+            )}
+          </View>
         </View>
       );
     },
@@ -620,61 +625,86 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
-              <Ionicons name="close" size={24} color="#333" />
+              <Ionicons name="close" size={24} color="#fff" />
             </TouchableOpacity>
+
+            {/* Fixed header section */}
             <Image
               source={{ uri: selectedProduct.imageUrl }}
               style={styles.modalImage}
             />
-            <Text style={styles.modalProductName}>{selectedProduct.name}</Text>
-            <Text style={styles.modalProductPrice}>
-              ₹{selectedProduct.price}
-            </Text>
-            <Text style={styles.modalProductUnit}>
-              Unit: {selectedProduct.unit}
-            </Text>
-            <Text style={styles.modalProductDescription}>
-              {selectedProduct.description}
-            </Text>
-            <Text style={styles.modalProductCategory}>
-              Category: {selectedProduct.category}
-            </Text>
-            <Text style={styles.modalProductLocation}>
-              Location: {selectedProduct.location}
-            </Text>
 
-            {quantity > 0 ? (
-              <View style={styles.modalQuantityContainer}>
+            <View style={styles.modalInfoSection}>
+              <Text style={styles.modalProductName}>
+                {selectedProduct.name}
+              </Text>
+              <Text style={styles.modalProductPrice}>
+                ₹{selectedProduct.price}
+              </Text>
+              <Text style={styles.modalProductUnit}>
+                Unit: {selectedProduct.unit}
+              </Text>
+            </View>
+
+            {/* Separator */}
+            <View style={styles.modalSeparator} />
+
+            {/* Scrollable description section */}
+            <ScrollView
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={true}
+              indicatorStyle="default"
+              scrollIndicatorInsets={{ right: 1 }}
+            >
+              <Text style={styles.modalProductCategory}>
+                Category: {selectedProduct.category}
+              </Text>
+              <Text style={styles.modalProductLocation}>
+                Location: {selectedProduct.location}
+              </Text>
+              <Text style={styles.modalProductDescription}>
+                {selectedProduct.description}
+              </Text>
+            </ScrollView>
+
+            {/* Fixed action section */}
+            <View style={styles.modalActionContainer}>
+              {quantity > 0 ? (
+                <View style={styles.modalQuantityContainer}>
+                  <TouchableOpacity
+                    style={styles.modalQuantityButton}
+                    onPress={() =>
+                      handleQuantityChange(selectedProduct, quantity - 1)
+                    }
+                  >
+                    <Ionicons name="remove" size={16} color="#fff" />
+                  </TouchableOpacity>
+
+                  <Text style={styles.modalQuantityText}>{quantity}</Text>
+
+                  <TouchableOpacity
+                    style={styles.modalQuantityButton}
+                    onPress={() =>
+                      handleQuantityChange(selectedProduct, quantity + 1)
+                    }
+                  >
+                    <Ionicons name="add" size={16} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
                 <TouchableOpacity
-                  style={styles.modalQuantityButton}
-                  onPress={() =>
-                    handleQuantityChange(selectedProduct, quantity - 1)
-                  }
+                  style={styles.modalAddToCartButton}
+                  onPress={() => {
+                    handleAddToCart(selectedProduct);
+                  }}
                 >
-                  <Ionicons name="remove" size={20} color="#fff" />
+                  <Text style={styles.modalAddToCartButtonText}>
+                    Add to Cart
+                  </Text>
                 </TouchableOpacity>
-
-                <Text style={styles.modalQuantityText}>{quantity}</Text>
-
-                <TouchableOpacity
-                  style={styles.modalQuantityButton}
-                  onPress={() =>
-                    handleQuantityChange(selectedProduct, quantity + 1)
-                  }
-                >
-                  <Ionicons name="add" size={20} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.modalAddToCartButton}
-                onPress={() => {
-                  handleAddToCart(selectedProduct);
-                }}
-              >
-                <Text style={styles.modalAddToCartButtonText}>Add to Cart</Text>
-              </TouchableOpacity>
-            )}
+              )}
+            </View>
           </View>
         </View>
       </Modal>
@@ -709,14 +739,16 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
                 source={{ uri: item.imageUrl }}
                 style={styles.recommendedImage}
               />
-              <Text
-                style={styles.recommendedName}
-                numberOfLines={2}
-                ellipsizeMode="tail"
-              >
-                {item.name}
-              </Text>
-              <Text style={styles.recommendedPrice}>₹{item.price}</Text>
+              <View style={styles.recommendedContent}>
+                <Text
+                  style={styles.recommendedName}
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                >
+                  {item.name}
+                </Text>
+                <Text style={styles.recommendedPrice}>₹{item.price}</Text>
+              </View>
             </TouchableOpacity>
           )}
           onScrollBeginDrag={() => {
@@ -765,6 +797,7 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
             autoscrollToTopThreshold: 100,
           }}
         />
+        <View style={styles.recommendationsSeparator} />
       </View>
     );
   }, [recommendations, handleProductPress]);
@@ -953,7 +986,9 @@ export default function MarketplaceScreen({ navigation, route }: Props) {
           products,
           userPreferences
         );
-        setRecommendations(recommended);
+        // Randomize the recommendations list each time
+        const shuffled = [...recommended].sort(() => Math.random() - 0.5);
+        setRecommendations(shuffled);
       }
     };
     getAIRecommendations();
@@ -1179,6 +1214,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
     overflow: "hidden",
+    minHeight: 240,
+    justifyContent: "space-between",
   },
   productImage: {
     width: "100%",
@@ -1186,12 +1223,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
     resizeMode: "cover",
   },
+  productInfo: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+  },
   productName: {
     fontSize: 14,
     fontFamily: "Poppins_600SemiBold",
-    marginTop: 12,
     marginBottom: 4,
-    marginHorizontal: 12,
     color: "#1F2937",
     lineHeight: 18,
     minHeight: 36, // Ensure consistent height for 2 lines
@@ -1201,20 +1241,25 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_700Bold",
     color: "#059669",
     marginBottom: 0,
-    marginHorizontal: 12,
+  },
+  productActions: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
   },
   addToCartButton: {
     backgroundColor: "#8B5CF6",
-    paddingVertical: 12,
-    marginHorizontal: 12,
-    marginBottom: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 8,
     alignItems: "center",
+    justifyContent: "center",
+    minHeight: 36,
+    height: 36,
   },
   addToCartButtonText: {
     color: "#fff",
     fontFamily: "Poppins_600SemiBold",
-    fontSize: 14,
+    fontSize: 13,
   },
   productListContainer: {
     paddingHorizontal: 16,
@@ -1231,57 +1276,116 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 20,
     width: "90%",
-    maxHeight: "80%",
+    maxHeight: "85%",
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalScrollView: {
+    maxHeight: 280,
+    paddingHorizontal: 20,
+    backgroundColor: "#FAFAFA",
+    marginHorizontal: 20,
+    borderRadius: 12,
+    paddingVertical: 16,
+  },
+  modalScrollContent: {
+    paddingBottom: 8,
+  },
+  modalActionContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB",
   },
   closeButton: {
     position: "absolute",
-    top: 10,
-    right: 10,
-    zIndex: 1,
+    top: 15,
+    right: 15,
+    zIndex: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalImage: {
     width: "100%",
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 16,
+    height: 220,
+    backgroundColor: "#f5f5f5",
+    resizeMode: "cover",
+  },
+  modalInfoSection: {
+    padding: 20,
+    paddingBottom: 0,
   },
   modalProductName: {
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 8,
+    color: "#1F2937",
   },
   modalProductPrice: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
-    color: "#69C779",
+    color: "#059669",
     marginBottom: 8,
   },
   modalProductUnit: {
     fontSize: 16,
-    marginBottom: 8,
+    color: "#6B7280",
+    marginBottom: 0,
+  },
+  modalSeparator: {
+    height: 1,
+    backgroundColor: "#E5E7EB",
+    marginHorizontal: 20,
+    marginVertical: 16,
+  },
+  modalScrollIndicator: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.1)",
+    borderRadius: 2,
+    width: 4,
+    height: 20,
   },
   modalProductDescription: {
     fontSize: 16,
-    marginBottom: 16,
+    lineHeight: 26,
+    color: "#374151",
+    marginBottom: 20,
   },
   modalProductCategory: {
     fontSize: 14,
-    color: "#666",
-    marginBottom: 4,
+    color: "#6B7280",
+    marginBottom: 8,
+    fontWeight: "500",
   },
   modalProductLocation: {
     fontSize: 14,
-    color: "#666",
+    color: "#6B7280",
     marginBottom: 16,
+    fontWeight: "500",
   },
   modalAddToCartButton: {
     backgroundColor: "#8B5CF6",
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: "center",
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   modalAddToCartButtonText: {
     color: "#fff",
@@ -1307,6 +1411,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
     opacity: 1, // Add this for smooth transitions
     transform: [{ scale: 1 }], // Add this for smooth transitions
+    height: 140, // Fixed height for consistent layout
   },
   recommendedImage: {
     width: 100,
@@ -1314,16 +1419,31 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#f0f0f0", // Add placeholder color
   },
+  recommendedContent: {
+    flex: 1,
+    paddingTop: 4,
+    justifyContent: "space-between",
+    minHeight: 36, // Ensure minimum space for text content
+  },
   recommendedName: {
     fontSize: 12,
-    marginTop: 4,
     color: "#333",
     fontWeight: "500",
-  } as TextStyle, // Remove numberOfLines and ellipsizeMode from styles
+    lineHeight: 14,
+    flex: 1,
+    textAlign: "left",
+  } as TextStyle,
   recommendedPrice: {
     fontSize: 12,
     fontWeight: "bold",
-    color: "#69C779",
+    color: "#059669",
+    marginTop: 2,
+  },
+  recommendationsSeparator: {
+    height: 1,
+    backgroundColor: "#E5E7EB",
+    marginTop: 20,
+    marginHorizontal: 16,
   },
   emptyState: {
     flex: 1,
@@ -1388,10 +1508,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#F3F4F6",
     borderRadius: 8,
-    padding: 6,
-    marginHorizontal: 12,
-    marginBottom: 12,
-    minHeight: 44, // Match button height
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    minHeight: 36,
+    height: 36,
   },
   quantityButton: {
     backgroundColor: "#8B5CF6",
@@ -1403,7 +1523,7 @@ const styles = StyleSheet.create({
   },
   quantityText: {
     fontFamily: "Poppins_600SemiBold",
-    fontSize: 16,
+    fontSize: 14,
     color: "#4B5563",
   },
   modalQuantityContainer: {
@@ -1411,15 +1531,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     backgroundColor: "#F3F4F6",
-    borderRadius: 8,
-    padding: 4,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     marginBottom: 8,
+    minHeight: 50,
   },
   modalQuantityButton: {
     backgroundColor: "#8B5CF6",
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
   },

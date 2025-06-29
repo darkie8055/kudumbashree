@@ -813,9 +813,9 @@ export default function HomeScreen({ navigation }: Props) {
                             <View style={styles.newsTag}>
                               <Text style={styles.newsTagText}>NEWS</Text>
                             </View>
-                            <TouchableOpacity style={styles.readMoreButton}>
+                            {/* <TouchableOpacity style={styles.readMoreButton}>
                               <Text style={styles.readMoreText}>Read More</Text>
-                            </TouchableOpacity>
+                            </TouchableOpacity> */}
                           </View>
                         </LinearGradient>
                       </Animated.View>
